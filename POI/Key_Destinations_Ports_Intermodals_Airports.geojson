@@ -1,0 +1,369 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.213,
+          -33.9697
+        ]
+      },
+      "properties": {
+        "name": "Port Botany",
+        "facility_type": "Major Port"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.901,
+          -34.472
+        ]
+      },
+      "properties": {
+        "name": "Port Kembla",
+        "facility_type": "Major Port"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.783,
+          -32.92
+        ]
+      },
+      "properties": {
+        "name": "Port of Newcastle",
+        "facility_type": "Major Port"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.937,
+          -33.935
+        ]
+      },
+      "properties": {
+        "name": "Moorebank Intermodal",
+        "facility_type": "Major Intermodal"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.1,
+          -33.883
+        ]
+      },
+      "properties": {
+        "name": "Enfield Intermodal",
+        "facility_type": "Major Intermodal"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.783,
+          -32.92
+        ]
+      },
+      "properties": {
+        "name": "Port of Newcastle Intermodal",
+        "facility_type": "Major Intermodal"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          148.175,
+          -33.138
+        ]
+      },
+      "properties": {
+        "name": "Parkes Intermodal",
+        "facility_type": "Major Intermodal"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.1772,
+          -33.9461
+        ]
+      },
+      "properties": {
+        "name": "Sydney Kingsford Smith Airport (SYD)",
+        "facility_type": "International Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.7384,
+          -33.8815
+        ]
+      },
+      "properties": {
+        "name": "Western Sydney International Airport (WSI)",
+        "facility_type": "International Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.8348,
+          -32.7953
+        ]
+      },
+      "properties": {
+        "name": "Newcastle Airport (NTL)",
+        "facility_type": "International Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          153.1158,
+          -30.3208
+        ]
+      },
+      "properties": {
+        "name": "Coffs Harbour Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          152.8639,
+          -31.4356
+        ]
+      },
+      "properties": {
+        "name": "Port Macquarie Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          153.5603,
+          -28.8339
+        ]
+      },
+      "properties": {
+        "name": "Ballina Byron Gateway Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          148.5747,
+          -32.2167
+        ]
+      },
+      "properties": {
+        "name": "Dubbo City Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          147.4664,
+          -35.1653
+        ]
+      },
+      "properties": {
+        "name": "Wagga Wagga Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          146.9581,
+          -36.0678
+        ]
+      },
+      "properties": {
+        "name": "Albury Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.8469,
+          -31.0839
+        ]
+      },
+      "properties": {
+        "name": "Tamworth Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.6172,
+          -30.5281
+        ]
+      },
+      "properties": {
+        "name": "Armidale Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.1328,
+          -33.3817
+        ]
+      },
+      "properties": {
+        "name": "Orange Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          141.4722,
+          -31.9983
+        ]
+      },
+      "properties": {
+        "name": "Broken Hill Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          146.0667,
+          -34.2492
+        ]
+      },
+      "properties": {
+        "name": "Griffith Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.845,
+          -29.4989
+        ]
+      },
+      "properties": {
+        "name": "Moree Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.8267,
+          -30.3192
+        ]
+      },
+      "properties": {
+        "name": "Narrabri Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.6108,
+          -32.5625
+        ]
+      },
+      "properties": {
+        "name": "Mudgee Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          153.26,
+          -28.8303
+        ]
+      },
+      "properties": {
+        "name": "Lismore Airport",
+        "facility_type": "Regional Airport"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.9011,
+          -36.9086
+        ]
+      },
+      "properties": {
+        "name": "Merimbula Airport",
+        "facility_type": "Regional Airport"
+      }
+    }
+  ]
+}

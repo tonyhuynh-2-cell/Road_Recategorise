@@ -1,0 +1,725 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.1819,
+          -33.8889
+        ]
+      },
+      "properties": {
+        "name": "Royal Prince Alfred Hospital",
+        "beds": 1200,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.9872,
+          -33.8028
+        ]
+      },
+      "properties": {
+        "name": "Westmead Hospital",
+        "beds": 975,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.6811,
+          -32.9218
+        ]
+      },
+      "properties": {
+        "name": "John Hunter Hospital",
+        "beds": 820,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.9264,
+          -33.9297
+        ]
+      },
+      "properties": {
+        "name": "Liverpool Hospital",
+        "beds": 877,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.1908,
+          -33.8214
+        ]
+      },
+      "properties": {
+        "name": "Royal North Shore Hospital",
+        "beds": 600,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.2375,
+          -33.9178
+        ]
+      },
+      "properties": {
+        "name": "Prince of Wales Hospital",
+        "beds": 440,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.22,
+          -33.88
+        ]
+      },
+      "properties": {
+        "name": "St Vincents Hospital Sydney",
+        "beds": 450,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.6867,
+          -33.7625
+        ]
+      },
+      "properties": {
+        "name": "Nepean Hospital",
+        "beds": 520,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.1025,
+          -33.8381
+        ]
+      },
+      "properties": {
+        "name": "Concord Repatriation General Hospital",
+        "beds": 500,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.1328,
+          -33.9669
+        ]
+      },
+      "properties": {
+        "name": "St George Hospital",
+        "beds": 480,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.9058,
+          -33.7686
+        ]
+      },
+      "properties": {
+        "name": "Blacktown Hospital",
+        "beds": 450,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.3417,
+          -33.4264
+        ]
+      },
+      "properties": {
+        "name": "Gosford Hospital",
+        "beds": 450,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.0994,
+          -33.7025
+        ]
+      },
+      "properties": {
+        "name": "Hornsby Ku-ring-gai Hospital",
+        "beds": 400,
+        "category": "Urban Major Hospital (400+ beds)",
+        "zone": "Urban"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.8931,
+          -34.4244
+        ]
+      },
+      "properties": {
+        "name": "Wollongong Hospital",
+        "beds": 500,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          153.1194,
+          -30.3089
+        ]
+      },
+      "properties": {
+        "name": "Coffs Harbour Hospital",
+        "beds": 258,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.9208,
+          -31.0928
+        ]
+      },
+      "properties": {
+        "name": "Tamworth Hospital",
+        "beds": 220,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          147.3614,
+          -35.1189
+        ]
+      },
+      "properties": {
+        "name": "Wagga Wagga Base Hospital",
+        "beds": 200,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.1,
+          -33.2883
+        ]
+      },
+      "properties": {
+        "name": "Orange Health Service",
+        "beds": 200,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          148.61,
+          -32.25
+        ]
+      },
+      "properties": {
+        "name": "Dubbo Base Hospital",
+        "beds": 198,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          152.8917,
+          -31.4417
+        ]
+      },
+      "properties": {
+        "name": "Port Macquarie Base Hospital",
+        "beds": 180,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          153.2783,
+          -28.8117
+        ]
+      },
+      "properties": {
+        "name": "Lismore Base Hospital",
+        "beds": 170,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          150.605,
+          -34.875
+        ]
+      },
+      "properties": {
+        "name": "Shoalhaven District Memorial Hospital",
+        "beds": 160,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          153.5333,
+          -28.1833
+        ]
+      },
+      "properties": {
+        "name": "Tweed Hospital",
+        "beds": 150,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.5783,
+          -33.4206
+        ]
+      },
+      "properties": {
+        "name": "Bathurst Base Hospital",
+        "beds": 140,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.6672,
+          -30.515
+        ]
+      },
+      "properties": {
+        "name": "Armidale Hospital",
+        "beds": 130,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.7167,
+          -34.75
+        ]
+      },
+      "properties": {
+        "name": "Goulburn Base Hospital",
+        "beds": 120,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.5633,
+          -32.7292
+        ]
+      },
+      "properties": {
+        "name": "Maitland Hospital",
+        "beds": 120,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          152.4667,
+          -31.9
+        ]
+      },
+      "properties": {
+        "name": "Manning Base Hospital (Taree)",
+        "beds": 110,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          152.9333,
+          -29.6833
+        ]
+      },
+      "properties": {
+        "name": "Grafton Base Hospital",
+        "beds": 100,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          146.9133,
+          -36.0739
+        ]
+      },
+      "properties": {
+        "name": "Albury Base Hospital",
+        "beds": 100,
+        "category": "Regional Major Hospital (100+ beds)",
+        "zone": "Regional"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          141.45,
+          -31.95
+        ]
+      },
+      "properties": {
+        "name": "Broken Hill Hospital",
+        "beds": 80,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          146.05,
+          -34.2889
+        ]
+      },
+      "properties": {
+        "name": "Griffith Base Hospital",
+        "beds": 60,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.8333,
+          -29.4667
+        ]
+      },
+      "properties": {
+        "name": "Moree District Hospital",
+        "beds": 40,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.7833,
+          -30.3333
+        ]
+      },
+      "properties": {
+        "name": "Narrabri District Hospital",
+        "beds": 30,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          145.8333,
+          -31.4833
+        ]
+      },
+      "properties": {
+        "name": "Cobar Health Service",
+        "beds": 25,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          145.9333,
+          -30.0833
+        ]
+      },
+      "properties": {
+        "name": "Bourke District Hospital",
+        "beds": 20,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          149.5875,
+          -32.5944
+        ]
+      },
+      "properties": {
+        "name": "Mudgee District Hospital",
+        "beds": 45,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          148.1833,
+          -33.1333
+        ]
+      },
+      "properties": {
+        "name": "Parkes District Hospital",
+        "beds": 35,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          148.0,
+          -33.3833
+        ]
+      },
+      "properties": {
+        "name": "Forbes District Hospital",
+        "beds": 25,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          148.6833,
+          -33.8333
+        ]
+      },
+      "properties": {
+        "name": "Cowra District Hospital",
+        "beds": 30,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          148.3,
+          -34.3167
+        ]
+      },
+      "properties": {
+        "name": "Young District Hospital",
+        "beds": 25,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.1167,
+          -29.7833
+        ]
+      },
+      "properties": {
+        "name": "Inverell District Hospital",
+        "beds": 40,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          151.6833,
+          -29.7333
+        ]
+      },
+      "properties": {
+        "name": "Glen Innes Hospital",
+        "beds": 20,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          147.9833,
+          -29.4333
+        ]
+      },
+      "properties": {
+        "name": "Lightning Ridge Hospital",
+        "beds": 15,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          148.1167,
+          -30.0167
+        ]
+      },
+      "properties": {
+        "name": "Walgett Health Service",
+        "beds": 15,
+        "category": "Remote Major Hospital (15+ beds)",
+        "zone": "Remote"
+      }
+    }
+  ]
+}

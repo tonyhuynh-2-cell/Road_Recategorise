@@ -1,0 +1,21 @@
+# OS files
+.DS_Store
+
+# Large source data (download instructions in data_requirements.md)
+Data for Point of Interests/
+POI/UCL/
+POI/SA2/
+POI/SA3/
+POI/SAL/
+POI/LGA/
+POI/Remoteness/
+POI/Employment_Lands/
+NHVR GeoPackages/
+PBS_Networks/
+
+# Zip files
+*.zip
+
+# Keep these tracked
+!dashboard/
+!dashboard/data/

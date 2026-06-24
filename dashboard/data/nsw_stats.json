@@ -1,0 +1,20 @@
+{
+  "total_roads": 17691,
+  "green": 4938,
+  "orange": 1276,
+  "red": 11477,
+  "by_category": {
+    "State Road": {
+      "total": 11853,
+      "green": 4893,
+      "orange": 781,
+      "red": 6179
+    },
+    "Regional Road": {
+      "total": 5838,
+      "green": 45,
+      "orange": 495,
+      "red": 5298
+    }
+  }
+}
