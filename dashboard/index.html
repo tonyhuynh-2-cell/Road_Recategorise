@@ -5,81 +5,190 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Road Recategorisation Criteria Assessment – NSW</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --ink: #1c1917;
+            --ink-soft: #44403c;
+            --muted: #78716c;
+            --faint: #a8a29e;
+            --line: #e7e5e4;
+            --line-soft: #f0efed;
+            --bg: #ffffff;
+            --bg-soft: #faf9f8;
+            --bg-map: #f4f3f1;
+            --red: #dc2626;
+            --red-soft: #fbeaea;
+            --pass: #16a34a;
+            --warn: #f59e0b;
+            --fail: #dc2626;
+            --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --mono: 'IBM Plex Mono', ui-monospace, monospace;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; }
+        html, body { height: 100%; }
+        body { font-family: var(--sans); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
         .container { display: flex; height: 100vh; }
-        
+
         /* Sidebar */
-        .sidebar { width: 380px; background: #16213e; overflow-y: auto; padding: 20px; border-right: 1px solid #0f3460; }
-        .sidebar h1 { font-size: 1.1rem; color: #4fc3f7; margin-bottom: 5px; }
-        .sidebar h2 { font-size: 0.85rem; color: #90a4ae; font-weight: normal; margin-bottom: 15px; }
-        
-        /* Tabs */
-        .tabs { display: flex; gap: 0; margin-bottom: 20px; border-radius: 6px; overflow: hidden; }
-        .tab-btn { flex: 1; padding: 10px 12px; background: #0f3460; border: none; color: #90a4ae; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
-        .tab-btn.active { background: #4fc3f7; color: #1a1a2e; font-weight: 600; }
-        .tab-btn:hover:not(.active) { background: #1a3a5c; }
-        
+        .sidebar { width: 392px; flex-shrink: 0; background: var(--bg); overflow-y: auto; padding: 26px 24px 40px; border-right: 1px solid var(--line); }
+        .sidebar::-webkit-scrollbar { width: 8px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
+        .eyebrow { font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin-bottom: 12px; }
+        .sidebar h1 { font: 600 17px/1.25 var(--sans); color: var(--ink); margin-bottom: 5px; letter-spacing: -.01em; }
+        .sidebar h2 { font: 400 12.5px/1.4 var(--sans); color: var(--faint); margin-bottom: 20px; }
+
+        /* Tabs — segmented control */
+        .tabs { display: flex; gap: 3px; background: var(--bg-map); padding: 4px; border-radius: 11px; margin-bottom: 22px; }
+        .tab-btn { flex: 1; padding: 9px 6px; background: transparent; border: none; color: var(--muted); font: 500 11.5px var(--sans); white-space: nowrap; cursor: pointer; border-radius: 8px; transition: all .15s; }
+        .tab-btn.active { background: var(--bg); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(28,25,23,.08); }
+        .tab-btn:hover:not(.active) { color: var(--ink); }
+
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        
-        .stat-card { background: #0f3460; border-radius: 8px; padding: 15px; margin-bottom: 12px; }
-        .stat-card h3 { font-size: 0.75rem; text-transform: uppercase; color: #90a4ae; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .stat-value { font-size: 2rem; font-weight: 700; }
-        .stat-value.green { color: #4caf50; }
-        .stat-value.red { color: #f44336; }
-        .stat-value.orange { color: #ff9800; }
-        .stat-value.blue { color: #4fc3f7; }
-        .stat-sub { font-size: 0.8rem; color: #90a4ae; margin-top: 4px; }
-        
-        .category-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1a3a5c; }
-        .category-row:last-child { border: none; }
-        .cat-name { font-size: 0.82rem; }
-        .cat-bar { display: flex; align-items: center; gap: 6px; }
-        .bar-bg { width: 80px; height: 8px; background: #1a1a2e; border-radius: 4px; overflow: hidden; display: flex; }
-        .bar-fill { height: 100%; transition: width 0.5s; }
-        .bar-fill.green { background: #4caf50; }
-        .bar-fill.orange { background: #ff9800; }
-        .bar-fill.red { background: #f44336; }
-        .cat-pct { font-size: 0.78rem; font-weight: 600; min-width: 40px; text-align: right; }
-        
-        .legend { margin-top: 15px; }
-        .legend h3 { font-size: 0.8rem; color: #90a4ae; margin-bottom: 8px; }
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 0.78rem; }
-        .legend-color { width: 24px; height: 4px; border-radius: 2px; }
-        
-        .data-note { margin-top: 15px; padding: 10px; background: #1a1a2e; border-radius: 6px; border-left: 3px solid #ff9800; }
-        .data-note p { font-size: 0.72rem; color: #b0bec5; line-height: 1.4; }
-        
+
+        /* Stat cards */
+        .stat-card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+        .stat-card h3 { font: 600 10.5px/1.3 var(--sans); text-transform: uppercase; color: var(--muted); letter-spacing: .07em; margin-bottom: 11px; }
+        .stat-value { font: 600 34px/1 var(--mono); letter-spacing: -.02em; color: var(--ink); font-feature-settings: 'tnum'; }
+        .stat-value.green { color: var(--pass); }
+        .stat-value.red { color: var(--fail); }
+        .stat-value.orange { color: var(--warn); }
+        .stat-value.blue { color: var(--ink); }
+        .stat-sub { font: 400 12px/1.45 var(--sans); color: var(--faint); margin-top: 8px; }
+        .stat-card.hero .stat-value { font-size: 40px; }
+
+        /* KPI grid */
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+        .stat-grid .stat-card { margin-bottom: 0; padding: 14px 13px; }
+        .stat-grid .stat-card h3 { font-size: 9.5px; margin-bottom: 9px; letter-spacing: .04em; }
+        .stat-grid .stat-value { font-size: 23px; }
+        .stat-grid .stat-sub { font-size: 10.5px; margin-top: 6px; line-height: 1.35; }
+
+        /* Category breakdown */
+        .category-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+        .category-row:last-child { border: none; padding-bottom: 0; }
+        .cat-name { font: 400 13px var(--sans); color: var(--ink-soft); }
+        .cat-bar { display: flex; align-items: center; gap: 10px; }
+        .bar-bg { width: 84px; height: 6px; background: #eceae8; border-radius: 3px; overflow: hidden; display: flex; }
+        .bar-fill { height: 100%; transition: width .6s ease; }
+        .bar-fill.green { background: var(--pass); }
+        .bar-fill.orange { background: var(--warn); }
+        .bar-fill.red { background: var(--fail); }
+        .cat-pct { font: 500 12px var(--mono); color: var(--ink); min-width: 38px; text-align: right; font-feature-settings: 'tnum'; }
+
+        /* Legend */
+        .legend { margin-top: 4px; }
+        .legend h3 { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 11px; }
+        .legend-item { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; font: 400 12.5px/1.3 var(--sans); color: var(--ink-soft); }
+        .legend-color { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+        .legend-color.legend-dash { height: 0; border-top: 3px dashed #57534e; border-radius: 0; }
+
+        /* Note */
+        .data-note { margin-top: 16px; background: var(--bg-soft); border: 1px solid var(--line-soft); border-radius: 12px; padding: 13px 15px; }
+        .data-note .note-label { font: 600 9.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); display: block; margin-bottom: 7px; }
+        .data-note p { font: 400 11.5px/1.55 var(--sans); color: var(--muted); }
+        .data-note strong { color: var(--ink-soft); font-weight: 600; }
+
         /* Map */
-        .map-container { flex: 1; position: relative; }
-        #map { width: 100%; height: 100%; }
-        
-        .info-panel { position: absolute; top: 10px; right: 10px; background: rgba(22,33,62,0.95); padding: 14px; border-radius: 8px; max-width: 320px; z-index: 1000; display: none; font-size: 0.8rem; }
-        .info-panel h4 { color: #4fc3f7; font-size: 0.9rem; margin-bottom: 8px; }
-        .info-panel p { color: #ccc; margin-bottom: 5px; line-height: 1.3; }
-        .info-panel .pass { color: #4caf50; }
-        .info-panel .fail { color: #f44336; }
-        .info-panel .maybe { color: #ff9800; }
-        .close-btn { position: absolute; top: 8px; right: 10px; background: none; border: none; color: #90a4ae; cursor: pointer; font-size: 1.1rem; }
-        
+        .map-container { flex: 1; position: relative; background: #e9eff3; }
+        #map { width: 100%; height: 100%; background: #e9eff3; }
+        .leaflet-tile-pane { filter: saturate(1.9); }
+        .leaflet-bar { border: none !important; box-shadow: 0 1px 4px rgba(28,25,23,.12) !important; }
+        .leaflet-bar a { background: var(--bg) !important; color: var(--ink-soft) !important; border-bottom: 1px solid var(--line) !important; width: 32px !important; height: 32px !important; line-height: 32px !important; font-size: 17px !important; }
+        .leaflet-bar a:hover { background: var(--bg-soft) !important; }
+        .leaflet-control-attribution { background: rgba(255,255,255,.82) !important; color: var(--faint) !important; font: 400 10px var(--sans) !important; }
+        .leaflet-control-attribution a { color: var(--muted) !important; }
+
+        .info-panel { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,.97); border: 1px solid var(--line); padding: 16px; border-radius: 12px; max-width: 320px; z-index: 1000; display: none; font-size: 0.8rem; box-shadow: 0 4px 16px rgba(28,25,23,.1); }
+        .info-panel h4 { color: var(--ink); font-size: 0.9rem; margin-bottom: 8px; }
+        .info-panel p { color: var(--ink-soft); margin-bottom: 5px; line-height: 1.3; }
+        .info-panel .pass { color: var(--ink); }
+        .info-panel .fail { color: var(--red); }
+        .info-panel .maybe { color: var(--muted); }
+        .close-btn { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--faint); cursor: pointer; font-size: 1.1rem; }
+
         /* Detail tab */
-        .criteria-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid #1a3a5c; font-size: 0.8rem; line-height: 1.4; }
-        .criteria-item:last-child { border: none; }
-        .criteria-icon { font-size: 1rem; min-width: 20px; text-align: center; }
+        .detail-placeholder { text-align: center; padding: 60px 24px; color: var(--faint); }
+        .detail-placeholder svg { margin-bottom: 16px; }
+        .detail-placeholder p { font: 400 13px/1.5 var(--sans); color: var(--muted); max-width: 220px; margin: 0 auto; }
+        .criteria-item { display: flex; align-items: flex-start; gap: 9px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; line-height: 1.4; }
+        .criteria-item:last-child { border: none; padding-bottom: 0; }
+        .criteria-icon { font-size: 0.95rem; min-width: 18px; text-align: center; line-height: 1.4; }
         .criteria-text { flex: 1; }
-        .criteria-label { color: #ccc; }
-        .criteria-value { color: #90a4ae; font-size: 0.75rem; margin-top: 2px; }
-        .detail-highlight { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+        .criteria-label { color: var(--ink-soft); font: 400 12.5px/1.4 var(--sans); }
+        .criteria-value { color: var(--faint); font: 400 11px/1.4 var(--sans); margin-top: 2px; }
+        .ci { width: 15px; height: 15px; vertical-align: middle; display: inline-block; }
+        .result-line { display: inline-flex; align-items: center; gap: 8px; }
+        .result-line .ci { width: 20px; height: 20px; }
+
+        @media (max-width: 860px) {
+            .container { flex-direction: column; height: auto; min-height: 100dvh; }
+            .map-container { order: 1; height: 48vh; min-height: 300px; }
+            .sidebar { order: 2; width: 100%; height: auto; overflow: visible; border-right: none; border-top: 1px solid var(--line); }
+        }
+
+        /* IPWEA brand lockup */
+        .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 22px; }
+        .brand-mark { width: 48px; height: 48px; flex-shrink: 0; }
+        .brand-name { font: 700 23px/1 var(--sans); letter-spacing: .04em; color: var(--ink); }
+        .brand-full { font: 400 9.5px/1.35 var(--sans); color: var(--faint); margin-top: 3px; max-width: 235px; }
+
+        /* Loading screen */
+        #loader { position: fixed; inset: 0; z-index: 4000; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; transition: opacity .5s ease, visibility .5s ease; }
+        #loader.loaded { opacity: 0; visibility: hidden; }
+        #loader .loader-mark { width: 66px; height: 66px; animation: ipwea-pulse 1.6s ease-in-out infinite; }
+        #loader .loader-name { font: 700 42px/1 var(--sans); letter-spacing: .26em; color: var(--ink); padding-left: .26em; }
+        #loader .loader-bar { width: 168px; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+        #loader .loader-fill { width: 0; height: 100%; border-radius: 2px; background: var(--ink); animation: ipwea-fill 1.2s linear forwards; }
+        @keyframes ipwea-fill { from { width: 0; } to { width: 100%; } }
+        @keyframes ipwea-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.93); } }
+
+        /* Minimalist pin markers + zoom-to-label */
+        .town-icon { background: none !important; border: none !important; }
+        .town-pin { display: block; line-height: 0; filter: drop-shadow(0 2px 2px rgba(28,25,23,.28)); transition: opacity .2s ease, transform .14s ease; transform-origin: 50% 94%; cursor: pointer; }
+        .town-pin svg { display: block; }
+        .town-icon:hover .town-pin { transform: scale(1.14); }
+        .leaflet-tooltip.town-label { background: #fff; border: 1px solid var(--line); color: var(--ink); font: 500 11px var(--sans); padding: 3px 9px; border-radius: 7px; box-shadow: 0 2px 8px rgba(28,25,23,.14); white-space: nowrap; display: none; }
+        .leaflet-tooltip.town-label::before { display: none !important; border: none !important; }
+        .leaflet-tooltip.road-label { background: #fff; border: 1px solid var(--line); color: var(--ink); font: 600 11.5px var(--sans); padding: 3px 9px; border-radius: 7px; box-shadow: 0 2px 8px rgba(28,25,23,.16); white-space: nowrap; }
+        .leaflet-tooltip.road-label .rl-num { color: var(--muted); font-weight: 500; margin-left: 6px; }
+        .leaflet-tooltip.road-label::before { display: none !important; border: none !important; }
+        .rl-shield { display: inline-block; font: 700 10px var(--mono); color: #fff; background: #57534e; padding: 1px 5px; border-radius: 4px; vertical-align: middle; margin-right: 2px; }
+        .rl-shield.rl-M { background: #15803d; }
+        .rl-shield.rl-A { background: #b45309; }
+        .rl-shield.rl-B { background: #1d4ed8; }
+        .leaflet-container.labels-on .town-label { display: block; }
+        .leaflet-container.labels-on .town-pin { opacity: 0; }
     </style>
 </head>
 <body>
+<div id="loader">
+    <svg class="loader-mark" viewBox="33 8 119 119" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#a52b32" d="M92.735 125.963c32.657 0 58.966-25.932 58.966-58.125S125.392 9.712 92.735 9.712c-32.659 0-58.967 25.933-58.967 58.126s26.309 58.125 58.967 58.125z"/>
+        <path fill="#fff" d="M92.282 11.054l-45.359 90.765s24.041-20.567 45.359-20.567c21.773 0 45.812 20.567 45.812 20.567L92.282 11.054z"/>
+    </svg>
+    <div class="loader-name">IPWEA</div>
+    <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
 <div class="container">
     <div class="sidebar">
+        <div class="brand">
+            <svg class="brand-mark" viewBox="33 8 119 119" xmlns="http://www.w3.org/2000/svg" aria-label="IPWEA logo">
+                <path fill="#a52b32" d="M92.735 125.963c32.657 0 58.966-25.932 58.966-58.125S125.392 9.712 92.735 9.712c-32.659 0-58.967 25.933-58.967 58.126s26.309 58.125 58.967 58.125z"/>
+                <path fill="#fff" d="M92.282 11.054l-45.359 90.765s24.041-20.567 45.359-20.567c21.773 0 45.812 20.567 45.812 20.567L92.282 11.054z"/>
+            </svg>
+            <div class="brand-text">
+                <div class="brand-name">IPWEA</div>
+                <div class="brand-full">Institute of Public Works Engineering Australasia</div>
+            </div>
+        </div>
+        <div class="eyebrow">TfNSW · Network Assessment</div>
         <h1>Road Recategorisation Assessment</h1>
-        <h2>TfNSW Criteria vs Current Classification</h2>
-        
+        <h2>Criteria alignment vs. current classification</h2>
+
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('nsw')">NSW Overview</button>
             <button class="tab-btn" onclick="switchTab('cv')">Clarence Valley</button>
@@ -88,119 +197,127 @@
 
         <!-- NSW Tab -->
         <div class="tab-content active" id="tab-nsw">
-            <div class="stat-card">
-                <h3>NSW-Wide Assessment (no ADT data)</h3>
+            <div class="stat-card hero">
+                <h3>NSW-wide assessment (no ADT data)</h3>
                 <div class="stat-value blue" id="nsw-total">–</div>
-                <div class="stat-sub">total State & Regional road segments</div>
+                <div class="stat-sub">total State &amp; Regional road segments</div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <h3>Meets criteria</h3>
+                    <div class="stat-value green" id="nsw-green">–</div>
+                    <div class="stat-sub" id="nsw-green-pct"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>May pass (ADT)</h3>
+                    <div class="stat-value orange" id="nsw-orange">–</div>
+                    <div class="stat-sub" id="nsw-orange-pct"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Does not meet</h3>
+                    <div class="stat-value red" id="nsw-red">–</div>
+                    <div class="stat-sub" id="nsw-red-pct"></div>
+                </div>
             </div>
             <div class="stat-card">
-                <h3>Meets Criteria (without ADT)</h3>
-                <div class="stat-value green" id="nsw-green">–</div>
-                <div class="stat-sub" id="nsw-green-pct"></div>
-            </div>
-            <div class="stat-card">
-                <h3>May Pass if ADT Met</h3>
-                <div class="stat-value orange" id="nsw-orange">–</div>
-                <div class="stat-sub" id="nsw-orange-pct"></div>
-            </div>
-            <div class="stat-card">
-                <h3>Does Not Meet Criteria</h3>
-                <div class="stat-value red" id="nsw-red">–</div>
-                <div class="stat-sub" id="nsw-red-pct"></div>
-            </div>
-            <div class="stat-card">
-                <h3>By Road Category</h3>
+                <h3>By road category</h3>
                 <div id="nsw-category-breakdown"></div>
             </div>
             <div class="legend">
-                <h3>Map Legend</h3>
-                <div class="legend-item"><div class="legend-color" style="background:#4caf50"></div> Meets criteria (even without ADT)</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff9800"></div> Would meet criteria if ADT threshold passed</div>
-                <div class="legend-item"><div class="legend-color" style="background:#f44336"></div> Does not meet criteria</div>
-                <div class="legend-item"><div class="legend-color" style="background:#4fc3f7; width:8px; height:8px; border-radius:50%"></div> Town / City (2000+ pop)</div>
+                <h3>Map legend</h3>
+                <div class="legend-item"><div class="legend-color" style="background:#16a34a"></div> Meets criteria (even without ADT)</div>
+                <div class="legend-item"><div class="legend-color" style="background:#f59e0b"></div> Would meet if ADT threshold passed</div>
+                <div class="legend-item"><div class="legend-color" style="background:#dc2626"></div> Does not meet criteria</div>
+                <div class="legend-item"><div class="legend-color legend-dash"></div> Route-numbered road A / B / M (dashed)</div>
+                <div class="legend-item"><div class="legend-color" style="background:#7db4f0; width:9px; height:9px; border-radius:50%"></div> Town / City — pin size scales with population</div>
             </div>
             <div class="data-note">
-                <p><strong>Note:</strong> NSW-wide assessment excludes ADT (traffic volume) data as it is only available for select LGAs. Orange roads meet all testable criteria and would fully pass if traffic volumes exceed the relevant threshold. Select the Clarence Valley tab for full assessment including ADT.</p>
+                <span class="note-label">Note</span>
+                <p>NSW-wide assessment excludes ADT (traffic volume) data as it is only available for select LGAs. <strong>May-pass</strong> roads meet all testable criteria and would fully pass if traffic volumes exceed the relevant threshold. Select the Clarence Valley tab for full assessment including ADT.</p>
             </div>
         </div>
-        
+
         <!-- Clarence Valley Tab -->
         <div class="tab-content" id="tab-cv">
-            <div class="stat-card">
-                <h3>Overall Criteria Alignment</h3>
+            <div class="stat-card hero">
+                <h3>Overall criteria alignment</h3>
                 <div class="stat-value blue" id="cv-pct">–</div>
                 <div class="stat-sub" id="cv-detail">Loading...</div>
             </div>
-            <div class="stat-card">
-                <h3>Roads Meeting Criteria</h3>
-                <div class="stat-value green" id="cv-pass">–</div>
-                <div class="stat-sub">of <span id="cv-total">–</span> segments (roads extended to connected POIs)</div>
+            <div class="stat-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="stat-card">
+                    <h3>Meets criteria</h3>
+                    <div class="stat-value green" id="cv-pass">–</div>
+                    <div class="stat-sub">of <span id="cv-total">–</span> segments</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Does not meet</h3>
+                    <div class="stat-value red" id="cv-fail">–</div>
+                    <div class="stat-sub">may need review</div>
+                </div>
             </div>
             <div class="stat-card">
-                <h3>Roads Not Meeting Criteria</h3>
-                <div class="stat-value red" id="cv-fail">–</div>
-                <div class="stat-sub">may need recategorisation review</div>
-            </div>
-            <div class="stat-card">
-                <h3>By Road Category</h3>
+                <h3>By road category</h3>
                 <div id="cv-category-breakdown"></div>
             </div>
             <div class="stat-card">
-                <h3>Data Coverage</h3>
+                <h3>Data coverage</h3>
                 <div id="cv-data-coverage"></div>
             </div>
             <div class="legend">
-                <h3>Map Legend</h3>
-                <div class="legend-item"><div class="legend-color" style="background:#4caf50"></div> Meets criteria for assigned category</div>
-                <div class="legend-item"><div class="legend-color" style="background:#f44336"></div> Does not meet criteria</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff9800; width:8px; height:8px; border-radius:50%"></div> Town centres / POIs</div>
-                <div class="legend-item"><div class="legend-color" style="background:#90a4ae; opacity:0.5"></div> LGA boundary</div>
+                <h3>Map legend</h3>
+                <div class="legend-item"><div class="legend-color" style="background:#16a34a"></div> Meets criteria for assigned category</div>
+                <div class="legend-item"><div class="legend-color" style="background:#dc2626"></div> Does not meet criteria</div>
+                <div class="legend-item"><div class="legend-color legend-dash"></div> Route-numbered road A / B / M (dashed)</div>
+                <div class="legend-item"><div class="legend-color" style="background:#7db4f0; width:9px; height:9px; border-radius:50%"></div> Town centres / POIs</div>
+                <div class="legend-item"><div class="legend-color" style="background:#a8a29e"></div> LGA boundary</div>
             </div>
             <div class="data-note">
-                <p><strong>Note:</strong> Roads are extended beyond the LGA boundary to show full connectivity to the POIs they serve. ADT data from Clarence Valley Council covers ~51% of road segments within the LGA. Load limit data unavailable — assumed no restrictions.</p>
+                <span class="note-label">Note</span>
+                <p>Roads are extended beyond the LGA boundary to show full connectivity to the POIs they serve. ADT data from Clarence Valley Council covers <strong>~51%</strong> of road segments within the LGA. Load-limit data unavailable — assumed no restrictions.</p>
             </div>
         </div>
-        
+
         <!-- Road Detail Tab -->
         <div class="tab-content" id="tab-detail">
-            <div id="detail-empty" style="text-align:center; padding:40px 20px; color:#90a4ae;">
-                <p style="font-size:2rem; margin-bottom:10px;">🛣️</p>
-                <p style="font-size:0.9rem;">Click on any road segment on the map to view its criteria assessment</p>
+            <div id="detail-empty" class="detail-placeholder">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d6d3d1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"></circle><path d="M12 21c4-5 7-8.4 7-11a7 7 0 1 0-14 0c0 2.6 3 6 7 11z"></path></svg>
+                <p>Select any road segment on the map to view its criteria assessment.</p>
             </div>
             <div id="detail-content" style="display:none;">
                 <div class="stat-card">
-                    <h3>Road Information</h3>
-                    <div id="detail-road-name" style="font-size:1.3rem; font-weight:700; color:#4fc3f7; margin-bottom:6px;"></div>
-                    <div id="detail-road-number" style="font-size:0.8rem; color:#90a4ae; margin-bottom:4px;"></div>
-                    <div id="detail-admin-class" style="font-size:0.85rem;"></div>
+                    <h3>Road information</h3>
+                    <div id="detail-road-name" style="font-size:1.25rem; font-weight:600; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em;"></div>
+                    <div id="detail-road-number" style="font-size:0.78rem; color:var(--faint); margin-bottom:5px;"></div>
+                    <div id="detail-admin-class" style="font-size:0.85rem; color:var(--ink-soft);"></div>
                 </div>
-                
+
                 <div class="stat-card">
-                    <h3>Assessment Result</h3>
-                    <div id="detail-result" style="font-size:1.5rem; font-weight:700; margin-bottom:6px;"></div>
-                    <div id="detail-result-reason" style="font-size:0.8rem; color:#b0bec5;"></div>
+                    <h3>Assessment result</h3>
+                    <div id="detail-result" style="font-size:1.25rem; font-weight:600; margin-bottom:6px;"></div>
+                    <div id="detail-result-reason" style="font-size:0.8rem; color:var(--muted); line-height:1.45;"></div>
                 </div>
-                
+
                 <div class="stat-card">
-                    <h3>Traffic Data</h3>
+                    <h3>Traffic data</h3>
                     <div id="detail-traffic"></div>
                 </div>
-                
+
                 <div class="stat-card">
-                    <h3>Mandatory Criteria</h3>
+                    <h3>Mandatory criteria</h3>
                     <div id="detail-mandatory" style="font-size:0.82rem;"></div>
                 </div>
-                
+
                 <div class="stat-card">
-                    <h3>Optional Criteria (must meet ≥2)</h3>
+                    <h3>Optional criteria (must meet ≥2)</h3>
                     <div id="detail-optional"></div>
                 </div>
-                
+
                 <div class="stat-card">
-                    <h3>Vehicle Access</h3>
+                    <h3>Vehicle access</h3>
                     <div id="detail-vehicle-access"></div>
                 </div>
-                
+
                 <div class="stat-card">
                     <h3>Connectivity</h3>
                     <div id="detail-connectivity"></div>
@@ -208,7 +325,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="map-container">
         <div id="map"></div>
     </div>
@@ -218,14 +335,19 @@
 <script>
 
 // Map setup
-const map = L.map('map').setView([-32.0, 149.5], 6);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+const map = L.map('map', { preferCanvas: true }).setView([-32.0, 149.5], 6);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
 }).addTo(map);
 
 let nswLayer, nswTownsLayer, cvLayer, cvBoundaryLayer, cvTownsLayer;
 let currentTab = 'nsw';
-let selectedLayer = null;
+let selectedLayers = [];
+let selectedSource = null;
+let ROAD_REFS = {};   // normalised road name -> route shield (e.g. "B51"), from OSM
+
+// Track load start so the constant-speed loading bar can finish before fade-out
+const loadStart = performance.now();
 
 // Tab switching
 function switchTab(tab) {
@@ -234,97 +356,151 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelector(`.tab-btn[onclick*="${tab}"]`).classList.add('active');
     document.getElementById(`tab-${tab}`).classList.add('active');
-    
+
     if (tab === 'nsw') showNSW();
     else if (tab === 'cv') showCV();
 }
 
-function highlightRoad(layer, sourceLayer) {
-    if (selectedLayer && selectedLayer._sourceLayer) {
-        selectedLayer._sourceLayer.resetStyle(selectedLayer);
-    }
-    selectedLayer = layer;
-    selectedLayer._sourceLayer = sourceLayer;
-    layer.setStyle({ weight: 6, opacity: 1, color: '#4fc3f7' });
+// A road is many segments; group them so a click/hover affects the whole road.
+function roadKeyOf(p) {
+    const n = (p.road_number != null && String(p.road_number).trim() !== '') ? String(p.road_number).trim() : '';
+    return n || (p.road_name ? 'n:' + String(p.road_name).trim().toLowerCase() : '');
 }
+function roadLenKm(g) {
+    let L = 0;
+    const run = c => { for (let i = 1; i < c.length; i++) { const a = c[i - 1], b = c[i]; const m = (a[1] + b[1]) / 2 * Math.PI / 180; const dx = (b[0] - a[0]) * Math.cos(m), dy = b[1] - a[1]; L += Math.sqrt(dx * dx + dy * dy) * 111.32; } };
+    if (!g) return 0;
+    if (g.type === 'LineString') run(g.coordinates);
+    else if (g.type === 'MultiLineString') g.coordinates.forEach(run);
+    return L;
+}
+function weightForKm(km) { return Math.max(1.0, Math.min(4.0, 0.75 + Math.log10(1 + km) * 1.05)); }
+function titleCase(s) { return String(s).toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()); }
+function isHighSpeed(p) {
+    const n = String(p.road_name || '');
+    return /\b(MOTORWAY|FREEWAY|EXPRESSWAY|TOLLWAY)\b/i.test(n) || /^M\d/i.test(n);
+}
+// Dash any route-numbered road (A / B / M shield) as well as motorways/freeways.
+function isDashed(p) { return !!(p.ref) || isHighSpeed(p); }
+const RD_TYPE = /\b(HIGHWAY|FREEWAY|MOTORWAY|EXPRESSWAY|TOLLWAY|PARKWAY|ROAD|DRIVE|STREET|AVENUE|PLACE|LANE|WAY|TERRACE|PARADE|CIRCUIT|BOULEVARD|CRESCENT|CLOSE|COURT|TRACK|TRAIL|LINK|CONNECTION|BYPASS|TUNNEL)\b/g;
+function normRoad(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(RD_TYPE, ' ').replace(/\s+/g, ' ').trim(); }
+function roadName(p) {
+    if (p.road_name && String(p.road_name).trim()) return titleCase(p.road_name);
+    return p.admin_class === 'S' ? 'State road' : 'Regional road';
+}
+function roadRef(p) { return p.ref || null; }
+function roadLabel(p) {
+    const ref = roadRef(p);
+    if (!ref) return roadName(p);
+    return '<span class="rl-shield rl-' + ref[0] + '">' + ref + '</span> ' + roadName(p);
+}
+// Motorway/highway exit ramps & connectors clutter interchanges — hide them.
+function isRamp(p) {
+    const n = String(p.road_name || '').toUpperCase();
+    return /\b(RAMP|EXIT|ENTRY|ENTRANCE|SLIP|INTERCHANGE|PRELIM|DEVIATION|CONNECTOR)\b/.test(n) || /MOTORWAY LINK/.test(n) || /\bFR\b/.test(n) || /HILLS (TO|FR)\b/.test(n) || /BOUND BYPASS/.test(n);
+}
+function highlightRoad(layers, sourceLayer) {
+    if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
+    selectedLayers = layers;
+    selectedSource = sourceLayer;
+    layers.forEach(l => l.setStyle({ weight: 6, opacity: 1, color: '#2563eb', dashArray: null }));
+}
+function isSelected(layer) { return selectedLayers.indexOf(layer) !== -1; }
+function deselect() {
+    if (!selectedLayers.length) return;
+    if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
+    selectedLayers = [];
+    selectedSource = null;
+    const c = document.getElementById('detail-content'); if (c) c.style.display = 'none';
+    const e = document.getElementById('detail-empty'); if (e) e.style.display = '';
+}
+map.on('click', deselect);  // clicking off any road clears the selection
+
+// Minimalist inline status icons for the Road Detail panel
+const ICON = {
+    pass: '<svg class="ci" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8" fill="#dcf2e3"/><path d="M4.6 8.2 7 10.5 11.4 5.6" fill="none" stroke="#16a34a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    fail: '<svg class="ci" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8" fill="#fbe3e3"/><path d="M5.5 5.5 10.5 10.5 M10.5 5.5 5.5 10.5" fill="none" stroke="#dc2626" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    warn: '<svg class="ci" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8" fill="#f7ead1"/><path d="M5 8 H11" fill="none" stroke="#c79232" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    maybe: '<svg class="ci" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8" fill="#f7ead1"/><path d="M8 2.6a5.4 5.4 0 0 1 0 10.8z" fill="#d9962a"/></svg>'
+};
 
 function showRoadDetail(p, source) {
     switchTab('detail');
     document.getElementById('detail-empty').style.display = 'none';
     document.getElementById('detail-content').style.display = 'block';
-    
-    document.getElementById('detail-road-name').textContent = p.road_name || 'Unnamed Road';
-    document.getElementById('detail-road-number').textContent = p.road_number ? 'Road Number: ' + p.road_number : '';
+
+    document.getElementById('detail-road-name').innerHTML = roadLabel(p);
+    document.getElementById('detail-road-number').textContent = isHighSpeed(p) ? 'Motorway / freeway' : '';
     const isState = p.admin_class === 'S';
     document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + '</strong>';
-    
+
     // Result
     const resultEl = document.getElementById('detail-result');
     const reasonEl = document.getElementById('detail-result-reason');
     if (source === 'nsw') {
-        if (p.status === 'green') { resultEl.innerHTML = '<span style="color:#4caf50">✓ MEETS CRITERIA</span>'; reasonEl.textContent = 'Passes all testable criteria even without ADT data'; }
-        else if (p.status === 'orange') { resultEl.innerHTML = '<span style="color:#ff9800">◐ LIKELY MEETS</span>'; reasonEl.textContent = 'Would meet criteria if ADT exceeds the relevant threshold'; }
-        else { resultEl.innerHTML = '<span style="color:#f44336">✗ DOES NOT MEET</span>'; reasonEl.textContent = 'Fails mandatory criteria or insufficient connectivity'; }
+        if (p.status === 'green') { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Passes all testable criteria even without ADT data'; }
+        else if (p.status === 'orange') { resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY MEETS</span></span>'; reasonEl.textContent = 'Would meet criteria if ADT exceeds the relevant threshold'; }
+        else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>'; reasonEl.textContent = 'Fails mandatory criteria or insufficient connectivity'; }
     } else {
-        if (p.meets_criteria) { resultEl.innerHTML = '<span style="color:#4caf50">✓ MEETS CRITERIA</span>'; reasonEl.textContent = 'Meets ≥2 optional criteria and all mandatory'; }
-        else { resultEl.innerHTML = '<span style="color:#f44336">✗ DOES NOT MEET</span>'; reasonEl.textContent = p.mandatory_pass === 0 ? 'Fails mandatory criteria' : 'Does not meet ≥2 optional criteria'; }
+        if (p.meets_criteria) { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Meets ≥2 optional criteria and all mandatory'; }
+        else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>'; reasonEl.textContent = p.mandatory_pass === 0 ? 'Fails mandatory criteria' : 'Does not meet ≥2 optional criteria'; }
     }
-    
+
     // Traffic
     const trafficEl = document.getElementById('detail-traffic');
     if (source === 'cv' && p.adt) {
         const thr = isState ? 7000 : 2000;
         const hvThr = isState ? 8 : 6;
-        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.adt > thr ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">ADT: ' + Math.round(p.adt).toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + thr.toLocaleString() + '</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">' + (p.hv_pct && p.hv_pct > hvThr ? '✅' : p.hv_pct ? '❌' : '⚠️') + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (p.hv_pct ? p.hv_pct.toFixed(1) + '%' : 'No data') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%</div></div></div>';
+        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.adt > thr ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">ADT: ' + Math.round(p.adt).toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + thr.toLocaleString() + '</div></div></div>' +
+            '<div class="criteria-item"><span class="criteria-icon">' + (p.hv_pct && p.hv_pct > hvThr ? ICON.pass : p.hv_pct ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (p.hv_pct ? p.hv_pct.toFixed(1) + '%' : 'No data') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%</div></div></div>';
     } else {
-        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">⚠️</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">' + (isState ? 'State Road threshold: >7,000 rural / >10,000 urban' : 'Regional Road threshold: >2,000 rural') + '</div></div></div>';
+        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">' + (isState ? 'State Road threshold: >7,000 rural / >10,000 urban' : 'Regional Road threshold: >2,000 rural') + '</div></div></div>';
     }
-    
+
     // Mandatory
     const mandEl = document.getElementById('detail-mandatory');
     if (isState) {
-        mandEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.has_pbs1 ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">S-09: PBS Level 1 vehicle access</div><div class="criteria-value">Facilitates movement of PBS Level 1 or equivalent</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">⚠️</span><div class="criteria-text"><div class="criteria-label">No load limits on assets</div><div class="criteria-value">Data unavailable — assumed compliant</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">⚠️</span><div class="criteria-text"><div class="criteria-label">Does not parallel State Road within 20km</div><div class="criteria-value">Not assessed</div></div></div>';
+        mandEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.has_pbs1 ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">S-09: PBS Level 1 vehicle access</div><div class="criteria-value">Facilitates movement of PBS Level 1 or equivalent</div></div></div>' +
+            '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">No load limits on assets</div><div class="criteria-value">Data unavailable — assumed compliant</div></div></div>' +
+            '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">Does not parallel State Road within 20km</div><div class="criteria-value">Not assessed</div></div></div>';
     } else {
-        mandEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.has_bdouble ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">R-04: GML/CML 19m B-double access (50+ tonnes)</div><div class="criteria-value">Facilitates movement of 19m B-double routes</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">⚠️</span><div class="criteria-text"><div class="criteria-label">No load limits on assets</div><div class="criteria-value">Data unavailable — assumed compliant</div></div></div>';
+        mandEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.has_bdouble ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">R-04: GML/CML 19m B-double access (50+ tonnes)</div><div class="criteria-value">Facilitates movement of 19m B-double routes</div></div></div>' +
+            '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">No load limits on assets</div><div class="criteria-value">Data unavailable — assumed compliant</div></div></div>';
     }
-    
+
     // Optional criteria
     const optEl = document.getElementById('detail-optional');
     if (source === 'cv' && (p.criteria_met || p.criteria_failed)) {
         let html = '';
-        if (p.criteria_met) p.criteria_met.split('; ').forEach(c => { html += '<div class="criteria-item"><span class="criteria-icon">✅</span><div class="criteria-text"><div class="criteria-label">' + c + '</div></div></div>'; });
-        if (p.criteria_failed) p.criteria_failed.split('; ').forEach(c => { html += '<div class="criteria-item"><span class="criteria-icon">❌</span><div class="criteria-text"><div class="criteria-label">' + c + '</div></div></div>'; });
+        if (p.criteria_met) p.criteria_met.split('; ').forEach(c => { html += '<div class="criteria-item"><span class="criteria-icon">' + ICON.pass + '</span><div class="criteria-text"><div class="criteria-label">' + c + '</div></div></div>'; });
+        if (p.criteria_failed) p.criteria_failed.split('; ').forEach(c => { html += '<div class="criteria-item"><span class="criteria-icon">' + ICON.fail + '</span><div class="criteria-text"><div class="criteria-label">' + c + '</div></div></div>'; });
         optEl.innerHTML = html;
     } else {
         let html = '';
         if (isState) {
-            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_major_town || p.is_key_freight_route ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">S-07: Connects Major Towns / Regional Cities</div></div></div>';
-            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.is_key_freight_route ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">S-01: On National Land Transport Network</div></div></div>';
-            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_hospital ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">S-08: Connects hospitals / ports / airports</div></div></div>';
-            html += '<div class="criteria-item"><span class="criteria-icon">⚠️</span><div class="criteria-text"><div class="criteria-label">Meets traffic volume thresholds</div><div class="criteria-value">ADT not available</div></div></div>';
+            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_major_town || p.is_key_freight_route ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">S-07: Connects Major Towns / Regional Cities</div></div></div>';
+            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.is_key_freight_route ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">S-01: On National Land Transport Network</div></div></div>';
+            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_hospital ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">S-08: Connects hospitals / ports / airports</div></div></div>';
+            html += '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">Meets traffic volume thresholds</div><div class="criteria-value">ADT not available</div></div></div>';
         } else {
-            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_major_town ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">R-01: Connects Town / Urban Centres</div></div></div>';
-            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_hospital ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">R-02: Connects facilities to centres</div></div></div>';
-            html += '<div class="criteria-item"><span class="criteria-icon">⚠️</span><div class="criteria-text"><div class="criteria-label">Meets traffic volume thresholds</div><div class="criteria-value">ADT not available</div></div></div>';
+            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_major_town ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">R-01: Connects Town / Urban Centres</div></div></div>';
+            html += '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_hospital ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">R-02: Connects facilities to centres</div></div></div>';
+            html += '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">Meets traffic volume thresholds</div><div class="criteria-value">ADT not available</div></div></div>';
         }
         optEl.innerHTML = html;
     }
-    
+
     // Vehicle access
     document.getElementById('detail-vehicle-access').innerHTML =
-        '<div class="criteria-item"><span class="criteria-icon">' + (p.has_pbs1 ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">PBS Level 1</div></div></div>' +
-        '<div class="criteria-item"><span class="criteria-icon">' + (p.has_pbs2b ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">PBS Level 2B</div></div></div>' +
-        '<div class="criteria-item"><span class="criteria-icon">' + (p.has_bdouble ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">GML/CML 19m B-double (50+ tonnes)</div></div></div>';
-    
+        '<div class="criteria-item"><span class="criteria-icon">' + (p.has_pbs1 ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">PBS Level 1</div></div></div>' +
+        '<div class="criteria-item"><span class="criteria-icon">' + (p.has_pbs2b ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">PBS Level 2B</div></div></div>' +
+        '<div class="criteria-item"><span class="criteria-icon">' + (p.has_bdouble ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">GML/CML 19m B-double (50+ tonnes)</div></div></div>';
+
     // Connectivity
     document.getElementById('detail-connectivity').innerHTML =
-        '<div class="criteria-item"><span class="criteria-icon">' + (p.is_key_freight_route ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">National Key Freight Route (NLTN)</div></div></div>' +
-        '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_major_town || p.connects_regional_city ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">Connects to Major Town / Regional City</div></div></div>' +
-        '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_hospital ? '✅' : '❌') + '</span><div class="criteria-text"><div class="criteria-label">Near Major Hospital</div></div></div>';
+        '<div class="criteria-item"><span class="criteria-icon">' + (p.is_key_freight_route ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">National Key Freight Route (NLTN)</div></div></div>' +
+        '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_major_town || p.connects_regional_city ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">Connects to Major Town / Regional City</div></div></div>' +
+        '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_hospital ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">Near Major Hospital</div></div></div>';
 }
 
 function showNSW() {
@@ -347,14 +523,45 @@ function showCV() {
 
 // Style functions
 function nswStyle(feature) {
-    const s = feature.properties.status;
-    const colors = { green: '#4caf50', orange: '#ff9800', red: '#f44336' };
-    return { color: colors[s] || '#666', weight: s === 'green' ? 2.5 : 1.8, opacity: s === 'red' ? 0.4 : 0.8 };
+    const p = feature.properties;
+    const s = p.status;
+    const colors = { green: '#16a34a', orange: '#f59e0b', red: '#dc2626' };
+    return { color: colors[s] || '#a8a29e', weight: p._w || 2, opacity: s === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }
 
 function cvStyle(feature) {
-    const meets = feature.properties.meets_criteria;
-    return { color: meets ? '#4caf50' : '#f44336', weight: meets ? 3 : 2.2, opacity: 0.85 };
+    const p = feature.properties;
+    const meets = p.meets_criteria;
+    return { color: meets ? '#16a34a' : '#dc2626', weight: meets ? 3.2 : 2.4, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
+}
+
+// Minimalist pin marker (teardrop with a transparent centre) for towns/cities
+function townIcon(size, accent) {
+    const svg = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" fill="${accent}" d="M12 1.5C7.31 1.5 3.5 5.31 3.5 10c0 6 8.5 12.5 8.5 12.5S20.5 16 20.5 10C20.5 5.31 16.69 1.5 12 1.5ZM12 5.2a4.8 4.8 0 1 1 0 9.6 4.8 4.8 0 0 1 0-9.6Z"/></svg>`;
+    return L.divIcon({
+        className: 'town-icon',
+        html: `<span class="town-pin">${svg}</span>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, Math.round(size * 0.9375)]
+    });
+}
+
+// Town markers turn into name text-boxes once zoomed in past this level
+const LABEL_ZOOM = 9;
+function updateTownLabels() {
+    map.getContainer().classList.toggle('labels-on', map.getZoom() >= LABEL_ZOOM);
+}
+map.on('zoomend', updateTownLabels);
+
+// Hide the loading screen once the constant-speed bar has reached 100%
+function hideLoader() {
+    const l = document.getElementById('loader');
+    if (!l) return;
+    const minShow = 1200;
+    const elapsed = performance.now() - loadStart;
+    const fade = () => l.classList.add('loaded');
+    if (elapsed < minShow) setTimeout(fade, minShow - elapsed);
+    else fade();
 }
 
 // Load all data
@@ -365,18 +572,32 @@ Promise.all([
     fetch('data/clarence_valley_assessment.geojson').then(r => r.json()),
     fetch('data/summary_stats.json').then(r => r.json()),
     fetch('data/clarence_valley_boundary.geojson').then(r => r.json()),
-    fetch('data/towns_cv.geojson').then(r => r.json()).catch(() => null)
-]).then(([nswRoads, nswStats, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns]) => {
-    
+    fetch('data/towns_cv.geojson').then(r => r.json()).catch(() => null),
+    fetch('data/nsw_refs.json').then(r => r.json()).catch(() => []),
+    fetch('data/cv_refs.json').then(r => r.json()).catch(() => []),
+    fetch('data/ref_overrides.json').then(r => r.json()).catch(() => ({}))
+]).then(([nswRoads, nswStats, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv]) => {
+    // Manual overrides (data/ref_overrides.json) win over the auto OSM join.
+    // Key by road_number: "B76" forces a shield, "" removes it. By road_name (UPPER) as fallback.
+    const ov = refOv || {};
+    const applyRef = (f, autoRef) => {
+        const p = f.properties;
+        let o = ov[p.road_number];
+        if (o === undefined && p.road_name) o = ov[String(p.road_name).toUpperCase()];
+        f.properties.ref = (o !== undefined) ? (o || null) : (autoRef || p.ref || null);
+    };
+    nswRoads.features.forEach((f, i) => applyRef(f, nswRefs[i]));
+    cvRoads.features.forEach((f, i) => applyRef(f, cvRefs[i]));
+
     // === NSW Tab Stats ===
     document.getElementById('nsw-total').textContent = nswStats.total_roads.toLocaleString();
     document.getElementById('nsw-green').textContent = nswStats.green.toLocaleString();
     document.getElementById('nsw-green-pct').textContent = `${(nswStats.green/nswStats.total_roads*100).toFixed(1)}% of all roads`;
     document.getElementById('nsw-orange').textContent = nswStats.orange.toLocaleString();
-    document.getElementById('nsw-orange-pct').textContent = `${(nswStats.orange/nswStats.total_roads*100).toFixed(1)}% may pass with ADT data`;
+    document.getElementById('nsw-orange-pct').textContent = `${(nswStats.orange/nswStats.total_roads*100).toFixed(1)}% may pass with ADT`;
     document.getElementById('nsw-red').textContent = nswStats.red.toLocaleString();
-    document.getElementById('nsw-red-pct').textContent = `${(nswStats.red/nswStats.total_roads*100).toFixed(1)}% fail mandatory or connectivity criteria`;
-    
+    document.getElementById('nsw-red-pct').textContent = `${(nswStats.red/nswStats.total_roads*100).toFixed(1)}% fail criteria`;
+
     const nswCatDiv = document.getElementById('nsw-category-breakdown');
     for (const [cat, d] of Object.entries(nswStats.by_category)) {
         const gPct = (d.green/d.total*100).toFixed(0);
@@ -393,14 +614,14 @@ Promise.all([
                 </div>
             </div>`;
     }
-    
+
     // === CV Tab Stats ===
     document.getElementById('cv-pct').textContent = cvStats.accuracy_pct + '%';
     document.getElementById('cv-detail').textContent = `${cvStats.roads_meeting_criteria} of ${cvStats.total_roads} segments align`;
     document.getElementById('cv-pass').textContent = cvStats.roads_meeting_criteria;
     document.getElementById('cv-fail').textContent = cvStats.roads_not_meeting;
     document.getElementById('cv-total').textContent = cvStats.total_roads;
-    
+
     const cvCatDiv = document.getElementById('cv-category-breakdown');
     for (const [cat, d] of Object.entries(cvStats.by_category)) {
         cvCatDiv.innerHTML += `
@@ -412,7 +633,7 @@ Promise.all([
                 </div>
             </div>`;
     }
-    
+
     const covDiv = document.getElementById('cv-data-coverage');
     const cov = cvStats.criteria_breakdown;
     covDiv.innerHTML = `
@@ -421,67 +642,105 @@ Promise.all([
         <div class="category-row"><span class="cat-name">PBS Level 1</span><span class="cat-pct">${cov.with_pbs1}/${cvStats.total_roads}</span></div>
         <div class="category-row"><span class="cat-name">B-double access</span><span class="cat-pct">${cov.with_bdouble}/${cvStats.total_roads}</span></div>
         <div class="category-row"><span class="cat-name">Key freight route</span><span class="cat-pct">${cov.on_freight_network}/${cvStats.total_roads}</span></div>`;
-    
+
     // === Build Map Layers ===
-    
-    // NSW Roads
+
+    // NSW Roads — aggregate per road so a click selects the whole road
+    const NSW_BOOLS = ['has_pbs1', 'has_bdouble', 'is_key_freight_route', 'connects_major_town', 'connects_hospital'];
+    const nswRoadAgg = {}, nswRoadLayers = {}, rankS = { red: 1, orange: 2, green: 3 };
+    nswRoads.features.forEach(f => {
+        const k = roadKeyOf(f.properties); if (!k) return;
+        const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0 }));
+        if ((rankS[f.properties.status] || 0) > (rankS[a.status] || 0)) a.status = f.properties.status;
+        NSW_BOOLS.forEach(b => { if (f.properties[b]) a[b] = 1; });
+        a._len += roadLenKm(f.geometry);
+    });
+    nswRoads.features.forEach(f => {
+        const k = roadKeyOf(f.properties);
+        f.properties._w = (k && nswRoadAgg[k]) ? weightForKm(nswRoadAgg[k]._len) : 1.6;
+    });
     nswLayer = L.geoJSON(nswRoads, {
         style: nswStyle,
+        smoothFactor: 1.5,
+        filter: function(f) {
+            const p = f.properties;
+            if (isRamp(p)) return false;
+            const ag = nswRoadAgg[roadKeyOf(p)];
+            if (ag && ag._len < 0.35 && !(p.road_name && String(p.road_name).trim()) && !p.ref) return false;  // tiny unnamed/unnumbered junction stubs
+            return true;
+        },
         onEachFeature: function(feature, layer) {
-            layer.on('click', function() {
-                highlightRoad(layer, nswLayer);
-                showRoadDetail(feature.properties, 'nsw');
+            const k = roadKeyOf(feature.properties);
+            if (k) (nswRoadLayers[k] || (nswRoadLayers[k] = [])).push(layer);
+            const group = () => (k && nswRoadLayers[k]) ? nswRoadLayers[k] : [layer];
+            layer.bindTooltip(roadLabel(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
+            layer.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);
+                highlightRoad(group(), nswLayer);
+                const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
+                showRoadDetail(agg, 'nsw');
             });
-            layer.on('mouseover', function() { if (layer !== selectedLayer) layer.setStyle({weight: 4, opacity: 1}); });
-            layer.on('mouseout', function() { if (layer !== selectedLayer) nswLayer.resetStyle(layer); });
+            layer.on('mouseover', function() { if (!isSelected(layer)) group().forEach(l => l.setStyle({ weight: 5, opacity: 1 })); });
+            layer.on('mouseout', function() { if (!isSelected(layer)) group().forEach(l => nswLayer.resetStyle(l)); });
         }
     });
-    
+
     // NSW Towns
     nswTownsLayer = L.geoJSON(nswTowns, {
         pointToLayer: function(f, ll) {
-            const pop = f.properties.population;
-            const r = pop > 50000 ? 7 : pop > 20000 ? 5 : pop > 7000 ? 4 : 3;
-            return L.circleMarker(ll, {radius: r, fillColor: '#4fc3f7', color: '#fff', weight: 1, fillOpacity: 0.7});
+            const pop = f.properties.population || 0;
+            const size = pop >= 100000 ? 48 : pop >= 50000 ? 40 : pop >= 20000 ? 32 : pop >= 7000 ? 25 : 19;
+            return L.marker(ll, { icon: townIcon(size, 'rgba(96,165,250,0.6)'), keyboard: false });
         },
         onEachFeature: function(f, layer) {
-            layer.bindTooltip(`${f.properties.name}<br>${f.properties.town_type} (${Math.round(f.properties.population).toLocaleString()})`);
+            layer.bindTooltip(f.properties.name, { permanent: true, direction: 'right', offset: [7, 0], className: 'town-label' });
         }
     });
-    
-    // CV Roads
+
+    // CV Roads — group segments so a click selects the whole road
+    const cvRoadLayers = {};
     cvLayer = L.geoJSON(cvRoads, {
         style: cvStyle,
+        smoothFactor: 1.5,
+        filter: f => !isRamp(f.properties),
         onEachFeature: function(feature, layer) {
-            layer.on('click', function() {
-                highlightRoad(layer, cvLayer);
+            const k = roadKeyOf(feature.properties);
+            if (k) (cvRoadLayers[k] || (cvRoadLayers[k] = [])).push(layer);
+            const group = () => (k && cvRoadLayers[k]) ? cvRoadLayers[k] : [layer];
+            layer.bindTooltip(roadLabel(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
+            layer.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);
+                highlightRoad(group(), cvLayer);
                 showRoadDetail(feature.properties, 'cv');
             });
-            layer.on('mouseover', function() { if (layer !== selectedLayer) layer.setStyle({weight: 5, opacity: 1}); });
-            layer.on('mouseout', function() { if (layer !== selectedLayer) cvLayer.resetStyle(layer); });
+            layer.on('mouseover', function() { if (!isSelected(layer)) group().forEach(l => l.setStyle({ weight: 5, opacity: 1 })); });
+            layer.on('mouseout', function() { if (!isSelected(layer)) group().forEach(l => cvLayer.resetStyle(l)); });
         }
     });
-    
+
     // CV Boundary
     cvBoundaryLayer = L.geoJSON(cvBoundary, {
-        style: {color: '#90a4ae', weight: 2, fillOpacity: 0, fillColor: 'transparent', dashArray: '5,5'}
+        style: {color: '#a8a29e', weight: 2, fillOpacity: 0, fillColor: 'transparent', dashArray: '5,5'}
     });
-    
+
     // CV Towns
     if (cvTowns && cvTowns.features) {
         cvTownsLayer = L.geoJSON(cvTowns, {
             pointToLayer: function(f, ll) {
-                return L.circleMarker(ll, {radius: 6, fillColor: '#ff9800', color: '#fff', weight: 1, fillOpacity: 0.8});
+                return L.marker(ll, { icon: townIcon(28, 'rgba(96,165,250,0.6)'), keyboard: false });
             },
             onEachFeature: function(f, layer) {
-                layer.bindTooltip(`${f.properties.name}<br>${f.properties.town_type} (${Math.round(f.properties.population).toLocaleString()})`);
+                layer.bindTooltip(f.properties.name, { permanent: true, direction: 'right', offset: [7, 0], className: 'town-label' });
             }
         });
     }
-    
+
     // Show NSW by default
     showNSW();
-});
+    updateTownLabels();
+    hideLoader();
+})
+.catch(err => { console.error('Dashboard load failed:', err); hideLoader(); });
 </script>
 </body>
 </html>
