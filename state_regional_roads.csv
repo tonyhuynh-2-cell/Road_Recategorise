@@ -1,0 +1,893 @@
+class,road_number,road_name,route_shield,status,status_detail,area,length_km,segments,other_names_on_road
+State,0000001,Princes,A1; M1,green,Meets,rural,633.12,487,
+State,0000002,Hume,M31,green,Meets,rural,1159.08,645,
+State,0000003,Federal,M23,green,Meets,rural,134.88,44,
+State,0000004,Snowy Mountains,B72,red,Does not meet,rural,281.63,41,
+State,0000005,Great Western,A32; A44,green,Meets,urban,309.24,388,
+State,0000006,Mid Western,B64; A41,red,Does not meet,rural,477.85,85,
+State,0000007,Mitchell,A32; B71,red,Does not meet,rural,707.41,131,
+State,0000008,Barrier,A32,red,Does not meet,rural,632.02,51,
+State,0000009,New England,A15,green,Meets,rural,640.11,279,
+State,0000010,Pacific,M1; A1,green,Meets,rural,1681.98,1380,
+State,0000011,Oxley,B56,red,Does not meet,rural,522.02,139,
+State,0000012,Gwydir,B76,red,Does not meet,rural,593.34,100,
+State,0000013,Pennant Hills,A28,red,Does not meet,urban,68.46,166,
+State,0000014,Sturt,A20,green,Meets,rural,595.77,75,
+State,0000015,Barton,A25,green,Meets,rural,61.60,43,
+State,0000016,Bruxner,B60,red,Does not meet,rural,187.09,81,
+State,0000017,Newell,A39,green,Meets,rural,1054.52,145,
+State,0000018,Castlereagh,B55,red,Does not meet,rural,616.83,78,
+State,0000019,Monaro,B23; B72,red,Does not meet,rural,203.72,32,
+State,0000020,Riverina,B58,red,Does not meet,rural,221.39,41,
+State,0000021,Cobb,B75,red,Does not meet,rural,567.95,62,
+State,0000022,Silver City,B79,red,Does not meet,rural,679.19,60,
+State,0000023,Newcastle Inner City,A37,red,Does not meet,urban,37.23,76,
+State,0000025,Illawarra,A48,red,Does not meet,rural,58.85,22,
+State,0000027,Golden,B84,red,Does not meet,rural,313.45,71,Dunedoo-Dubbo
+State,0000028,Carnarvon,,red,Does not meet,rural,119.13,13,
+State,0000029,Kamilaroi,B76; B51,red,Does not meet,rural,588.51,59,
+State,0000030,The Entrance Road,A49,red,Does not meet,urban,70.82,106,Central Coast; Wilfred Barrett
+State,0000031,Gold Coast,M1,red,Does not meet,urban,2.58,6,
+State,0000051,Batemans Bay-Queanbeyan,B52,red,Does not meet,rural,132.00,48,
+State,0000052,Canberra - Crookwell,M31,red,Does not meet,rural,111.36,37,Sutton; Canberra-Crookwell
+State,0000054,Goulburn-Ilford,A32,red,Does not meet,rural,254.14,44,Goulburn - Ilford
+State,0000056,Lachlan Valley,B81,red,Does not meet,rural,201.87,30,Cowra-Forbes
+State,0000057,Tullamore-Nyngan,B85,red,Does not meet,rural,430.51,60,Goldfields; West Wyalong-Condobolin; Condobolin-Tullamore
+State,0000061,Orange-Parkes,,red,Does not meet,rural,200.50,37,Parkes-Condobolin
+State,0000063,Tamworth-Yetman,B95,red,Does not meet,rural,269.85,37,
+State,0000065,Lismore-Bangalow,B62,red,Does not meet,rural,39.65,23,Hinterland
+State,0000070,Coolabah-Brewarrina,B76,red,Does not meet,rural,279.36,27,Brewarrina-Goodooga
+State,0000076,Waterfall,B78,red,Does not meet,rural,166.54,51,
+State,0000078,Olympic,A41,red,Does not meet,rural,315.47,86,
+State,0000079,Doughboy-Goulburn,,red,Does not meet,rural,56.99,8,Braidwood; Goulburn
+State,0000080,Kidman,B87,red,Does not meet,rural,299.40,64,Irrigation; Mossgeil
+State,0000082,Newcastle Link,A15,red,Does not meet,urban,34.57,60,Newcastle; Thomas
+State,0000083,Summerland,B91,red,Does not meet,rural,209.08,46,
+State,0000084,Burley Griffin,B94,red,Does not meet,rural,255.85,41,
+State,0000085,Batlow,,red,Does not meet,rural,103.60,16,Jingellic
+State,0000086,Honour,,red,Does not meet,rural,4.52,2,Federation
+State,0000095,Picton,B88; M1,green,Meets,rural,68.07,34,Mt Ousley
+State,0000104,Richardson,,red,Does not meet,rural,35.70,37,Raymond Terrace
+State,0000108,Nelson Bay,B63,red,Does not meet,rural,75.68,44,
+State,0000139,Beecroft,A3,red,Does not meet,urban,11.82,34,Blaxland
+State,0000154,The Northern Road,A9,red,Does not meet,rural,99.57,80,
+State,0000155,Mulgoa,A44,green,Meets,rural,23.95,24,Network Change - Mulgoa; Park
+State,0000156,Castle Hill,A28,red,Does not meet,urban,4.37,11,
+State,0000157,Showground,,red,Does not meet,urban,6.84,12,
+State,0000158,Marsden,A6,red,Does not meet,urban,4.08,8,
+State,0000159,Pittwater,A8,red,Does not meet,urban,10.10,24,Sydney
+State,0000160,Old Northern,A2,red,Does not meet,rural,42.24,34,
+State,0000161,Galston,B83,red,Does not meet,rural,14.69,13,
+State,0000162,Mona Vale,A3,red,Does not meet,urban,52.61,79,Lane Cove
+State,0000164,Pittwater,A8,red,Does not meet,urban,63.70,143,Barrenjoey
+State,0000165,Victoria,A40; A4,red,Does not meet,urban,60.33,186,
+State,0000166,Burns Bay,A40,red,Does not meet,urban,8.16,26,
+State,0000167,Milperra,A34,red,Does not meet,urban,34.44,73,Canterbury
+State,0000168,Forest,M8; A3; A36,red,Does not meet,urban,18.72,52,
+State,0000169,Bexley,A36; A1,red,Does not meet,urban,7.38,16,Bay
+State,0000170,Botany,M1,red,Does not meet,urban,19.29,64,
+State,0000171,Anzac,M1,red,Does not meet,urban,22.01,57,Bunnerong
+State,0000172,Oxford,,red,Does not meet,urban,9.97,25,Syd Einfeld; Bondi
+State,0000173,New South Head,,red,Does not meet,urban,10.15,37,
+State,0000174,Mccarrs Creek,,red,Does not meet,rural,7.06,6,
+State,0000177,Appin,B69,red,Does not meet,rural,57.55,72,Campbelltown
+State,0000179,Menangle,B69,red,Does not meet,rural,23.67,21,
+State,0000181,Mcgraths Hill-Nr Singleton,A2,red,Does not meet,rural,159.86,28,Wollombi
+State,0000182,Sackville,A9,red,Does not meet,rural,24.62,12,Wilberforce
+State,0000183,Gardeners,A36,red,Does not meet,urban,9.05,26,
+State,0000184,Bells Line Of Road,B59; A2,red,Does not meet,urban,132.81,106,Windsor
+State,0000185,Lawrence Hargrave,B65,red,Does not meet,urban,19.90,17,
+State,0000190,Alfords Point,A6,red,Does not meet,urban,64.05,144,Silverwater
+State,0000191,Delhi,A38,red,Does not meet,urban,4.91,16,Millwood; Fullers
+State,0000193,Erskineville,A36,red,Does not meet,urban,1.98,9,Swanson; Fountain
+State,0000194,General Holmes,A1; M1,green,Meets,urban,21.21,45,The Grand Parade
+State,0000195,Main,M15,red,Does not meet,urban,19.99,14,Mulbring-Kurri Kurri; Cessnock
+State,0000199,Taren Point,A1,red,Does not meet,urban,13.90,26,Rocky Point
+State,0000200,King Georges,A3,green,Meets,urban,51.53,153,Roberts
+State,0000209,Denman,B84,red,Does not meet,rural,21.10,3,
+State,0000217,Wangi,B53,red,Does not meet,urban,45.26,59,Lake
+State,0000220,Wine Country,B82,red,Does not meet,rural,64.09,31,Toronto-Branxton
+State,0000225,Wisemans Ferry,,red,Does not meet,rural,55.56,10,
+State,0000227,Kingsway,,red,Does not meet,urban,15.50,21,
+State,0000253,Carrington,A32,red,Does not meet,rural,113.32,23,
+State,0000260,Old Hume,B73,green,Meets,urban,25.91,19,Moss Vale
+State,0000261,Bomaderry-Moss Vale,B73,red,Does not meet,rural,55.66,18,Sheepwash; Kangaloon
+State,0000262,Tongarra,A48,red,Does not meet,urban,3.34,8,
+State,0000279,Gocup,M31,red,Does not meet,rural,30.01,10,
+State,0000284,Tumbarumba,,red,Does not meet,rural,55.23,5,Little Billabong
+State,0000286,Kosciuszko,,red,Does not meet,rural,94.96,21,
+State,0000295,Five Islands,B65,orange,Likely meets (ADT),urban,15.84,33,Flinders
+State,0000302,Tomago,A1,green,Meets,rural,15.07,4,Cabbage Tree
+State,0000309,James Ruse,A40,red,Does not meet,urban,13.99,56,
+State,0000310,Canowindra-Cudal,B81,red,Does not meet,rural,66.28,16,Cowra-Canowindra
+State,0000314,Spring,,red,Does not meet,rural,44.10,12,
+State,0000316,Industrial,A43,green,Meets,urban,14.95,23,Hannell
+State,0000321,Kidman,B87,red,Does not meet,rural,167.56,33,Rankins Springs
+State,0000324,Yarrangobilly Caves,,red,Does not meet,rural,10.83,1,
+State,0000326,Turton,B63,red,Does not meet,urban,13.05,29,Northcott; Bridges
+State,0000327,Alison,,orange,Likely meets (ADT),urban,4.43,10,
+State,0000328,Warringah,A38,red,Does not meet,urban,26.85,52,
+State,0000330,Cleveland,M1,red,Does not meet,urban,3.30,23,
+State,0000334,Mendooran-Belar Creek,,red,Does not meet,rural,55.09,5,
+State,0000335,Wyong,B74,orange,Likely meets (ADT),urban,23.43,44,
+State,0000339,Old South Head,,red,Does not meet,urban,6.80,18,
+State,0000344,Wentworth,,red,Does not meet,urban,7.36,22,
+State,0000349,Empire Bay,,red,Does not meet,urban,29.13,30,Brisbane Water; Manns
+State,0000359,Nr Boree-Molong,B81,red,Does not meet,rural,17.10,5,
+State,0000373,Epping,M2; A3,red,Does not meet,urban,25.46,61,
+State,0000377,Forbes-Condobolin,B81,red,Does not meet,rural,175.87,24,Boree-Eugowra; Eugowra-Forbes
+State,0000393,Sir Bertram Stevens,A1,red,Does not meet,rural,39.53,18,Lady Wakehurst
+State,0000395,Lyons,A40,red,Does not meet,urban,5.05,16,Great North
+State,0000397,Wakehurst,A38; A8,red,Does not meet,urban,17.66,28,
+State,0000410,Kidman,B87,red,Does not meet,rural,253.03,18,
+State,0000421,Cobar-Nr Bourke,B87,red,Does not meet,rural,159.28,16,
+State,0000503,The Putty Road,,red,Does not meet,rural,152.26,22,
+State,0000504,Avoca,A49,red,Does not meet,urban,17.07,20,The Scenic Highway
+State,0000505,Terrigal,,red,Does not meet,urban,6.15,11,
+State,0000508,Henry Lawson,M5,red,Does not meet,urban,23.26,32,
+State,0000509,Sparks,B70,red,Does not meet,urban,15.41,12,Main; Wallarah
+State,0000512,Heathcote,A6,red,Does not meet,urban,30.36,36,
+State,0000513,Mt Ousley,M1,green,Meets,rural,18.52,13,
+State,0000515,Wallgrove,,green,Meets,urban,14.10,36,
+State,0000516,Bell-Bowenfells,B59,red,Does not meet,rural,18.98,9,
+State,0000522,Shellharbour,B65,red,Does not meet,urban,29.04,28,King
+State,0000523,Pyrmont Bridge,,red,Does not meet,urban,3.11,15,
+State,0000525,Liberator Gen San Martin,,red,Does not meet,rural,12.46,6,
+State,0000527,Main,B89,red,Does not meet,urban,29.57,40,Macquarie
+State,0000528,Mcevoy,M1; A36,red,Does not meet,urban,6.40,17,
+State,0000529,Forest,A38,red,Does not meet,urban,12.02,15,
+State,0000534,Cabramatta,A28,red,Does not meet,urban,6.34,17,
+State,0000535,Elizabeth,A9,red,Does not meet,urban,33.88,40,
+State,0000536,Mamre,,red,Does not meet,rural,14.15,8,Network Change - Mamre
+State,0000537,Richmond,M7; A9,red,Does not meet,urban,34.46,56,Rooty Hill
+State,0000546,Garfield,,red,Does not meet,urban,7.87,15,
+State,0000548,Mid Dural,,red,Does not meet,rural,2.22,1,
+State,0000549,Punchbowl,A34,red,Does not meet,urban,9.64,18,Georges River
+State,0000558,Nr Hampton-Nr Oberon,,red,Does not meet,rural,24.48,5,Nr Hampton - Nr Oberon
+State,0000559,Whileys Junction-Shadforth,,green,Meets,rural,3.51,1,
+State,0000570,Springwood,A32,red,Does not meet,urban,25.13,24,Hawkesbury
+State,0000572,Narromine-Eumungerie Rail,,red,Does not meet,rural,53.57,8,
+State,0000574,Kissing Point,A6,red,Does not meet,urban,10.72,29,Stewart
+State,0000581,Springhill,B65,red,Does not meet,urban,12.48,31,Corrimal
+State,0000583,Murray Valley,B400,green,Meets,rural,2.66,1,
+State,0000588,John Renshaw,B68; A1,orange,Likely meets (ADT),urban,34.84,26,Cessnock
+State,0000592,Cahill,M1,red,Does not meet,urban,3.92,20,
+State,0000593,Southern Cross,M1,red,Does not meet,urban,17.99,41,South Dowling
+State,0000594,Wattle,A4,red,Does not meet,urban,2.07,5,Abercrombie
+State,0000599,Eastern Valley,A38,red,Does not meet,urban,6.70,20,
+State,0000602,Masters,B65,red,Does not meet,urban,3.22,16,
+State,0000605,University,A43; A37,red,Does not meet,urban,5.60,11,Maud
+State,0000609,The Horsley Drive,A28,red,Does not meet,urban,21.35,55,Victoria
+State,0000611,Lake Entrance,M1,red,Does not meet,urban,8.91,13,
+State,0000612,Picton,B88,red,Does not meet,rural,10.33,5,Menangle
+State,0000616,Denison,,orange,Likely meets (ADT),urban,3.05,10,Bumborah Point; Beauchamp
+State,0000617,Foreshore,,green,Meets,urban,6.58,4,
+State,0000620,Remembrance,A9,red,Does not meet,urban,87.65,75,Camden Valley
+State,0000626,Memorial,B65; M1,red,Does not meet,urban,4.53,23,
+State,0000629,Carlisle,,red,Does not meet,urban,15.41,38,Erskine Park
+State,0000630,Londonderry,A9; A44,red,Does not meet,urban,21.30,21,Castlereagh; Cranebrook
+State,0000632,Bradfield,M1,red,Does not meet,urban,7.70,17,
+State,0000633,Mudgee-Wellington,,red,Does not meet,rural,72.65,7,
+State,0000634,The River Road,M5,green,Meets,urban,0.44,5,
+State,0000635,Old Windsor,A2; A40,red,Does not meet,urban,24.30,42,
+State,0000636,Juno,A3,green,Meets,urban,3.25,7,Boronia
+State,0000638,Brunker,A22,red,Does not meet,urban,0.93,5,
+State,0000640,Woodville,A22,red,Does not meet,urban,15.63,41,
+State,0000641,Penshurst,A38,red,Does not meet,urban,4.08,10,Willoughby
+State,0000642,Sunnyholt,A2,red,Does not meet,urban,20.02,33,Memorial
+State,0000643,Richmond,,red,Does not meet,urban,16.63,25,Network Change - Richmond; Bungarribee
+State,0000644,Blacktown,A44,red,Does not meet,urban,15.50,44,Prospect; Seven Hills; Abbott
+State,0000646,Gipps,,red,Does not meet,urban,5.37,21,Greystanes
+State,0000647,Bringelly,,red,Does not meet,urban,20.06,8,
+State,0000648,Cowpasture,,red,Does not meet,urban,25.69,31,
+State,0000649,Gipps,A44,red,Does not meet,urban,4.39,9,Queens
+State,0000650,City West Link,A44; A22,red,Does not meet,urban,12.10,36,Dobroyd; Frederick
+State,0000651,Network Change Do Not Load Data - Warringah,M1,red,Does not meet,urban,31.05,137,Network Change Do Not Load Data - Gore Hill
+State,0000652,Old Canterbury,A22; A44,red,Does not meet,urban,7.48,34,
+State,0000653,Power,,green,Meets,urban,1.03,6,
+State,0000654,Woodstock,,green,Meets,urban,1.47,4,
+State,0000655,Johnston,A44,red,Does not meet,urban,3.13,11,The Crescent
+State,0000656,New Line,A28,red,Does not meet,urban,7.42,19,Boundary
+State,0000657,Network Change - Moorebank,A34,green,Meets,urban,1.39,3,
+State,0000658,Oriordan,,red,Does not meet,urban,5.17,11,Joyce
+State,0000659,Bourke,,red,Does not meet,urban,1.38,7,Coward; Kent
+State,0000660,Avoca,,orange,Likely meets (ADT),urban,6.15,13,Carrington
+State,0000661,Anzac,,red,Does not meet,urban,7.12,8,
+State,0000662,Captain Cook,,red,Does not meet,urban,3.42,5,
+State,0000663,Bangor,A1,red,Does not meet,urban,14.88,32,Menai
+State,0000664,Sydenham,A36,red,Does not meet,urban,4.51,21,Railway
+State,0000665,Stoney Creek,D5,red,Does not meet,urban,5.73,11,
+State,0000666,The Crescent,A44,red,Does not meet,urban,1.87,14,Ross; Minogue
+State,0000667,President,A1,red,Does not meet,urban,1.70,5,
+State,0000668,Concord,A22; A3; M4,orange,Likely meets (ADT),urban,8.57,30,The Boulevarde; Coronation
+State,0000669,Port Hacking,A1,red,Does not meet,urban,6.98,12,
+State,0000670,Jedda,M7,green,Meets,urban,2.13,9,Bernera
+State,0000671,Port Kembla,,red,Does not meet,urban,0.48,2,
+State,0000672,Pennant,,red,Does not meet,urban,2.13,6,Mcmullen
+State,0000673,Henry Parry,,orange,Likely meets (ADT),urban,3.73,2,
+State,0000674,Hillsborough,B57,red,Does not meet,urban,11.55,29,The Esplanade; Medcalf
+State,0000675,F3 - Hw10,A43; M1,red,Does not meet,rural,12.51,18,Doyalson Motorway Link
+State,0000676,Old Hume,M31,green,Meets,urban,18.70,20,Cowper
+State,0000677,Alpine,,red,Does not meet,rural,100.55,8,
+State,0000680,Pembroke,A28,red,Does not meet,urban,18.67,73,Harold
+State,0000681,Hoxton Park,A28,red,Does not meet,urban,12.60,18,
+State,0000682,Palmer,,orange,Likely meets (ADT),urban,0.86,4,Sir John Young
+State,0000683,Reservoir,,orange,Likely meets (ADT),urban,8.88,15,Balmoral; Third
+State,0000685,Hawkesbury Valley,B59,red,Does not meet,urban,4.09,12,
+State,0000686,Beech,,green,Meets,urban,1.50,5,
+State,0000687,Schofields,A2,red,Does not meet,urban,16.18,12,
+State,0000690,Norwest,A2,red,Does not meet,urban,6.28,14,
+State,0000691,Seven Hills,,red,Does not meet,urban,1.72,4,
+State,0000692,The Lakes Way,,red,Does not meet,rural,25.57,26,Failford
+State,0000693,Lenore,M7,red,Does not meet,urban,13.28,8,Old Wallgrove
+State,0000694,Yanga,B12,red,Does not meet,rural,49.43,7,
+State,0000697,Hunter,,red,Does not meet,urban,3.38,5,
+State,0000699,Werrington Arterial,A44,red,Does not meet,urban,3.46,6,
+State,0000701,Campbell,,red,Does not meet,urban,2.52,8,Bourke
+State,0000704,Dandaloo,A32,red,Does not meet,urban,2.15,3,Burraway
+State,0000705,Bathurst,A32,green,Meets,urban,11.18,20,Summer; Molong; Mitchell
+State,0000706,Network Change - Church,,red,Does not meet,urban,1.34,2,
+State,0000707,Packham,,red,Does not meet,rural,20.00,3,
+State,0000708,Sydney,A36,red,Does not meet,urban,6.09,21,
+State,0004005,West Head,,red,Does not meet,rural,12.24,2,
+State,0004016,,,red,Does not meet,rural,4.57,1,
+State,0004020,Wattamolla,,red,Does not meet,rural,3.43,2,
+State,0004025,Garie,,red,Does not meet,rural,2.52,1,
+State,0004026,Riverside,A3,red,Does not meet,urban,4.34,2,
+State,0006002,M2,M2,red,Does not meet,urban,66.00,129,
+State,0006003,Sydney-Newcastle,M1,green,Meets,rural,301.50,297,
+State,0006004,M4 Western,M4,green,Meets,urban,168.74,309,
+State,0006005,M5 South Western,M5,green,Meets,urban,82.25,163,
+State,0006006,Southern,M1,green,Meets,urban,114.29,157,
+State,0006007,Eastern,M1,orange,Likely meets (ADT),urban,14.33,41,
+State,0006008,M8 Tunnel St Peters To Beverly,M8; A36,red,Does not meet,urban,46.35,60,M8 Motorway
+State,0006009,M7 Prelim,M7,green,Meets,urban,116.88,267,
+State,0006010,Cross City,M1; A4,orange,Likely meets (ADT),urban,7.83,20,
+State,0006011,Hunter,M15,green,Meets,rural,92.52,75,
+State,0006013,Northconnex,M11,green,Meets,urban,23.77,21,
+State,0006092,Sydney Harbour,M1,red,Does not meet,urban,5.43,5,
+State,0007731,Iluka,,red,Does not meet,rural,17.44,4,
+State,0007776,Pacific,A1,red,Does not meet,urban,16.65,27,Victoria
+State,0008001,Patrick,,orange,Likely meets (ADT),urban,1.60,5,
+State,0008002,Lpt,A44,red,Does not meet,urban,38.93,49,
+State,0008005,Blacktown - Castle Hill,,red,Does not meet,urban,7.31,13,
+State,0008007,Parramatta - Mungarie Park,,red,Does not meet,urban,17.71,45,
+State,0008009,South East Light Rail,,red,Does not meet,urban,0.51,2,
+State,0008011,Hunter,A43,red,Does not meet,urban,1.96,5,
+State,0008500,Moore Park Nw Bus,M1,red,Does not meet,urban,1.69,4,
+State,0008501,Moore Park Sw Bus,,red,Does not meet,urban,0.14,1,
+State,0230010,Pacific,M1,green,Meets,rural,8.95,2,
+State,0330010,Pacific,M1,green,Meets,rural,14.19,5,
+State,0860010,Pacific,M1,green,Meets,rural,15.71,9,
+State,0860083,Bent,,orange,Likely meets (ADT),urban,3.43,7,Prince
+State,1100010,Pacific,A1,green,Meets,rural,8.19,3,
+State,1720302,Sloane,,green,Meets,urban,0.02,1,
+State,1960010,Pacific,M1,green,Meets,rural,14.07,4,
+State,3170010,Pacific,M1,green,Meets,rural,31.48,8,
+State,3890010,Pacific,M1,green,Meets,rural,18.18,13,Wardell; Ballina
+Regional,0000055,Marrangaroo-Mullaley,,red,Does not meet,rural,121.34,16,
+Regional,0000059,Urana Lockhart,,red,Does not meet,rural,132.72,16,Lockhart; Cocketgedong
+Regional,0000062,Bunnan,,red,Does not meet,rural,62.44,10,Scone
+Regional,0000066,Menindee - Broken Hill,,red,Does not meet,rural,94.19,8,
+Regional,0000067,Swan Hill-Ivanhoe,,red,Does not meet,rural,226.82,14,Hatfield Penarie
+Regional,0000068,Wilcannia-Bourke,B79,red,Does not meet,rural,800.00,67,Pooncarie
+Regional,0000073,Uralla-Bundarra,,red,Does not meet,rural,157.33,20,Walcha-Inverell; Walcha-Uralla
+Regional,0000074,Ebor-Grafton,B76,red,Does not meet,rural,104.08,12,
+Regional,0000075,Kempsey-Wollomombi,,red,Does not meet,rural,52.20,13,
+Regional,0000081,Silverton,,red,Does not meet,rural,35.02,8,Silverton - Umberumberka
+Regional,0000087,Muttama,A41,red,Does not meet,rural,38.72,5,
+Regional,0000089,Tomingley-Narromine,A32,red,Does not meet,rural,37.24,9,
+Regional,0000090,The Bucketts Way,A1,red,Does not meet,rural,126.81,27,
+Regional,0000091,Sth Pambula-Bombala,B23,red,Does not meet,rural,73.84,9,
+Regional,0000092,Nowra-Braidwood,,red,Does not meet,rural,117.63,9,Nowra - Braidwood
+Regional,0000093,South Bombala-Vic Border,,red,Does not meet,rural,45.93,5,
+Regional,0000094,Wakool,B75,red,Does not meet,rural,79.02,9,
+Regional,0000101,Dungog,,red,Does not meet,rural,78.35,23,Tocal
+Regional,0000102,Morpeth,,red,Does not meet,urban,4.36,4,
+Regional,0000105,Gundy,A15,red,Does not meet,rural,100.70,13,Scone-Nundle-Nemingha
+Regional,0000106,Lindsays Gap,,red,Does not meet,rural,29.93,3,Nundle Wallabadah
+Regional,0000111,The Lakes Way,,red,Does not meet,rural,64.84,10,
+Regional,0000118,Macksville-Bellingen,,orange,Likely meets (ADT),rural,13.12,1,
+Regional,0000119,Dorrigo-Tyringham,,red,Does not meet,rural,25.00,4,
+Regional,0000120,Coramba-Dorrigo,,red,Does not meet,rural,17.27,2,
+Regional,0000124,Armidale-Yarrowyck,,red,Does not meet,rural,28.06,5,
+Regional,0000125,Urana,,red,Does not meet,rural,107.53,16,Mahonga
+Regional,0000126,Wallabadah-Quirindi,,orange,Likely meets (ADT),rural,16.56,7,Maria
+Regional,0000127,Narrabri-Pilliga,,red,Does not meet,rural,58.01,9,
+Regional,0000128,Nr Gostwyck-Singleton,A15,red,Does not meet,rural,51.76,16,
+Regional,0000129,Quirindi-Premer,,red,Does not meet,rural,309.07,35,Baradine-Coonamble; Quirindi-Coonabarabran; Coonamble-Quambone
+Regional,0000130,Quirindi-West Tamworth,,red,Does not meet,rural,60.98,13,
+Regional,0000131,Federation,MR131,red,Does not meet,rural,53.93,6,
+Regional,0000132,Bundarra-Barraba,,red,Does not meet,rural,64.52,8,
+Regional,0000133,Bingara-Narrabri,,red,Does not meet,rural,101.93,10,
+Regional,0000134,Bingara-Ashford,,red,Does not meet,rural,37.98,5,
+Regional,0000135,Ebor-Gilgai,,red,Does not meet,rural,152.98,14,
+Regional,0000136,Wellington,,red,Does not meet,rural,26.60,4,
+Regional,0000137,Inverell-Bonshaw,,red,Does not meet,rural,93.02,12,
+Regional,0000138,Bruxner Highway-Texas,,red,Does not meet,rural,3.47,1,
+Regional,0000141,Kyogle-Murwillumbah,,red,Does not meet,rural,28.56,5,
+Regional,0000142,Lismore-Murwillumbah,,red,Does not meet,rural,77.92,27,
+Regional,0000143,Queensland,,red,Does not meet,rural,11.45,6,
+Regional,0000145,Woodburn-Coraki,B60,red,Does not meet,rural,45.82,8,Coraki
+Regional,0000148,Coraki-South Gundurimbah,,red,Does not meet,rural,15.26,2,
+Regional,0000150,Clarence,,red,Does not meet,rural,115.68,12,
+Regional,0000151,Coffs Harbour-South Grafton,,red,Does not meet,rural,72.53,18,
+Regional,0000152,Lawrence-Yamba,M1,red,Does not meet,rural,62.56,27,Grafton-Lawrence; Southgate
+Regional,0000153,Woodburn-Evans Head,,orange,Likely meets (ADT),rural,10.24,4,
+Regional,0000163,Percival,,red,Does not meet,urban,1.03,1,
+Regional,0000178,Narellan,A9; B69,red,Does not meet,urban,22.03,51,Camden Valley
+Regional,0000187,Inverell-Rocky Dam,,red,Does not meet,rural,92.29,10,
+Regional,0000188,Glebe,A15,red,Does not meet,urban,12.93,21,King
+Regional,0000189,Legume-Queensland Border,,red,Does not meet,rural,4.77,1,
+Regional,0000192,Bucketts,,orange,Likely meets (ADT),rural,42.95,26,Gloucester; Wingham
+Regional,0000197,River,B58,orange,Likely meets (ADT),rural,1.68,2,Sturt
+Regional,0000198,,,red,Does not meet,rural,14.71,2,
+Regional,0000202,Warren-Carinda,,red,Does not meet,rural,144.88,14,
+Regional,0000205,Mendooran-Coonamble,,red,Does not meet,rural,28.12,4,
+Regional,0000208,Sandy Hollow-Mudgee,B55,red,Does not meet,rural,131.38,14,Bylong Valley
+Regional,0000211,Holbrook-Wagga Wagga,,red,Does not meet,rural,81.48,20,Holbrook
+Regional,0000214,Mudgee-Cassilis,,red,Does not meet,rural,61.65,6,Mudgee - Cassilis; Ulan
+Regional,0000215,Nr Ilford-Nr Bylong,,red,Does not meet,rural,77.44,11,
+Regional,0000216,Sofala-Nr Mudgee,,red,Does not meet,rural,100.33,10,
+Regional,0000223,Lambton,B89,red,Does not meet,urban,8.56,14,Main
+Regional,0000226,Barooga-Cobram,,red,Does not meet,rural,3.93,4,Nangunia
+Regional,0000228,Nymagee-Hermidale,,red,Does not meet,rural,72.17,6,
+Regional,0000231,Girral-Lake Cargelligo,,red,Does not meet,rural,85.89,10,Lake
+Regional,0000232,Moree-Boonangar,,red,Does not meet,rural,60.69,7,
+Regional,0000233,Wellington-Parkes,,red,Does not meet,rural,108.05,19,
+Regional,0000234,Banjo Paterson,,red,Does not meet,rural,45.12,8,Molong-Trewilga
+Regional,0000235,Stockinbingal,,orange,Likely meets (ADT),rural,20.68,4,
+Regional,0000236,Grenfell-Forbes,,red,Does not meet,rural,49.88,6,
+Regional,0000237,Grenfell-Orange,B81,red,Does not meet,rural,126.80,26,
+Regional,0000238,Eugowra-Parkes,,red,Does not meet,rural,56.26,8,Nr Canowindra-Eugowra
+Regional,0000239,Henry Lawson,,red,Does not meet,rural,49.41,7,Young-Grenfell
+Regional,0000240,Ardlethan,,red,Does not meet,rural,88.25,13,Coolamon
+Regional,0000241,Milvale,B81,red,Does not meet,rural,198.03,27,Murringo; Gunning - Temora
+Regional,0000243,Canola,A41,red,Does not meet,rural,141.49,34,Nangus; Gundagai
+Regional,0000244,Nr Carrathool-Gunbar South,,red,Does not meet,rural,2.94,1,
+Regional,0000245,Blayney-Orange,,red,Does not meet,rural,38.82,16,
+Regional,0000248,Rugby,,red,Does not meet,rural,114.18,14,Taralga-Boorowa; Taralga - Boorowa
+Regional,0000254,Whitton Stock Route,,red,Does not meet,rural,11.41,2,Whitton
+Regional,0000256,Goulbun-Oberon,,red,Does not meet,rural,142.32,23,Goulburn - Oberon; Goulburn-Oberon
+Regional,0000258,Wombeyan Caves,B73,red,Does not meet,rural,83.25,9,
+Regional,0000259,Burragorang,,red,Does not meet,rural,12.75,8,Druitt
+Regional,0000264,Woodstock,,red,Does not meet,rural,31.57,11,Jamberoo
+Regional,0000266,Jamberoo,A48,red,Does not meet,urban,8.79,4,
+Regional,0000268,Bungendore-Tarago,B52,red,Does not meet,rural,30.65,7,
+Regional,0000270,Braidwood-Queanbeyan,,red,Does not meet,rural,85.80,12,Braidwood - Queanbeyan
+Regional,0000272,Bega-Tilba,,red,Does not meet,rural,75.06,21,Tathra
+Regional,0000275,Bega-Cathcart,,red,Does not meet,rural,49.29,7,
+Regional,0000278,Wee Jasper,,red,Does not meet,rural,112.18,10,
+Regional,0000280,Wondalga-Tumblong,,red,Does not meet,rural,13.47,3,
+Regional,0000290,Amosfield-Queensland Border,,red,Does not meet,rural,9.11,3,
+Regional,0000293,Bolong,,red,Does not meet,rural,13.66,8,
+Regional,0000296,Pretty Pine-Yanga Tank,,red,Does not meet,rural,147.05,16,Balranald; Kyalite
+Regional,0000301,Clarencetown,,red,Does not meet,rural,40.15,10,Seaham
+Regional,0000306,Tweed,,red,Does not meet,rural,15.19,3,Dunoon
+Regional,0000312,Jervis Bay,,red,Does not meet,rural,7.47,2,
+Regional,0000319,Maude,,red,Does not meet,rural,156.70,19,Moulamein
+Regional,0000320,Bermagui,,red,Does not meet,rural,16.02,3,
+Regional,0000323,Oaklands,,red,Does not meet,rural,64.74,8,Corowa
+Regional,0000325,Warners Bay,A43; A37,red,Does not meet,urban,16.98,25,Dudley; Redhead
+Regional,0000329,Baradine-Collarenebri,,red,Does not meet,rural,146.45,10,
+Regional,0000331,Jingellic,A41,red,Does not meet,rural,146.05,16,Walbundrie; Culcairn Holbrook; Daysdale-Walbundrie
+Regional,0000332,Arcadia,B83,red,Does not meet,rural,19.04,16,Bay; Berowra Waters
+Regional,0000333,Warren-Walgett,,red,Does not meet,rural,245.16,23,
+Regional,0000340,Bronte,,red,Does not meet,urban,1.86,10,
+Regional,0000341,Barham,,red,Does not meet,rural,22.38,2,
+Regional,0000347,Melrose-Trangie,,red,Does not meet,rural,113.59,10,Trangie-Collie
+Regional,0000348,Peak Hill-Tullamore,,red,Does not meet,rural,66.77,9,
+Regional,0000350,Bogan Gate-Tullamore,A39,red,Does not meet,rural,90.82,13,Forbes-Bogan Gate
+Regional,0000353,Montefiores-Nr Elong Elong,,red,Does not meet,rural,50.29,5,
+Regional,0000354,Nr Tullamore-Narromine,A32,red,Does not meet,rural,83.65,10,
+Regional,0000355,Trout Farm,,red,Does not meet,rural,1.61,2,
+Regional,0000356,Oaklands,,red,Does not meet,rural,29.40,3,Berrigan Oaklands
+Regional,0000357,Charles St,,red,Does not meet,rural,70.76,7,
+Regional,0000358,Willow Tree,,red,Does not meet,rural,72.59,6,Merriwa-Willow Tree
+Regional,0000361,Nr Tabulam-Woodenbong,B60,red,Does not meet,rural,70.10,13,
+Regional,0000363,Berrigan,,red,Does not meet,rural,28.70,2,
+Regional,0000366,Bobbin Head,,red,Does not meet,rural,17.04,16,Ku-Ring-Gai Chase
+Regional,0000368,The Springs Road,,red,Does not meet,rural,90.98,9,
+Regional,0000370,Lockhart,,red,Does not meet,rural,114.96,13,Howlong-Kywong; Albury
+Regional,0000371,Rankins Springs,,red,Does not meet,rural,68.30,10,Rankins Sngs-L Cargelligo
+Regional,0000372,Berrima,,orange,Likely meets (ADT),rural,8.79,3,
+Regional,0000379,Wombat,,red,Does not meet,rural,15.56,3,
+Regional,0000380,Cunningar,,red,Does not meet,rural,30.21,3,
+Regional,0000381,Jugiong,M31,red,Does not meet,rural,41.87,10,
+Regional,0000383,Coonamble-Pilliga,,red,Does not meet,rural,80.13,9,
+Regional,0000384,Tumbarumba,M31,red,Does not meet,rural,48.59,9,
+Regional,0000385,Federation,,red,Does not meet,rural,49.28,6,
+Regional,0000386,Swan Hill,,red,Does not meet,rural,55.66,5,
+Regional,0000390,Hobbys Yards-Blayney,A41,red,Does not meet,rural,35.52,6,Trunkey-Nr Georges Plain
+Regional,0000391,Barmah-Cobb Highway,,red,Does not meet,rural,13.49,1,
+Regional,0000394,Ando-Berridale,,red,Does not meet,rural,69.73,6,
+Regional,0000396,Warrumbungles,,red,Does not meet,rural,68.88,6,
+Regional,0000398,Mary Gilmore,B64,red,Does not meet,rural,161.48,24,
+Regional,0000399,,,red,Does not meet,rural,23.25,2,
+Regional,0000402,Walgett-Goodooga,,red,Does not meet,rural,76.69,5,
+Regional,0000404,North Bourke-Hungerford,,red,Does not meet,rural,206.14,14,
+Regional,0000405,Wanaaring - Tibooburra,,red,Does not meet,rural,405.43,27,Bourke-Hawker
+Regional,0000407,Cobar-Louth,B87,red,Does not meet,rural,128.49,8,
+Regional,0000411,,,red,Does not meet,rural,68.52,5,
+Regional,0000416,Cobar-Belarabon,,red,Does not meet,rural,91.73,4,
+Regional,0000419,Gilgunnia-Canbelego,,red,Does not meet,rural,46.48,4,
+Regional,0000423,Lake Cargelligo-Euabalong,,red,Does not meet,rural,26.98,3,
+Regional,0000424,Coolabah-Quambone,,red,Does not meet,rural,57.45,6,
+Regional,0000426,,B76,red,Does not meet,rural,86.69,8,
+Regional,0000428,Broken Hill - White Cliffs,,red,Does not meet,rural,195.61,12,
+Regional,0000431,Arumpo,,red,Does not meet,rural,102.32,8,
+Regional,0000433,Ivanhoe-Menindee,,red,Does not meet,rural,198.75,15,
+Regional,0000435,White Cliffs,,red,Does not meet,rural,92.04,4,
+Regional,0000437,,B55,red,Does not meet,rural,43.97,3,
+Regional,0000450,Wooyung-Chinderah,M1,red,Does not meet,urban,21.79,18,Tweed Coast
+Regional,0000453,Toronto-Nr Glendon Brook,A43,red,Does not meet,rural,16.68,3,Elderslie
+Regional,0000454,Wyee,,red,Does not meet,urban,12.68,6,
+Regional,0000455,Peats Ridge,B83,red,Does not meet,rural,29.36,37,
+Regional,0000456,Mt Ettalong,,red,Does not meet,urban,6.17,10,Barrenjoey; West
+Regional,0000457,Collarenebri-Mungindi,B76,red,Does not meet,rural,84.25,7,
+Regional,0000460,Plummers,,red,Does not meet,rural,14.68,2,
+Regional,0000461,Condobolin-Cobar,,red,Does not meet,rural,180.41,21,
+Regional,0000462,Bruxner,,red,Does not meet,rural,227.98,23,
+Regional,0000463,Tyagarah-Mullumbimby,,red,Does not meet,rural,4.08,2,Burringbar
+Regional,0000464,Maitland,A43,red,Does not meet,urban,7.72,17,
+Regional,0000467,Stony Crossing,,red,Does not meet,rural,51.62,6,Swan Hill
+Regional,0000468,Oakdale,,red,Does not meet,rural,7.01,2,
+Regional,0000469,Dorrigo-Megan,,red,Does not meet,rural,13.39,2,
+Regional,0000501,Lachlan Valley,B87,red,Does not meet,rural,133.20,8,
+Regional,0000506,Myall,,orange,Likely meets (ADT),rural,9.99,1,
+Regional,0000507,Goondiwindi-Mungindi,,red,Does not meet,rural,149.77,14,
+Regional,0000514,Oxley,,red,Does not meet,rural,146.15,9,Maude
+Regional,0000518,Medowie,,orange,Likely meets (ADT),rural,16.76,7,
+Regional,0000519,Blaxlands Ridge,,red,Does not meet,rural,17.91,3,Comleroy
+Regional,0000531,Wallerawang-Cullen Bullen,A32,red,Does not meet,rural,23.31,16,Cullen Bullen
+Regional,0000538,Kew-Comboyne,,red,Does not meet,rural,2.26,1,
+Regional,0000539,Whitton-Darlington Point,,red,Does not meet,rural,26.37,4,
+Regional,0000540,Hogbin,A1,red,Does not meet,urban,14.47,15,
+Regional,0000543,Millwood,A41,red,Does not meet,rural,58.00,15,The Rock-Coolamon Road
+Regional,0000544,Bentley,B60,red,Does not meet,rural,35.21,5,
+Regional,0000545,Coast,,red,Does not meet,rural,35.98,19,Shirley
+Regional,0000547,Jindera-Walla Park,,red,Does not meet,rural,29.43,6,
+Regional,0000550,Mulwala-Barooga,,red,Does not meet,rural,49.42,9,Barooga-Tocumwal; Tocumwal
+Regional,0000552,Conargo,MR552,red,Does not meet,rural,84.05,8,
+Regional,0000556,,,red,Does not meet,rural,3.99,2,
+Regional,0000560,Beach,,orange,Likely meets (ADT),urban,5.12,13,
+Regional,0000561,Imlay,A1,orange,Likely meets (ADT),urban,1.22,4,Albert
+Regional,0000563,Cathcart-Bibbenluke,,red,Does not meet,rural,9.41,1,
+Regional,0000564,Berrigan,B58,red,Does not meet,rural,29.33,4,Jerilderie
+Regional,0000569,Sutton Forest-Bundanoon,,red,Does not meet,rural,11.54,3,Railway
+Regional,0000571,Fern,,red,Does not meet,rural,4.66,9,Belinda
+Regional,0000573,Orange-Stuart Town,,red,Does not meet,rural,85.96,12,Stuart Town-Wellington
+Regional,0000576,Cowra-Wyangala Dam,,red,Does not meet,rural,36.93,10,
+Regional,0000579,Werris Creek Gap,,red,Does not meet,rural,12.22,1,
+Regional,0000584,Old Cooma,,red,Does not meet,rural,14.52,12,Cooma
+Regional,0000585,Middlingbank,,red,Does not meet,rural,30.29,3,
+Regional,0000590,George Downes,,red,Does not meet,rural,29.39,4,
+Regional,0000596,Yamma,,red,Does not meet,rural,45.98,6,Morundah
+Regional,0000598,Gulgong-Ulan,,red,Does not meet,rural,31.72,9,Mayne
+Regional,0000600,Kew -,A1,orange,Likely meets (ADT),urban,52.60,37,Hastings River
+Regional,0000603,Carnley,M1,red,Does not meet,urban,3.27,5,
+Regional,0000604,Brunker,,red,Does not meet,urban,7.32,17,Tudor
+Regional,0000610,Wilton,B88,orange,Likely meets (ADT),rural,11.61,5,Macarthur
+Regional,0000613,Northcliffe,M1,orange,Likely meets (ADT),urban,11.98,24,
+Regional,0000618,Warrumbungles,,red,Does not meet,rural,33.26,5,Cassilis; Vinegaroy
+Regional,0000622,Tenterfield-Woodenbong,,red,Does not meet,rural,137.99,19,
+Regional,0000623,,,orange,Likely meets (ADT),urban,1.89,1,
+Regional,0000624,Ramsgate,,red,Does not meet,urban,2.91,6,Park
+Regional,0000625,Boundary,M1,red,Does not meet,urban,1.72,13,Mclachlan; Neild
+Regional,0000627,Alpine,,red,Does not meet,rural,15.25,4,
+Regional,0000628,Tooma,,red,Does not meet,rural,63.81,10,
+Regional,0000631,Coogee Bay,,red,Does not meet,urban,1.27,8,
+Regional,0000645,Mereworth,,red,Does not meet,rural,3.00,1,
+Regional,0000678,Old Princes,M1,red,Does not meet,rural,22.63,16,Princes
+Regional,0000679,Tweed Valley,,red,Does not meet,rural,44.83,12,
+Regional,0000688,Mate,B58,orange,Likely meets (ADT),urban,11.42,14,Wagga; Wodonga
+Regional,0000689,Brunswick Nth Interchange To Tweed Valley,M1,orange,Likely meets (ADT),urban,14.03,20,Brunswick Sth Interchange To Brunswick Nth; Wreckers Corner Interchange To Mullumbimby
+Regional,0000695,Pacific,M1,green,Meets,rural,12.66,22,River
+Regional,0000703,Bald Nob,,red,Does not meet,rural,11.65,2,
+Regional,0000711,New England,A15,orange,Likely meets (ADT),urban,1.69,6,
+Regional,0000712,Aberdeen,,orange,Likely meets (ADT),urban,0.41,3,St Aubins
+Regional,0002005,Mitchell,,red,Does not meet,urban,0.68,3,Henderson
+Regional,0002007,Crystal,A22,red,Does not meet,urban,1.38,5,Shaw
+Regional,0002008,Bourke,,red,Does not meet,urban,0.86,3,
+Regional,0002011,Wyndham,,red,Does not meet,urban,1.09,3,
+Regional,0002013,Marion,,red,Does not meet,urban,3.91,17,Ramsay
+Regional,0002014,Brighton,A34,red,Does not meet,urban,2.92,19,Beamish
+Regional,0002019,Kurraba,,red,Does not meet,urban,3.67,19,Spofforth; High
+Regional,0002021,Moorefields,A34,red,Does not meet,urban,11.16,39,William; Illawarra; Homer
+Regional,0002024,Balaclava,,red,Does not meet,urban,2.39,7,
+Regional,0002025,Lauderdale,,red,Does not meet,urban,1.78,6,Commonwealth; West; Rosedale
+Regional,0002027,Paisley,,red,Does not meet,urban,3.17,13,Railway; Thomas
+Regional,0002028,Carlton,A34,red,Does not meet,urban,2.22,16,Trafalgar
+Regional,0002029,Willoughby,,red,Does not meet,urban,0.53,2,
+Regional,0002032,West Botany,A36,red,Does not meet,urban,3.58,6,
+Regional,0002033,Ryde,,red,Does not meet,urban,2.80,15,
+Regional,0002036,Ourimbah,A8,red,Does not meet,urban,3.63,13,Ernest; Gerard; Macpherson
+Regional,0002039,Lovell,A32,red,Does not meet,urban,5.22,13,Scott; Main; Megalong
+Regional,0002040,King,,red,Does not meet,urban,2.43,18,Milton
+Regional,0002043,Birdwood,A3,red,Does not meet,urban,15.89,25,Burns
+Regional,0002048,Andrews,A9,red,Does not meet,urban,2.54,6,
+Regional,0002049,Parkes,,red,Does not meet,urban,1.79,9,Hassall
+Regional,0002050,Belmore,,red,Does not meet,urban,3.36,6,
+Regional,0002052,Pittwater,,red,Does not meet,urban,5.13,29,
+Regional,0002057,East,,red,Does not meet,urban,8.36,38,Arthur
+Regional,0002058,Wicks,A3,red,Does not meet,urban,2.52,9,Goulding
+Regional,0002064,Elizabeth,A22,red,Does not meet,urban,1.29,8,
+Regional,0002065,Norton,A22,orange,Likely meets (ADT),urban,1.43,7,
+Regional,0002066,O'Connell,A44,red,Does not meet,urban,0.08,2,
+Regional,0002068,The River Road,M5,red,Does not meet,urban,3.95,11,
+Regional,0002069,Rawson,A6,red,Does not meet,urban,1.96,5,
+Regional,0002070,River,,red,Does not meet,urban,5.03,9,
+Regional,0002074,Anzac,,red,Does not meet,urban,8.23,8,
+Regional,0002075,President,,red,Does not meet,urban,10.91,20,Captain Cook
+Regional,0002083,Elizabeth,,red,Does not meet,urban,2.15,8,Chalmers
+Regional,0002089,Ocean,,red,Does not meet,urban,1.47,21,William
+Regional,0002091,Chandos,,red,Does not meet,urban,0.98,6,Christie
+Regional,0002092,Mowbray,,red,Does not meet,urban,5.01,10,
+Regional,0002093,Flat Rock,,red,Does not meet,urban,2.04,6,Alpha; Brook
+Regional,0002096,Wellington,,red,Does not meet,urban,4.81,12,Rawson; Vaughan
+Regional,0002098,Pitt,A44,red,Does not meet,urban,3.75,19,
+Regional,0002099,Unwins Bridge,A36; M8,red,Does not meet,urban,5.03,15,Bayview
+Regional,0002100,Church,,red,Does not meet,urban,1.63,11,Arthur
+Regional,0002101,Forest,,red,Does not meet,urban,0.31,1,
+Regional,0002102,Oliver,A8,red,Does not meet,urban,5.13,19,Griffin; Dee Why
+Regional,0002103,Old Pacific,,red,Does not meet,urban,0.76,1,
+Regional,0002104,Seven Hills,,red,Does not meet,urban,4.56,7,
+Regional,0002105,The Horsley Drive,A28,red,Does not meet,urban,4.55,6,
+Regional,0002106,Hassall,,red,Does not meet,urban,0.23,1,
+Regional,0002107,Memorial,A34,orange,Likely meets (ADT),urban,0.62,5,Bathurst; Macquarie; Pirie
+Regional,0002108,Bradleys Head,A8,red,Does not meet,urban,3.31,6,Military; Athol Wharf
+Regional,0002109,Castlereagh,,red,Does not meet,rural,12.24,4,
+Regional,0002110,Pittwater,A8,red,Does not meet,urban,7.40,9,Mccarrs Creek
+Regional,0002111,Miller,,red,Does not meet,urban,1.12,2,
+Regional,0002112,Condamine,A8,red,Does not meet,urban,0.78,5,
+Regional,0002113,Pennant,,red,Does not meet,urban,0.90,5,
+Regional,0002114,Pennant Hills,A28,red,Does not meet,urban,1.29,3,
+Regional,0002120,Buchanan,,orange,Likely meets (ADT),rural,11.71,2,
+Regional,0002122,Macdonald,,red,Does not meet,rural,1.19,2,Broadwater-Evans Head
+Regional,0002123,Hart,,orange,Likely meets (ADT),rural,5.49,2,Frame
+Regional,0002124,Ruttleys,,red,Does not meet,urban,8.58,3,Ruttleys Road Mannering
+Regional,0002125,Lorne,,red,Does not meet,rural,28.67,4,Graham
+Regional,0002126,Edmondson,,red,Does not meet,urban,3.80,3,
+Regional,0004006,River,,red,Does not meet,rural,27.59,3,
+Regional,0004033,Burrinjuck,,red,Does not meet,rural,28.30,3,
+Regional,0004053,Coonabarabran-Gumin,,red,Does not meet,rural,46.13,6,Eden
+Regional,0004056,Willis-Kosciusko National,,red,Does not meet,rural,33.58,3,
+Regional,0004057,Lovedale,,red,Does not meet,rural,12.76,2,
+Regional,0004058,Broadwater-Evans Head,,orange,Likely meets (ADT),rural,9.94,1,
+Regional,0007001,The Boulevarde,A1,red,Does not meet,urban,3.98,6,
+Regional,0007002,Bates,A1,red,Does not meet,urban,1.48,4,
+Regional,0007003,Chuter,,red,Does not meet,urban,2.97,4,
+Regional,0007004,Lily,,red,Does not meet,urban,1.86,6,Park; Elizabeth
+Regional,0007006,Bonds,A34; A3; A36,red,Does not meet,urban,12.50,53,Boundary; Railway
+Regional,0007008,Bourke,M1,red,Does not meet,urban,0.75,4,Crescent
+Regional,0007009,Railway,A36,orange,Likely meets (ADT),urban,3.97,40,
+Regional,0007010,Woniora,,red,Does not meet,urban,0.81,1,
+Regional,0007012,Penshurst,,red,Does not meet,urban,4.54,18,Broad Arrow
+Regional,0007015,Gloucester,A3,red,Does not meet,urban,1.96,16,
+Regional,0007017,Edgeware,M8; A34,red,Does not meet,urban,3.88,19,Campbell; Burrows
+Regional,0007018,Addison,,red,Does not meet,urban,2.58,7,Alice; Llewellyn
+Regional,0007023,King,M1,red,Does not meet,urban,2.08,9,Maloney
+Regional,0007030,Slade,M8; D5,red,Does not meet,urban,3.86,16,Preddys; New Illawarra
+Regional,0007031,Captain Cook,,red,Does not meet,urban,8.52,11,
+Regional,0007035,Commercial,,red,Does not meet,urban,2.19,8,Bundara
+Regional,0007037,Bestic,A1,orange,Likely meets (ADT),urban,2.02,5,
+Regional,0007038,,M8,red,Does not meet,urban,0.30,2,
+Regional,0007044,Maroubra,,red,Does not meet,urban,6.15,9,Stephen; Page
+Regional,0007045,Coward,,red,Does not meet,urban,0.32,2,
+Regional,0007047,Homebush,,red,Does not meet,urban,6.37,15,Burwood
+Regional,0007048,,A36,red,Does not meet,urban,1.10,13,
+Regional,0007051,Lakemba,,red,Does not meet,urban,3.77,22,Ninth
+Regional,0007053,Wardell,A34,red,Does not meet,urban,4.94,28,Permanent
+Regional,0007054,Marrickville,,red,Does not meet,urban,2.02,5,
+Regional,0007055,Mowbray,,red,Does not meet,urban,2.20,2,
+Regional,0007061,Huntley,,red,Does not meet,urban,0.88,3,Collins
+Regional,0007062,Cosgrove,,red,Does not meet,urban,2.30,4,
+Regional,0007067,Fifth,,orange,Likely meets (ADT),urban,2.43,3,Burwood
+Regional,0007072,Frazer,A34,red,Does not meet,urban,0.83,2,
+Regional,0007078,Toothill,,red,Does not meet,urban,0.39,1,
+Regional,0007083,Elizabeth,,red,Does not meet,urban,3.24,12,Chalmers
+Regional,0007084,West,,red,Does not meet,urban,0.48,2,
+Regional,0007085,Salisbury,M8; A36,red,Does not meet,urban,3.03,18,Carillon; Percival
+Regional,0007086,Wolli Creek,,red,Does not meet,urban,0.08,1,
+Regional,0007088,Bridge,M8,red,Does not meet,urban,0.45,4,
+Regional,0007094,Missenden,,red,Does not meet,urban,0.24,1,
+Regional,0007097,Redmyre,,orange,Likely meets (ADT),urban,0.54,2,
+Regional,0007101,Hector,A22,red,Does not meet,urban,9.17,27,Clyde
+Regional,0007102,Park,,red,Does not meet,urban,8.24,40,Waldron; Christina
+Regional,0007103,Birnie,,red,Does not meet,urban,1.42,2,Bachell
+Regional,0007105,Auburn,A22,red,Does not meet,urban,4.57,35,Amy
+Regional,0007106,Railway,,red,Does not meet,urban,4.33,2,
+Regional,0007115,Miller,,red,Does not meet,urban,1.76,8,
+Regional,0007116,Wellington,,red,Does not meet,urban,0.87,10,
+Regional,0007117,Brunker,,red,Does not meet,urban,1.56,6,
+Regional,0007118,Waterloo,A22,red,Does not meet,urban,3.31,8,
+Regional,0007119,Wattle,A6; A3,red,Does not meet,urban,2.61,16,
+Regional,0007120,Edgar,A34,red,Does not meet,urban,4.87,30,Queen
+Regional,0007121,Marion,,red,Does not meet,urban,5.33,15,
+Regional,0007122,Chapel,A34,red,Does not meet,urban,5.71,19,Gibson
+Regional,0007123,Rickard,A6,red,Does not meet,urban,0.76,2,
+Regional,0007124,Macauley,A6,red,Does not meet,urban,0.78,3,
+Regional,0007125,Beaconsfield,M5,red,Does not meet,urban,4.09,15,Ashford
+Regional,0007126,Sphinx,A6,red,Does not meet,urban,2.05,18,Watson
+Regional,0007127,Tower,,red,Does not meet,urban,3.67,12,Park
+Regional,0007128,Uranus,A6,red,Does not meet,urban,2.46,15,Alma
+Regional,0007140,Cattai Ridge,,red,Does not meet,rural,19.87,5,Scheyville
+Regional,0007141,Annangrove,,red,Does not meet,rural,13.37,16,
+Regional,0007142,Glenhaven,,red,Does not meet,urban,8.94,15,Samantha Riley
+Regional,0007143,Barclay,,red,Does not meet,urban,3.41,5,Renown; Cook
+Regional,0007144,North Rocks,,red,Does not meet,urban,6.21,4,
+Regional,0007145,Jenkins,A28; M2,red,Does not meet,urban,4.12,9,Oakes; Aiken
+Regional,0007146,Gilbert,,red,Does not meet,urban,3.58,8,
+Regional,0007150,Blacktown,A44,red,Does not meet,urban,2.06,16,
+Regional,0007151,Best,,red,Does not meet,urban,1.63,7,
+Regional,0007152,Vardys,,red,Does not meet,urban,17.00,29,
+Regional,0007153,Quakers Hill,,red,Does not meet,urban,30.98,48,Knox; Ferrers; Doonside
+Regional,0007155,Newton,,orange,Likely meets (ADT),urban,2.53,9,
+Regional,0007156,Bungaribee,,red,Does not meet,urban,3.27,6,
+Regional,0007157,Railway,,red,Does not meet,urban,12.42,12,Riverstone; Hambledon
+Regional,0007159,Power,,red,Does not meet,urban,3.15,8,
+Regional,0007160,Glendenning,M7,red,Does not meet,urban,3.80,21,Lamb; Woodstock
+Regional,0007161,Luxford,,red,Does not meet,urban,20.24,25,
+Regional,0007162,Carlisle,,red,Does not meet,urban,6.23,10,
+Regional,0007163,Jersey,,red,Does not meet,urban,8.08,22,
+Regional,0007164,Palmyra,,red,Does not meet,rural,8.41,13,Eighth; Ninth
+Regional,0007166,Stony Creek,,red,Does not meet,rural,6.53,2,St Marys
+Regional,0007167,Forrester,,red,Does not meet,urban,9.39,14,Glossop
+Regional,0007168,Debrincat,,red,Does not meet,urban,2.26,9,Aurora
+Regional,0007169,Woodstock,,red,Does not meet,urban,0.69,4,Clucas
+Regional,0007170,Eastern,M7,red,Does not meet,urban,3.75,7,
+Regional,0007180,Cawdor,,red,Does not meet,urban,4.39,10,
+Regional,0007181,Old Hume,,red,Does not meet,urban,2.31,7,Broughton
+Regional,0007190,Junction,,red,Does not meet,urban,10.13,46,Broughton; Rose Payten
+Regional,0007191,Gilchrist,B69,red,Does not meet,urban,9.52,28,Network Change - Blaxland; Therry
+Regional,0007192,Eagle Vale,M31,red,Does not meet,urban,5.81,40,Network Change - Badgally
+Regional,0007193,Queen,,red,Does not meet,urban,1.06,2,
+Regional,0007194,Raby,M31,red,Does not meet,urban,9.05,21,
+Regional,0007195,Denham Court,,red,Does not meet,urban,4.79,6,
+Regional,0007196,Ben Lomond,,red,Does not meet,urban,2.14,11,
+Regional,0007197,Williamson,,red,Does not meet,urban,10.20,24,Henderson
+Regional,0007198,Cumberland,,red,Does not meet,urban,7.96,33,Railway
+Regional,0007199,Saywell,,red,Does not meet,urban,0.98,1,
+Regional,0007200,Hurley,,red,Does not meet,urban,2.99,7,
+Regional,0007205,Boundary,,red,Does not meet,urban,9.33,4,
+Regional,0007207,Spinks,,red,Does not meet,rural,20.19,8,Freemans Reach; Terrace
+Regional,0007208,Fairey,,red,Does not meet,urban,1.86,4,Argyle
+Regional,0007209,March,B59,red,Does not meet,urban,0.68,1,
+Regional,0007210,Lennox,,red,Does not meet,urban,0.54,1,
+Regional,0007211,Bourke,,red,Does not meet,urban,0.40,2,
+Regional,0007212,Grose Vale,,orange,Likely meets (ADT),rural,12.01,2,
+Regional,0007220,Smithfield,A28,red,Does not meet,urban,5.66,12,
+Regional,0007221,Sackville,,red,Does not meet,urban,6.63,11,St Johns
+Regional,0007222,Polding,,red,Does not meet,urban,11.67,36,Restwell; Fairfield
+Regional,0007223,Hamilton,,red,Does not meet,urban,6.20,15,Lawson
+Regional,0007224,Canley Vale,,red,Does not meet,urban,4.61,10,
+Regional,0007225,Bartley,,red,Does not meet,urban,0.67,3,
+Regional,0007226,Bareena,,red,Does not meet,urban,2.10,21,Chancery
+Regional,0007227,Gladstone,A28,red,Does not meet,urban,1.09,17,
+Regional,0007228,Edensor,,red,Does not meet,urban,5.92,17,Meadows
+Regional,0007229,Mimosa,,red,Does not meet,urban,3.08,5,
+Regional,0007230,Wetherill,,red,Does not meet,urban,1.24,3,
+Regional,0007231,King,,red,Does not meet,urban,3.66,8,Avoca
+Regional,0007232,Fairfield,,red,Does not meet,urban,4.14,19,Vine
+Regional,0007233,Railway,,red,Does not meet,urban,3.51,8,
+Regional,0007240,Copeland,A28,red,Does not meet,urban,1.65,2,
+Regional,0007241,Bellamy,M11,red,Does not meet,urban,1.55,5,Stevens
+Regional,0007242,New Line,,red,Does not meet,urban,1.83,3,
+Regional,0007243,Malsbury,A28; B83,red,Does not meet,urban,5.37,14,The Esplanade; Yarrara
+Regional,0007244,The Comenarra Parkway,A3,red,Does not meet,urban,7.82,11,Yanko
+Regional,0007245,Sherbrook,B83,red,Does not meet,urban,3.21,7,Royston
+Regional,0007250,Merrylands,A28,orange,Likely meets (ADT),urban,6.14,10,
+Regional,0007251,Centenary,,orange,Likely meets (ADT),urban,3.71,4,Sherwood; Woodpark
+Regional,0007252,Burnett,,orange,Likely meets (ADT),urban,5.34,8,Fowler; Mc Credie
+Regional,0007253,Hawksview,,red,Does not meet,urban,2.20,8,Oxford
+Regional,0007255,Merrylands,,red,Does not meet,urban,0.41,1,
+Regional,0007256,Toongabbie,,red,Does not meet,urban,4.08,20,Cornelia
+Regional,0007257,Dunmore,,red,Does not meet,urban,1.44,8,Goodall
+Regional,0007260,Badgerys Creek,,orange,Likely meets (ADT),rural,6.73,1,
+Regional,0007261,Devonshire,,red,Does not meet,rural,7.91,2,King
+Regional,0007262,Bernera,M7,red,Does not meet,urban,2.65,10,
+Regional,0007263,Kurrajong,M7,red,Does not meet,urban,4.58,20,
+Regional,0007264,Beech,M5,red,Does not meet,urban,0.73,2,
+Regional,0007266,Flowerdale,,red,Does not meet,urban,1.60,9,
+Regional,0007267,North Liverpool,,red,Does not meet,urban,4.36,17,
+Regional,0007268,Governer Macquarie,,red,Does not meet,urban,3.83,9,
+Regional,0007269,Nuwarra,,orange,Likely meets (ADT),urban,2.12,2,
+Regional,0007273,Albert,,red,Does not meet,urban,0.24,1,
+Regional,0007276,Victoria,A40,red,Does not meet,urban,0.34,1,
+Regional,0007277,Bettington,,red,Does not meet,urban,2.04,7,
+Regional,0007279,Wentworth,,red,Does not meet,urban,3.52,8,
+Regional,0007286,Luddenham,,red,Does not meet,rural,9.13,1,
+Regional,0007287,Llandilo,,red,Does not meet,rural,7.43,6,Second
+Regional,0007288,Dunheved,A9,red,Does not meet,urban,6.68,22,Werrington
+Regional,0007289,Coreen,A9,red,Does not meet,urban,2.42,14,
+Regional,0007290,Jamison,,orange,Likely meets (ADT),urban,3.28,8,
+Regional,0007291,Old Bathurst,A32,red,Does not meet,urban,7.30,20,Wilson
+Regional,0007292,Russell,A44,red,Does not meet,urban,1.32,4,
+Regional,0007293,Roper,,red,Does not meet,urban,1.15,4,Hewitt
+Regional,0007299,Cliff,A32,red,Does not meet,urban,9.83,10,
+Regional,0007300,George,A22,red,Does not meet,urban,1.79,9,
+Regional,0007301,Moore Park,M1,red,Does not meet,urban,4.15,14,Foveaux
+Regional,0007302,Albion,,red,Does not meet,urban,0.87,4,
+Regional,0007303,Harbour,A4,red,Does not meet,urban,1.26,9,Hay
+Regional,0007304,Macquarie,,red,Does not meet,urban,2.71,11,College; Wentworth
+Regional,0007305,Goulburn,,red,Does not meet,urban,1.43,5,Pier; William Henry
+Regional,0007306,Bathurst,,red,Does not meet,urban,0.67,1,
+Regional,0007307,Park,,red,Does not meet,urban,1.74,6,William; Druitt
+Regional,0007308,King,,red,Does not meet,urban,0.63,1,
+Regional,0007309,Kingsgrove,D5,red,Does not meet,urban,4.48,7,Croydon
+Regional,0007310,Oxford,,red,Does not meet,urban,0.78,2,
+Regional,0007311,Cowper Wharf,,red,Does not meet,urban,1.42,5,
+Regional,0007312,Hickson,,red,Does not meet,urban,2.13,5,
+Regional,0007313,Glebe Point,,red,Does not meet,urban,1.09,3,
+Regional,0007314,Booth,,red,Does not meet,urban,2.49,5,Mallett; Moore
+Regional,0007315,Balmain,,red,Does not meet,urban,1.85,4,
+Regional,0007316,Lilyfield,A40,red,Does not meet,urban,2.00,5,
+Regional,0007317,Mullens,,red,Does not meet,urban,1.25,4,Montague; Robert
+Regional,0007318,Darling,,red,Does not meet,urban,1.65,2,
+Regional,0007319,Henley Marine,A44,red,Does not meet,urban,1.96,19,Brent
+Regional,0007320,Harris,,red,Does not meet,urban,0.77,5,
+Regional,0007321,Burwood,,red,Does not meet,urban,0.75,2,
+Regional,0007322,Broughton,,red,Does not meet,urban,0.83,2,
+Regional,0007323,Underwood,,red,Does not meet,urban,0.56,1,
+Regional,0007324,Underwood,,red,Does not meet,urban,2.18,13,Pomeroy
+Regional,0007325,Majors Bay,,red,Does not meet,urban,10.03,51,Lyons
+Regional,0007326,Great North,,red,Does not meet,urban,0.60,9,
+Regional,0007328,Carrington,,red,Does not meet,urban,1.45,3,
+Regional,0007329,Cowper,,red,Does not meet,urban,1.02,8,
+Regional,0007330,York,,red,Does not meet,urban,4.13,18,Ocean; Avoca
+Regional,0007331,Todman,M1,red,Does not meet,urban,2.37,23,Doncaster
+Regional,0007332,Darley,,red,Does not meet,urban,4.48,35,Macpherson
+Regional,0007334,Murray,,red,Does not meet,urban,1.19,15,Birrell
+Regional,0007335,Birrell,,red,Does not meet,urban,3.02,11,Penkivil
+Regional,0007336,Osullivan,,red,Does not meet,urban,2.67,6,Curlewis
+Regional,0007337,Norton,A22,red,Does not meet,urban,0.50,2,
+Regional,0007338,Network Change Do Not Load Data - Ernest,,red,Does not meet,urban,0.73,5,Network Change - Ernest; Ernest
+Regional,0007340,Malabar,,red,Does not meet,urban,9.54,49,Arden; Beauchamp
+Regional,0007341,Greenwich,,red,Does not meet,urban,0.32,2,
+Regional,0007342,Lady Game,A3,red,Does not meet,urban,3.76,10,
+Regional,0007343,Lawrence,,red,Does not meet,urban,4.98,14,
+Regional,0007344,Kenneth,A8,red,Does not meet,urban,1.83,6,Balgowlah
+Regional,0007345,Allambie,A8; A38,red,Does not meet,urban,4.45,17,Kentwell
+Regional,0007346,Beacon Hill,A38,red,Does not meet,urban,3.65,10,Pitt; Winbourne
+Regional,0007347,Mcintosh,A8,red,Does not meet,urban,2.50,6,
+Regional,0007348,Fisher,A8,red,Does not meet,urban,0.72,2,
+Regional,0007349,Springdale,,red,Does not meet,urban,1.82,6,Stanhope; Rosebery
+Regional,0007350,Fox Valley,A1,red,Does not meet,urban,2.28,6,
+Regional,0007351,Eastern,A1,red,Does not meet,urban,2.10,5,
+Regional,0007352,Powderworks,A8,red,Does not meet,urban,4.50,8,
+Regional,0007353,Darley,,red,Does not meet,urban,0.75,3,
+Regional,0007365,Willandra,A8; A38,red,Does not meet,urban,5.13,19,Carawa
+Regional,0007421,Kissing Pt,A1,red,Does not meet,urban,2.02,2,
+Regional,0007464,Miller,,red,Does not meet,urban,0.47,4,Network Change Do Not Load Data - Blue
+Regional,0007465,Lyton,,red,Does not meet,urban,4.92,14,Bungarribee; Lancaster
+Regional,0007466,Hill,,red,Does not meet,urban,7.12,4,Holker
+Regional,0007467,Chisholm,,red,Does not meet,urban,2.96,8,
+Regional,0007468,Mona,,red,Does not meet,urban,0.82,1,
+Regional,0007469,Bullecourt,,red,Does not meet,urban,0.60,1,
+Regional,0007470,Green,,red,Does not meet,urban,9.36,20,Victoria
+Regional,0007471,Carrington,,red,Does not meet,urban,1.11,3,
+Regional,0007472,Falmouth,,red,Does not meet,urban,1.05,3,
+Regional,0007474,Powers,,red,Does not meet,urban,1.77,3,
+Regional,0007475,Quakers,,red,Does not meet,urban,2.46,2,
+Regional,0007476,Harley,,red,Does not meet,rural,0.35,1,
+Regional,0007477,Brooks,,red,Does not meet,urban,0.49,2,
+Regional,0007478,Cambridge,,red,Does not meet,urban,1.07,1,
+Regional,0007479,Broad Arrow,,red,Does not meet,urban,0.69,1,
+Regional,0007480,Victoria,,red,Does not meet,urban,4.31,13,Cowpasture
+Regional,0007481,Darcy,A28,red,Does not meet,urban,4.11,9,Park
+Regional,0007482,County,,red,Does not meet,urban,2.81,2,
+Regional,0007483,Duffy,,red,Does not meet,urban,0.32,1,
+Regional,0007484,Macarthur,,red,Does not meet,urban,1.19,2,Harris
+Regional,0007485,Christe,,red,Does not meet,urban,1.78,2,
+Regional,0007486,Herring,,red,Does not meet,urban,2.04,4,
+Regional,0007487,Talavera,,red,Does not meet,urban,1.70,3,
+Regional,0007488,Kiora,,red,Does not meet,urban,0.69,3,
+Regional,0007489,Albert,,red,Does not meet,urban,1.22,2,Archer
+Regional,0007490,Archer,,red,Does not meet,urban,0.78,1,
+Regional,0007507,Kanandah,,red,Does not meet,rural,4.97,3,Creedon
+Regional,0007509,Titania,,red,Does not meet,rural,4.23,1,
+Regional,0007510,Albion,,orange,Likely meets (ADT),rural,3.98,1,
+Regional,0007511,Mandurama-Canowindra,,red,Does not meet,rural,43.28,4,
+Regional,0007512,Goolma-Ballimore,,red,Does not meet,rural,39.54,5,
+Regional,0007513,,,red,Does not meet,rural,76.36,6,
+Regional,0007514,,,red,Does not meet,rural,94.80,7,
+Regional,0007515,Warren To Combara,,red,Does not meet,rural,75.80,6,
+Regional,0007516,,,red,Does not meet,rural,64.47,3,
+Regional,0007517,,,red,Does not meet,rural,59.97,4,
+Regional,0007518,,A32,red,Does not meet,rural,95.66,5,
+Regional,0007519,,A39,red,Does not meet,rural,64.67,8,
+Regional,0007521,,,red,Does not meet,rural,77.49,8,
+Regional,0007522,,B75,red,Does not meet,rural,129.80,6,
+Regional,0007523,Gerty,,orange,Likely meets (ADT),urban,1.62,2,Marshalls
+Regional,0007524,Frederick,,orange,Likely meets (ADT),urban,0.47,1,
+Regional,0007525,Thompson,,orange,Likely meets (ADT),urban,1.10,1,
+Regional,0007526,Hargraves,,orange,Likely meets (ADT),rural,1.61,1,
+Regional,0007527,Bullus,,green,Meets,urban,0.97,1,
+Regional,0007602,Broadleaf Park,,red,Does not meet,rural,10.06,1,
+Regional,0007603,Elliott,,red,Does not meet,rural,21.75,2,
+Regional,0007604,Khancoban To Cabramurra,,red,Does not meet,rural,5.08,1,
+Regional,0007605,Barham,,red,Does not meet,rural,52.53,5,
+Regional,0007606,Tabbita,,red,Does not meet,rural,29.99,3,
+Regional,0007607,Macs Reef,,red,Does not meet,rural,19.38,3,
+Regional,0007608,Barellan,,red,Does not meet,rural,55.30,5,
+Regional,0007609,Murrumbateman,,red,Does not meet,rural,24.63,2,
+Regional,0007610,Yass Valley,,orange,Likely meets (ADT),urban,11.74,8,
+Regional,0007621,Sapphire Coast,,red,Does not meet,rural,20.55,2,
+Regional,0007622,Arthur Kain,,green,Meets,urban,6.34,1,
+Regional,0007623,Wolumla - Bemboka,,red,Does not meet,rural,36.73,3,
+Regional,0007624,,B72,orange,Likely meets (ADT),urban,3.92,1,
+Regional,0007625,Cooma - Braidwood,,red,Does not meet,rural,109.54,8,
+Regional,0007626,Jindabyne - Dalgety,,orange,Likely meets (ADT),rural,33.53,10,
+Regional,0007627,Dalmeny,,orange,Likely meets (ADT),urban,7.40,2,
+Regional,0007628,Hector Mcwilliam,,orange,Likely meets (ADT),rural,4.98,1,
+Regional,0007629,Long Beach,,orange,Likely meets (ADT),rural,3.69,1,
+Regional,0007630,Batemans Bay - Moruya,,red,Does not meet,urban,31.69,3,
+Regional,0007631,Pdise Beach & Sanctuary Pt,,red,Does not meet,urban,15.68,5,Wool Rd And Tasman
+Regional,0007632,Culburra,,red,Does not meet,rural,18.76,4,Greenwell Pt
+Regional,0007633,Sussex Inlet,,orange,Likely meets (ADT),rural,12.57,1,
+Regional,0007634,Naval College,,red,Does not meet,rural,11.27,2,
+Regional,0007635,Wilson,M31,red,Does not meet,rural,30.80,7,West
+Regional,0007636,Marulan,M31,red,Does not meet,rural,31.00,5,
+Regional,0007637,Merimbula,,green,Meets,urban,4.07,1,
+Regional,0007638,Hume Highway,M31,red,Does not meet,rural,1.73,1,
+Regional,0007639,Station,B73,red,Does not meet,urban,1.28,3,
+Regional,0007640,Silverdale,,orange,Likely meets (ADT),rural,37.03,6,Montpelier
+Regional,0007641,Gladstone,,red,Does not meet,urban,2.91,4,Denison; Bridge
+Regional,0007642,Squires,,red,Does not meet,urban,4.34,3,Pioneer
+Regional,0007643,Gerroa,,red,Does not meet,rural,11.47,2,Crooked River Road From Mr571 At Gerroa To Beach
+Regional,0007705,Warialda To Goondiwindi,,red,Does not meet,rural,84.52,8,
+Regional,0007706,Emmaville,,red,Does not meet,rural,40.72,4,
+Regional,0007707,Goonoo Goonoo,A15,green,Meets,urban,4.28,4,
+Regional,0007708,Marsh,B78,green,Meets,urban,3.23,5,Erskine
+Regional,0007709,Mullaley-Boggabri,B51,red,Does not meet,rural,48.61,5,Mullaley Boggabri
+Regional,0007710,,B51,red,Does not meet,rural,10.96,2,
+Regional,0007711,Carroll Gap-Manilla,,red,Does not meet,rural,36.33,4,Carroll Gap
+Regional,0007716,Dangar,,red,Does not meet,rural,100.22,7,
+Regional,0007718,Nowendoc-Dungowan,,red,Does not meet,rural,57.61,7,
+Regional,0007719,Nowendoc,,red,Does not meet,rural,144.01,18,
+Regional,0007732,Wharf,,red,Does not meet,rural,4.87,2,
+Regional,0007733,Mungungbal,M1,orange,Likely meets (ADT),urban,9.72,11,Old Pacific Highway-Wharf
+Regional,0007734,Teven - Rifle Range,B60,orange,Likely meets (ADT),rural,14.56,7,Tintinbar
+Regional,0007735,Ross,,red,Does not meet,rural,7.00,2,Hinterland
+Regional,0007736,,M1,red,Does not meet,rural,11.70,1,
+Regional,0007737,Crescent Head,,red,Does not meet,rural,17.90,3,
+Regional,0007738,Wooli,,red,Does not meet,rural,34.26,4,8 Mile
+Regional,0007739,Wirrimbi,,red,Does not meet,rural,7.51,3,Old Coast
+Regional,0007740,Stuarts Point,M1,red,Does not meet,rural,9.84,3,
+Regional,0007741,Stadium,,green,Meets,urban,1.33,1,
+Regional,0007742,Wyrallah,,red,Does not meet,rural,32.73,5,
+Regional,0007743,Comboyne,,red,Does not meet,rural,25.16,2,
+Regional,0007744,Dampier St - Jewry,,orange,Likely meets (ADT),urban,3.35,1,
+Regional,0007745,Hogbin,A1,orange,Likely meets (ADT),urban,3.73,2,
+Regional,0007746,Gordon,,orange,Likely meets (ADT),urban,1.57,2,
+Regional,0007751,Woy Woy,,red,Does not meet,rural,11.47,5,Dawson
+Regional,0007752,Ocean Beach,,red,Does not meet,urban,4.06,5,
+Regional,0007753,Empire Bay,,red,Does not meet,urban,0.04,2,
+Regional,0007755,Ocean View,,red,Does not meet,urban,2.48,1,
+Regional,0007756,Tumbi,B74,orange,Likely meets (ADT),urban,6.20,4,
+Regional,0007757,Racecourse,,orange,Likely meets (ADT),urban,3.52,4,Mann
+Regional,0007758,Chittaway,,red,Does not meet,urban,6.75,4,
+Regional,0007759,Elizabeth Bay,,red,Does not meet,urban,6.57,5,
+Regional,0007760,Narara Valley,,red,Does not meet,urban,4.26,1,
+Regional,0007761,Old Bar,,orange,Likely meets (ADT),rural,10.99,6,
+Regional,0007764,Bingleburra,,red,Does not meet,rural,25.80,4,
+Regional,0007765,Lemon Tree Passage,,orange,Likely meets (ADT),rural,14.45,8,
+Regional,0007767,Broke,,red,Does not meet,rural,24.53,4,
+Regional,0007768,Cameron Park,A15,red,Does not meet,rural,1.75,2,
+Regional,0007769,Myall,A37,red,Does not meet,urban,3.11,6,
+Regional,0007770,Mccaffrey,A37,orange,Likely meets (ADT),urban,3.89,7,
+Regional,0007771,Mimmi,B89,red,Does not meet,urban,2.34,2,
+Regional,0007772,Parker,,orange,Likely meets (ADT),urban,1.67,5,Darling; Elizabeth
+Regional,0007774,Dunolly,,orange,Likely meets (ADT),urban,0.59,1,
+Regional,0007777,Scenic,,red,Does not meet,urban,7.32,2,Memorial
+Regional,0007778,Tocal,,red,Does not meet,rural,16.43,3,
+Regional,0007779,Beach Suburbs,,red,Does not meet,urban,8.52,3,
+Regional,0007780,Wells,,red,Does not meet,urban,4.03,1,
+Regional,0007781,Evans,,red,Does not meet,urban,0.91,1,
+Regional,0007782,Church,,red,Does not meet,urban,1.13,1,
+Regional,0007784,Edward,,green,Meets,urban,2.81,2,Jones
+Regional,0007790,Byrnes,,red,Does not meet,rural,26.78,7,
+Regional,2350010,Macleay Valley,M1,red,Does not meet,rural,45.75,32,
+Regional,2510061,William,,orange,Likely meets (ADT),urban,0.01,1,
+Regional,2580557,Meadow Flat-Piper Flat,,red,Does not meet,rural,10.28,1,
+Regional,3440255,Nr Oberon-Diamond Swamp,,red,Does not meet,rural,34.48,3,

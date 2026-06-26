@@ -230,6 +230,11 @@
                 <div class="legend-item"><div class="legend-color" style="background:#dc2626"></div> Does not meet criteria</div>
                 <div class="legend-item"><div class="legend-color legend-dash"></div> Route-numbered road A / B / M (dashed)</div>
                 <div class="legend-item"><div class="legend-color" style="background:#7db4f0; width:9px; height:9px; border-radius:50%"></div> Town / City — pin size scales with population</div>
+                <label class="legend-item" style="margin-top:8px; padding-top:8px; border-top:1px solid #e7e5e4; cursor:pointer;">
+                    <input type="checkbox" id="nsr-toggle" style="margin:0 8px 0 0;">
+                    <div class="legend-color" style="background:#1d4ed8"></div> Highlight nationally significant (NLTN)
+                </label>
+                <div class="legend-item" style="font-size:11px; color:#78716c; padding-left:22px;">Nationally significant State roads also show green (meet national criteria)</div>
             </div>
             <div class="data-note">
                 <span class="note-label">Note</span>
@@ -432,13 +437,14 @@ function showRoadDetail(p, source) {
     document.getElementById('detail-road-name').innerHTML = roadLabel(p);
     document.getElementById('detail-road-number').textContent = isHighSpeed(p) ? 'Motorway / freeway' : '';
     const isState = p.admin_class === 'S';
-    document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + '</strong>';
+    document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + (p._nsr ? ' — Nationally Significant' : '') + '</strong>';
 
     // Result
     const resultEl = document.getElementById('detail-result');
     const reasonEl = document.getElementById('detail-result-reason');
     if (source === 'nsw') {
-        if (p.status === 'green') { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Passes all testable criteria even without ADT data'; }
+        if (p._nsr) { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Nationally Significant State Road — on the National Land Transport Network'; }
+        else if (p.status === 'green') { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Passes all testable criteria even without ADT data'; }
         else if (p.status === 'orange') { resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY MEETS</span></span>'; reasonEl.textContent = 'Would meet criteria if ADT exceeds the relevant threshold'; }
         else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>'; reasonEl.textContent = 'Fails mandatory criteria or insufficient connectivity'; }
     } else {
@@ -460,9 +466,11 @@ function showRoadDetail(p, source) {
     // Mandatory
     const mandEl = document.getElementById('detail-mandatory');
     if (isState) {
+        // The "within 20km of another State Road" spacing rule is a rural criterion only —
+        // in urban areas State roads are inherently densely spaced, so it is not assessed there.
         mandEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.has_pbs1 ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">S-09: PBS Level 1 vehicle access</div><div class="criteria-value">Facilitates movement of PBS Level 1 or equivalent</div></div></div>' +
             '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">No load limits on assets</div><div class="criteria-value">Data unavailable — assumed compliant</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">Does not parallel State Road within 20km</div><div class="criteria-value">Not assessed</div></div></div>';
+            (p._urban ? '' : '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">Does not parallel State Road within 20km</div><div class="criteria-value">Not assessed (rural criterion)</div></div></div>');
     } else {
         mandEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.has_bdouble ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">R-04: GML/CML 19m B-double access (50+ tonnes)</div><div class="criteria-value">Facilitates movement of 19m B-double routes</div></div></div>' +
             '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">No load limits on assets</div><div class="criteria-value">Data unavailable — assumed compliant</div></div></div>';
@@ -522,16 +530,23 @@ function showCV() {
 }
 
 // Style functions
+let nsrFilter = false;   // Nationally Significant State Roads overlay toggle
 function nswStyle(feature) {
     const p = feature.properties;
-    const s = p.status;
+    // Filter ON: spotlight the on-NLTN State-road segments in blue, fade everything else.
+    if (nsrFilter) {
+        if (p.admin_class === 'S' && p._nltn) return { color: '#1d4ed8', weight: Math.max(2.6, p._w || 2), opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: null };
+        return { color: '#d6d3d1', weight: 1, opacity: 0.4, lineCap: 'round', lineJoin: 'round', dashArray: null };
+    }
+    // Normal pass/fail: Nationally Significant State Roads read as green (meet the national criteria).
+    const s = p._nsr ? 'green' : (p._roadStatus || p.status);
     const colors = { green: '#16a34a', orange: '#f59e0b', red: '#dc2626' };
     return { color: colors[s] || '#a8a29e', weight: p._w || 2, opacity: s === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }
 
 function cvStyle(feature) {
     const p = feature.properties;
-    const meets = p.meets_criteria;
+    const meets = (p._roadMeets !== undefined) ? p._roadMeets : p.meets_criteria;
     return { color: meets ? '#16a34a' : '#dc2626', weight: meets ? 3.2 : 2.4, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }
 
@@ -575,8 +590,10 @@ Promise.all([
     fetch('data/towns_cv.geojson').then(r => r.json()).catch(() => null),
     fetch('data/nsw_refs.json').then(r => r.json()).catch(() => []),
     fetch('data/cv_refs.json').then(r => r.json()).catch(() => []),
-    fetch('data/ref_overrides.json').then(r => r.json()).catch(() => ({}))
-]).then(([nswRoads, nswStats, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv]) => {
+    fetch('data/ref_overrides.json').then(r => r.json()).catch(() => ({})),
+    fetch('data/nsw_urbanity.json').then(r => r.json()).catch(() => []),
+    fetch('data/nsw_nltn.json').then(r => r.json()).catch(() => [])
+]).then(([nswRoads, nswStats, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn]) => {
     // Manual overrides (data/ref_overrides.json) win over the auto OSM join.
     // Key by road_number: "B76" forces a shield, "" removes it. By road_name (UPPER) as fallback.
     const ov = refOv || {};
@@ -588,6 +605,13 @@ Promise.all([
     };
     nswRoads.features.forEach((f, i) => applyRef(f, nswRefs[i]));
     cvRoads.features.forEach((f, i) => applyRef(f, cvRefs[i]));
+    // ABS Section-of-State urban/rural classification per segment (data/nsw_urbanity.json).
+    const nu = nswUrb || [];
+    nswRoads.features.forEach((f, i) => { f.properties._urbanSeg = nu[i] || null; });
+    // National Land Transport Network membership per segment (data/nsw_nltn.json),
+    // spatial-joined from infrastructure.gov.au — the authoritative national freight network.
+    const nl = nswNltn || [];
+    nswRoads.features.forEach((f, i) => { f.properties._nltn = !!nl[i]; });
 
     // === NSW Tab Stats ===
     document.getElementById('nsw-total').textContent = nswStats.total_roads.toLocaleString();
@@ -647,17 +671,32 @@ Promise.all([
 
     // NSW Roads — aggregate per road so a click selects the whole road
     const NSW_BOOLS = ['has_pbs1', 'has_bdouble', 'is_key_freight_route', 'connects_major_town', 'connects_hospital'];
-    const nswRoadAgg = {}, nswRoadLayers = {}, rankS = { red: 1, orange: 2, green: 3 };
+    const nswRoadAgg = {}, nswRoadLayers = {};
     nswRoads.features.forEach(f => {
         const k = roadKeyOf(f.properties); if (!k) return;
-        const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0 }));
-        if ((rankS[f.properties.status] || 0) > (rankS[a.status] || 0)) a.status = f.properties.status;
+        const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0, _byStatus: { red: 0, orange: 0, green: 0 }, _urbanLen: 0, _ruralLen: 0, _nltnLen: 0 }));
+        const len = roadLenKm(f.geometry);
+        a._len += len;
+        if (a._byStatus[f.properties.status] !== undefined) a._byStatus[f.properties.status] += len;
+        if (f.properties._urbanSeg === 'urban') a._urbanLen += len; else if (f.properties._urbanSeg === 'rural') a._ruralLen += len;
+        if (f.properties._nltn) a._nltnLen += len;
         NSW_BOOLS.forEach(b => { if (f.properties[b]) a[b] = 1; });
-        a._len += roadLenKm(f.geometry);
+    });
+    // Roll up each road to ONE verdict = the status covering most of its length
+    // (majority by km; ties resolved conservatively red > orange > green).
+    // Also roll up urban/rural by length, and flag Nationally Significant State Roads
+    // = State road predominantly (>=50% of length) on the National Land Transport Network.
+    Object.values(nswRoadAgg).forEach(a => {
+        a.status = ['red', 'orange', 'green'].reduce((best, s) => (a._byStatus[s] > a._byStatus[best] ? s : best), 'red');
+        a._urban = a._urbanLen > a._ruralLen;
+        a._nsr = a.admin_class === 'S' && a._nltnLen >= 0.5 * a._len;
     });
     nswRoads.features.forEach(f => {
         const k = roadKeyOf(f.properties);
-        f.properties._w = (k && nswRoadAgg[k]) ? weightForKm(nswRoadAgg[k]._len) : 1.6;
+        const a = k && nswRoadAgg[k];
+        f.properties._w = a ? weightForKm(a._len) : 1.6;
+        f.properties._roadStatus = a ? a.status : f.properties.status;   // colour whole road by its majority verdict
+        f.properties._nsr = a ? a._nsr : false;
     });
     nswLayer = L.geoJSON(nswRoads, {
         style: nswStyle,
@@ -699,6 +738,18 @@ Promise.all([
 
     // CV Roads — group segments so a click selects the whole road
     const cvRoadLayers = {};
+    // Roll up each CV road to ONE verdict = majority of its length meets criteria (tie -> fails).
+    const cvRoadAgg = {};
+    cvRoads.features.forEach(f => {
+        const k = roadKeyOf(f.properties); if (!k) return;
+        const a = cvRoadAgg[k] || (cvRoadAgg[k] = { yes: 0, no: 0 });
+        const len = roadLenKm(f.geometry);
+        if (f.properties.meets_criteria) a.yes += len; else a.no += len;
+    });
+    cvRoads.features.forEach(f => {
+        const k = roadKeyOf(f.properties); const a = k && cvRoadAgg[k];
+        if (a) f.properties._roadMeets = a.yes > a.no;
+    });
     cvLayer = L.geoJSON(cvRoads, {
         style: cvStyle,
         smoothFactor: 1.5,
@@ -734,6 +785,13 @@ Promise.all([
             }
         });
     }
+
+    // Nationally Significant State Roads (NLTN) overlay toggle
+    const nsrToggle = document.getElementById('nsr-toggle');
+    if (nsrToggle) nsrToggle.addEventListener('change', function () {
+        nsrFilter = nsrToggle.checked;
+        if (nswLayer) nswLayer.setStyle(nswStyle);
+    });
 
     // Show NSW by default
     showNSW();
