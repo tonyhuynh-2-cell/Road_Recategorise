@@ -52,7 +52,9 @@ function cvStyle(feature) {
 // roads draw on top. Proposed corridors (not yet built) render translucent + dashed.
 function nltnFeatureStyle(feature) {
     const s = { color: '#3cb043', weight: 5, opacity: 0.5, lineCap: 'round', lineJoin: 'round', dashArray: null };
+    // Proposed corridors render fainter (translucent). Kept solid — not dashed — so the whole line
+    // is a clickable/hoverable target rather than just the dash segments.
     const street = (feature && feature.properties && feature.properties.street) || '';
-    if (/proposed/i.test(street)) { s.opacity = 0.22; s.dashArray = '5 6'; }
+    if (/proposed/i.test(street)) s.opacity = 0.32;
     return s;
 }

@@ -12,11 +12,12 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/
 
 let nswLayer, nswTownsLayer, cvLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer;
 
-// Dedicated pane BELOW the road overlay so the NLTN 2020 reference underlay (Nat. Significant
-// lens) draws under the coloured roads. overlayPane sits at z-index 400.
+// Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
+// and uses an SVG renderer so the green lines (incl. proposed corridors) stay hoverable/clickable,
+// while clicks on empty areas pass THROUGH to the graded roads underneath (canvas would swallow them).
 map.createPane('nltnPane');
-map.getPane('nltnPane').style.zIndex = 350;
-const nltnRenderer = L.canvas({ pane: 'nltnPane' });
+map.getPane('nltnPane').style.zIndex = 450;
+const nltnRenderer = L.svg({ pane: 'nltnPane' });
 
 // Legend visibility toggles — clicking a legend item flips its key and re-applies to the map.
 // green/orange/red = verdict colours; nltn = green national network; dashed = route-numbered roads;
