@@ -1,30 +1,30 @@
 {
   "lga": "Clarence Valley",
   "zone": "Regional",
-  "total_roads": 1810,
-  "roads_meeting_criteria": 428,
-  "roads_not_meeting": 1382,
-  "accuracy_pct": 23.6,
+  "total_roads": 256,
+  "roads_meeting_criteria": 203,
+  "roads_not_meeting": 53,
+  "accuracy_pct": 79.3,
   "by_category": {
     "State Road": {
-      "total": 1652,
-      "meeting": 403,
-      "not_meeting": 1249,
-      "accuracy_pct": 24.4
+      "total": 189,
+      "meeting": 185,
+      "not_meeting": 4,
+      "accuracy_pct": 97.9
     },
     "Regional Road": {
-      "total": 158,
-      "meeting": 25,
-      "not_meeting": 133,
-      "accuracy_pct": 15.8
+      "total": 67,
+      "meeting": 18,
+      "not_meeting": 49,
+      "accuracy_pct": 26.9
     }
   },
   "criteria_breakdown": {
     "with_adt_data": 131,
     "with_hv_data": 98,
-    "with_pbs1": 432,
-    "with_pbs2b": 391,
-    "with_bdouble": 454,
-    "on_freight_network": 125
+    "with_pbs1": 197,
+    "with_pbs2b": 166,
+    "with_bdouble": 216,
+    "on_freight_network": 121
   }
 }
