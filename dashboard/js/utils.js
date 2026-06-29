@@ -70,6 +70,47 @@ function townIcon(size, accent) {
         iconAnchor: [size / 2, Math.round(size * 0.9375)]
     });
 }
+// --- Connectivity evidence: render the named entities (towns / hospitals / destinations) a road
+// connects, with the attribute that makes each one qualify. Each row pans+pulses the entity on click. ---
+function popK(n) {
+    n = Math.round(+n || 0);
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M people';
+    if (n >= 1000) return Math.round(n / 1000) + 'k people';
+    return n + ' people';
+}
+function evMeta(e, kind) {
+    if (kind === 'centre') {
+        if (e.kind === 'sua') return 'Significant Urban Area · ' + popK(e.pop) + ' · within';
+        const tail = e.endpoint ? 'route terminus' : (e.km + ' km');
+        return (e.type || 'Centre') + ' · ' + popK(e.pop) + ' · ' + tail;
+    }
+    if (kind === 'hosp') return (e.cat || 'Major Hospital') + ' · ' + e.km + ' km';
+    if (kind === 'dest') return (e.ftype || 'Key destination') + ' · ' + e.km + ' km';
+    return e.km + ' km';
+}
+// Centres list (towns + Significant Urban Areas). An SUA row frames its boundary on click; a town
+// row pans to its pin. Each shows the qualifying attribute (type · population · distance / terminus).
+function evCentres(items) {
+    if (!items || !items.length) return '';
+    return '<div class="ev-list">' + items.map(function (e) {
+        const isSua = e.kind === 'sua';
+        const click = isSua ? ('fitToSua(' + e.suaId + ')') : ('panToConn(' + e.lon + ',' + e.lat + ')');
+        return '<div class="ev-item" onclick="' + click + '" title="Show on map">' +
+            '<span class="ev-dot ' + (isSua ? 'ev-sua' : 'ev-town') + '"></span>' +
+            '<span class="ev-name">' + e.name + '</span>' +
+            '<span class="ev-meta">' + evMeta(e, 'centre') + '</span></div>';
+    }).join('') + '</div>';
+}
+function evList(items, kind) {
+    if (!items || !items.length) return '';
+    return '<div class="ev-list">' + items.map(function (e) {
+        return '<div class="ev-item" onclick="panToConn(' + e.lon + ',' + e.lat + ')" title="Show on map">' +
+            '<span class="ev-dot ev-' + kind + '"></span>' +
+            '<span class="ev-name">' + e.name + '</span>' +
+            '<span class="ev-meta">' + evMeta(e, kind) + '</span></div>';
+    }).join('') + '</div>';
+}
+
 // Popup shown when a town/city pin is clicked: name, type, and population.
 function townPopup(p) {
     const pop = (typeof p.population === 'number' && p.population > 0) ? Math.round(p.population).toLocaleString() : null;

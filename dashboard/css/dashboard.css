@@ -166,3 +166,31 @@
         .leaflet-popup-content { margin: 9px 12px; }
         .town-popup strong { display: block; color: var(--ink); font: 600 13px var(--sans); }
         .town-popup .tp-meta { color: var(--muted); font: 400 11.5px var(--sans); margin-top: 2px; }
+
+        /* Connectivity evidence list in the Road Detail panel — the named entities a criterion connects */
+        .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 3px; }
+        .ev-item { display: flex; align-items: center; gap: 7px; font: 400 11.5px/1.3 var(--sans); color: var(--ink-soft); cursor: pointer; }
+        .ev-item:hover .ev-name { text-decoration: underline; }
+        .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .ev-dot.ev-town { background: #1d4ed8; }
+        .ev-dot.ev-sua { background: #1d4ed8; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #1d4ed8; }   /* urban area = ringed dot */
+        .ev-dot.ev-hosp { background: #dc2626; }
+        .ev-dot.ev-dest { background: #7c3aed; }
+        .ev-name { font-weight: 600; color: var(--ink); }
+        .ev-meta { color: var(--faint); font-size: 10.5px; margin-left: auto; white-space: nowrap; padding-left: 8px; }
+
+        /* Map highlights: rings + labels for the entities the selected road connects */
+        .conn-icon { background: none !important; border: none !important; }
+        .conn-pin { display: inline-flex; align-items: center; gap: 4px; transform: translate(-50%, -50%); white-space: nowrap;
+            background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 2px 7px; font: 600 11px var(--sans);
+            box-shadow: 0 2px 9px rgba(28,25,23,.20); }
+        .conn-glyph { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; color: #fff; font-size: 10px; }
+        .conn-town .conn-glyph { background: #1d4ed8; }
+        .conn-sua .conn-glyph { background: #1d4ed8; }
+        .conn-hosp .conn-glyph { background: #dc2626; }
+        .conn-dest .conn-glyph { background: #7c3aed; }
+        .conn-town .conn-name { color: #1d4ed8; }
+        .conn-sua .conn-name { color: #1d4ed8; }
+        .conn-sua .conn-pin { border-color: #1d4ed8; }
+        .conn-hosp .conn-name { color: #b91c1c; }
+        .conn-dest .conn-name { color: #6d28d9; }

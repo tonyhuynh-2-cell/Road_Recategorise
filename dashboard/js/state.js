@@ -22,6 +22,83 @@ map.createPane('nltnPane');
 map.getPane('nltnPane').style.zIndex = 450;
 const nltnRenderer = L.svg({ pane: 'nltnPane' });
 
+// --- Connectivity highlights ---------------------------------------------------------------
+// When a road is selected, ring + label every entity it connects (the evidence behind its
+// criteria): town centres, major hospitals, ports / airports / intermodals. The ring is the
+// ~connection radius (the "perimeter" the criteria test against). Lives in its own pane on top.
+map.createPane('connPane');
+map.getPane('connPane').style.zIndex = 660;   // above road/marker panes, below popups
+const connRenderer = L.svg({ pane: 'connPane' });   // SVG so rings draw even with preferCanvas
+const connLayer = L.layerGroup();
+const CONN_STYLE = {
+    town: { color: '#1d4ed8', radius: 2200, glyph: '' },
+    sua:  { color: '#1d4ed8', radius: 0,    glyph: '◍' },
+    hosp: { color: '#dc2626', radius: 1600, glyph: 'H' },
+    dest: { color: '#7c3aed', radius: 2200, glyph: '★' }
+};
+function destGlyph(ftype) {
+    const t = String(ftype || '').toLowerCase();
+    if (t.indexOf('airport') !== -1) return '✈';
+    if (t.indexOf('port') !== -1) return '⚓';
+    if (t.indexOf('intermodal') !== -1) return '▦';
+    return '★';
+}
+function connMarker(e, kind) {
+    const glyph = kind === 'dest' ? destGlyph(e.ftype) : CONN_STYLE[kind].glyph;
+    const html = '<span class="conn-pin">' + (glyph ? '<span class="conn-glyph">' + glyph + '</span>' : '') +
+        '<span class="conn-name">' + e.name + '</span></span>';
+    return L.marker([e.lat, e.lon], { pane: 'connPane', keyboard: false,
+        icon: L.divIcon({ className: 'conn-icon conn-' + kind, html: html, iconSize: null, iconAnchor: [0, 0] }) });
+}
+// Draw a Significant Urban Area boundary (the "town perimeter") from its decimated rings. No fill
+// so the roads underneath stay visible; big metros (Sydney) render lighter so they don't dominate.
+function drawSuaOutline(suaId) {
+    const su = (window.SUA_OUTLINES || [])[suaId];
+    if (!su || !su.rings) return;
+    // Draw each ring as its own outline (multipart urban areas are separate islands, not holes).
+    su.rings.forEach(function (ring) {
+        const latlng = ring.map(function (pt) { return [pt[1], pt[0]]; });
+        L.polygon(latlng, { pane: 'connPane', renderer: connRenderer, color: '#1d4ed8',
+            weight: su.big ? 1.2 : 1.8, opacity: su.big ? 0.45 : 0.7, dashArray: '5 5',
+            fill: true, fillColor: '#1d4ed8', fillOpacity: su.big ? 0.03 : 0.06, interactive: false }).addTo(connLayer);
+    });
+}
+function showConnections(ev) {
+    clearConnections();
+    if (!ev) return;
+    // Centres: a mix of town points (ring + pin) and urban areas (boundary outline + pin).
+    (ev.centres || []).forEach(function (e) {
+        if (e.kind === 'sua') {
+            drawSuaOutline(e.suaId);
+            connMarker(e, 'sua').addTo(connLayer);
+        } else {
+            const s = CONN_STYLE.town;
+            L.circle([e.lat, e.lon], { pane: 'connPane', renderer: connRenderer, radius: s.radius, color: s.color, weight: 1.5,
+                opacity: 0.65, fillColor: s.color, fillOpacity: 0.07, interactive: false }).addTo(connLayer);
+            connMarker(e, 'town').addTo(connLayer);
+        }
+    });
+    ['hosp', 'dest'].forEach(function (kind) {
+        const items = kind === 'hosp' ? ev.hospitals : ev.dests;
+        const s = CONN_STYLE[kind];
+        (items || []).forEach(function (e) {
+            L.circle([e.lat, e.lon], { pane: 'connPane', renderer: connRenderer, radius: s.radius, color: s.color, weight: 1.5,
+                opacity: 0.65, fillColor: s.color, fillOpacity: 0.07, interactive: false }).addTo(connLayer);
+            connMarker(e, kind).addTo(connLayer);
+        });
+    });
+    if (!map.hasLayer(connLayer)) connLayer.addTo(map);
+}
+function clearConnections() { connLayer.clearLayers(); }
+function panToConn(lon, lat) { map.panTo([lat, lon], { animate: true }); }
+// Frame a Significant Urban Area: fit to its bounding box so the whole perimeter is in view.
+function fitToSua(suaId) {
+    const su = (window.SUA_OUTLINES || [])[suaId];
+    if (!su) return;
+    if (su.bbox) map.fitBounds([[su.bbox[1], su.bbox[0]], [su.bbox[3], su.bbox[2]]], { padding: [40, 40], maxZoom: 12 });
+    else if (su.centroid) map.panTo([su.centroid[1], su.centroid[0]], { animate: true });
+}
+
 // Legend visibility toggles — clicking a legend item flips its key and re-applies to the map.
 // green/orange/red = verdict colours; nltn = green national network; dashed = route-numbered roads;
 // towns = town/city pins; boundary = CV LGA outline.
@@ -56,6 +133,7 @@ function highlightRoad(layers, sourceLayer) {
 function isSelected(layer) { return selectedLayers.indexOf(layer) !== -1; }
 
 function deselect() {
+    clearConnections();
     if (!selectedLayers.length) return;
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = [];

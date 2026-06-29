@@ -18,9 +18,22 @@ Promise.all([
     _f('data/nsw_recat.json').catch(() => []),
     _f('data/nsw_criteria.json').catch(() => ({})),
     _f('data/nltn_2020_road.geojson').catch(() => null),
-    _f('data/nltn_meta.json').catch(() => [])
-]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta]) => {
+    _f('data/nltn_meta.json').catch(() => []),
+    _f('data/nsw_evidence.json').catch(() => ({})),
+    _f('data/cv_evidence.json').catch(() => ({})),
+    _f('data/nltn_evidence.json').catch(() => ({})),
+    _f('data/sua_outlines.json').catch(() => [])
+]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines]) => {
     window.NSW_CRIT = nswCrit || {};   // per-road computed criteria results (data/nsw_criteria.json)
+    // Per-road connectivity evidence (which centres / hospitals / ports / airports / intermodals each
+    // road connects, with names + qualifying attributes + coords) — data/*_evidence.json.
+    // Centres include both town points and Significant Urban Areas (kind:'sua', suaId -> SUA_OUTLINES).
+    window.NSW_EVID = nswEvid || {};
+    window.CV_EVID = cvEvid || {};
+    window.NLTN_EVID = nltnEvid || {};
+    // Significant Urban Area boundary outlines (drawn as the "town perimeter" highlight on selection),
+    // indexed by suaId — data/sua_outlines.json.
+    window.SUA_OUTLINES = suaOutlines || [];
     NSW_SEG_TOTAL = (nswRoads.features || []).length;   // total road segments (e.g. 17,691)
     // Manual overrides (data/ref_overrides.json) win over the auto OSM join.
     // Key by road_number: "B76" forces a shield, "" removes it. By road_name (UPPER) as fallback.
@@ -167,6 +180,7 @@ Promise.all([
             f.properties._natRef = m.ref || null;
             f.properties._natMetros = !!m.metros;
             f.properties._natPortair = !!m.portair;
+            f.properties._natPbs2b = m.pbs2b;      // S-06: true = NHVR PBS 2B Approved Route, false = not, null = unknown
         });
         // Count whole national ROADS (determination routes), not segments → Nat. Significant stat cards.
         const _seenG = {};
@@ -236,9 +250,12 @@ Promise.all([
         }
     });
 
-    // CV Boundary
+    // CV Boundary — decorative LGA outline. Must be non-interactive with NO fill, otherwise the
+    // canvas renderer (preferCanvas) hit-tests its transparent interior and swallows every road
+    // click inside the LGA (the roads sit underneath it in the same canvas).
     cvBoundaryLayer = L.geoJSON(cvBoundary, {
-        style: {color: '#a8a29e', weight: 2, fillOpacity: 0, fillColor: 'transparent', dashArray: '5,5'}
+        interactive: false,
+        style: {color: '#a8a29e', weight: 2, fill: false, dashArray: '5,5'}
     });
 
     // CV Towns
