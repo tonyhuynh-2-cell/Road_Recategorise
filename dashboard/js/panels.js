@@ -126,7 +126,8 @@ function refreshNswView() {
     // State/Regional lenses grade roads (green/orange/red); the Nat. Significant lens is just the network.
     if (nswView !== 'nsr') m.legend.forEach(([col, lab], i) => { lh += li(vkeys[i], '<div class="legend-color" style="background:' + col + '"></div>', lab); });
     lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.55"></div>', 'National Network — Road · NLTN Determination 2020 (data.gov.au)');
-    lh += '<div class="legend-item legend-static"><div class="legend-color" style="background:#3cb043; opacity:0.22"></div> Proposed corridor (translucent, dashed)</div>';
+    // Proposed corridors share the 'nltn' key — they toggle/dim together with the national network.
+    lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.22"></div>', 'Proposed corridor (translucent, dashed)');
     lh += li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)');
     lh += li('towns', '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>', 'Town / City — pin size scales with population');
     document.getElementById('nsw-legend').innerHTML = lh;
