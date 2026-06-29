@@ -27,12 +27,12 @@ function applyLegend() {
     const onNSW = currentTab !== 'cv';
     if (nswLayer) nswLayer.setStyle(nswStyle);   // re-filter verdict colours / dashed roads
     if (cvLayer) cvLayer.setStyle(cvStyle);
-    // Green national network: NSW tabs only, when toggled on. Solid on Nat. Significant (and its pane
-    // lifted above the road overlay so it's clickable); faint underlay on the other NSW tabs.
+    // NLTN national network: the SUBJECT of the Nat. Significant lens only — graded green/orange.
+    // Hidden on every other tab (it is no longer a reference underlay).
     if (nltnLayer) {
-        if (onNSW && legendToggles.nltn) {
+        if (nswView === 'nsr') {
             map.addLayer(nltnLayer);
-            nltnLayer.setStyle(nltnFeatureStyle);   // per-feature (handles proposed translucency)
+            nltnLayer.setStyle(nltnFeatureStyle);   // per-feature grade + proposed translucency
         } else map.removeLayer(nltnLayer);
     }
     // Town/City pins
@@ -78,14 +78,19 @@ function showCV() {
     mapContext = 'cv';
 }
 
-// Road-level counts for the active lens (uses the rolled-up per-road aggregate + criteria).
+// Counts for the active lens. Nat. Significant counts the NLTN network's national-criteria grades;
+// the other lenses count roads by their category verdict (rolled-up aggregate + criteria).
 function nswViewCounts() {
+    if (nswView === 'nsr') {
+        const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };
+        return { green: n.green, orange: n.orange, red: 0, total: n.total };
+    }
     const c = { green: 0, orange: 0, red: 0, total: 0 };
     for (const k in NSW_AGG) {
         const a = NSW_AGG[k];
         if (!nswInView(a)) continue;
         const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
-        const v = (nswView === 'nsr') ? natStatusOf(k, a._nsr) : ((cr && cr.verdict) || a.status);
+        const v = (cr && cr.verdict) || a.status;
         if (c[v] !== undefined) c[v]++;
         c.total++;
     }
@@ -96,7 +101,10 @@ function nswViewCounts() {
 function refreshNswView() {
     const m = NSW_VIEW_META[nswView]; if (!m) return;
     const grid = document.querySelector('#tab-nsw .stat-grid');
-    if (grid) grid.style.display = '';
+    if (grid) { grid.style.display = ''; grid.style.gridTemplateColumns = m.hideRed ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'; }
+    // Nat. Significant has no "does not meet" tier — everything on the network meets S-01 — so hide that card.
+    const redCard = document.getElementById('nsw-red').closest('.stat-card');
+    if (redCard) redCard.style.display = m.hideRed ? 'none' : '';
     document.getElementById('nsw-hero-title').textContent = m.title;
     document.getElementById('nsw-total-sub').textContent = m.sub;
     // Every lens (incl. Nat. Significant) is graded green/orange/red from the criteria.
@@ -114,25 +122,28 @@ function refreshNswView() {
     document.getElementById('nsw-red-pct').textContent = pct(c.red);
     // Clickable legend rows (data-legend-key) toggle that category on the map.
     const li = (key, swatch, label) => '<div class="legend-item" data-legend-key="' + key + '" onclick="toggleLegendItem(\'' + key + '\')">' + swatch + ' ' + label + '</div>';
+    const liStatic = (swatch, label) => '<div class="legend-item legend-static">' + swatch + ' ' + label + '</div>';
     const vkeys = ['green', 'orange', 'red'];
     let lh = '<h3>Map legend</h3>';
     m.legend.forEach(([col, lab], i) => { lh += li(vkeys[i], '<div class="legend-color" style="background:' + col + '"></div>', lab); });
-    lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.5"></div>', 'NLTN 2020 determination — reference only (data.gov.au)');
-    // Proposed corridors share the 'nltn' key — they toggle/dim together with the national network.
-    lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.32"></div>', 'Proposed corridor (reference, translucent)');
-    lh += li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)');
+    if (nswView === 'nsr') {
+        // The NLTN green/orange lines ARE the verdict colours above; just note the proposed styling.
+        lh += liStatic('<div class="legend-color" style="background:#16a34a; opacity:0.45"></div>', 'Proposed corridor — not yet built (translucent)');
+    } else {
+        lh += li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)');
+    }
     lh += li('towns', '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>', 'Town / City — pin size scales with population');
     document.getElementById('nsw-legend').innerHTML = lh;
     syncLegendVisuals();
     const np = document.querySelector('#nsw-note p'); if (np) np.textContent = m.note;
     if (nswLayer) nswLayer.setStyle(nswStyle);
+    if (nltnLayer && nswView === 'nsr') nltnLayer.setStyle(nltnFeatureStyle);
 }
 
 // Overview panel: whole network graded by own-category criteria, plus a per-group breakdown.
 function refreshOverview() {
     let g = 0, o = 0, r = 0;
     const grp = {
-        'Nationally Significant': { green: 0, orange: 0, red: 0, total: 0 },
         'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
         'Regional Roads': { green: 0, orange: 0, red: 0, total: 0 }
     };
@@ -140,11 +151,10 @@ function refreshOverview() {
         const a = NSW_AGG[k];
         if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
         const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
-        // Mutually exclusive groups (sum to the network total), each by its own lens grade.
-        let v, group;
-        if (a.admin_class === 'S' && a._nsr) { v = natStatusOf(k, a._nsr); group = 'Nationally Significant'; }
-        else if (a.admin_class === 'S') { v = (cr && cr.verdict) || a.status; group = 'State Roads'; }
-        else { v = (cr && cr.verdict) || a.status; group = 'Regional Roads'; }
+        // Two mutually exclusive groups (sum to the network total), each by its own category grade.
+        // National significance lives on its own lens (the NLTN network), not as a split of these roads.
+        const v = (cr && cr.verdict) || a.status;
+        const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
         if (v === 'green') g++; else if (v === 'orange') o++; else r++;
         grp[group][v]++; grp[group].total++;
     }

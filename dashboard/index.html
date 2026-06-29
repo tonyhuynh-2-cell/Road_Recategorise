@@ -80,8 +80,6 @@
                 <div class="legend-item" data-legend-key="green" onclick="toggleLegendItem('green')"><div class="legend-color" style="background:#16a34a"></div> Meets its criteria (≥2 optional)</div>
                 <div class="legend-item" data-legend-key="orange" onclick="toggleLegendItem('orange')"><div class="legend-color" style="background:#f59e0b"></div> Meets 1 of 2 — may pass with ADT</div>
                 <div class="legend-item" data-legend-key="red" onclick="toggleLegendItem('red')"><div class="legend-color" style="background:#dc2626"></div> Does not meet (→ downgrade)</div>
-                <div class="legend-item" data-legend-key="nltn" onclick="toggleLegendItem('nltn')"><div class="legend-color" style="background:#3cb043; opacity:0.55"></div> National Network — Road · NLTN Determination 2020 (data.gov.au)</div>
-                <div class="legend-item" data-legend-key="nltn" onclick="toggleLegendItem('nltn')"><div class="legend-color" style="background:#3cb043; opacity:0.32"></div> Proposed corridor (translucent)</div>
                 <div class="legend-item" data-legend-key="dashed" onclick="toggleLegendItem('dashed')"><div class="legend-color legend-dash"></div> Route-numbered road A / B / D / M (dashed)</div>
                 <div class="legend-item" data-legend-key="towns" onclick="toggleLegendItem('towns')"><div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div> Town / City — pin size scales with population</div>
             </div>
@@ -184,27 +182,27 @@
                     <div id="detail-result-reason" style="font-size:0.8rem; color:var(--muted); line-height:1.45;"></div>
                 </div>
 
-                <div class="stat-card">
+                <div class="stat-card" id="detail-card-traffic">
                     <h3>Traffic data</h3>
                     <div id="detail-traffic"></div>
                 </div>
 
-                <div class="stat-card">
+                <div class="stat-card" id="detail-card-mandatory">
                     <h3>Mandatory criteria</h3>
                     <div id="detail-mandatory" style="font-size:0.82rem;"></div>
                 </div>
 
-                <div class="stat-card">
+                <div class="stat-card" id="detail-card-optional">
                     <h3>Optional criteria (must meet ≥2)</h3>
                     <div id="detail-optional"></div>
                 </div>
 
-                <div class="stat-card">
+                <div class="stat-card" id="detail-card-vehicle">
                     <h3>Vehicle access</h3>
                     <div id="detail-vehicle-access"></div>
                 </div>
 
-                <div class="stat-card">
+                <div class="stat-card" id="detail-card-connectivity">
                     <h3>Connectivity</h3>
                     <div id="detail-connectivity"></div>
                 </div>
@@ -240,7 +238,7 @@
         'data/nsw_assessment.geojson', 'data/nsw_nltn.json', 'data/nsw_criteria.json', 'data/nsw_recat.json',
         'data/nsw_urbanity.json', 'data/nsw_refs.json', 'data/ref_overrides.json', 'data/summary_stats.json',
         'data/clarence_valley_assessment.geojson', 'data/towns_cv.geojson', 'data/cv_refs.json',
-        'data/nltn_2020_road.geojson', 'data/nsw_towns.geojson'];
+        'data/nltn_2020_road.geojson', 'data/nltn_meta.json', 'data/nsw_towns.geojson'];
     var baseline = null;   // last-known stable signature
     var pending = null;    // a changed signature waiting to prove it has settled
     function snapshot(cb) {

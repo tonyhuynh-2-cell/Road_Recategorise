@@ -17,8 +17,9 @@ Promise.all([
     _f('data/nsw_nltn.json').catch(() => []),
     _f('data/nsw_recat.json').catch(() => []),
     _f('data/nsw_criteria.json').catch(() => ({})),
-    _f('data/nltn_2020_road.geojson').catch(() => null)
-]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn]) => {
+    _f('data/nltn_2020_road.geojson').catch(() => null),
+    _f('data/nltn_meta.json').catch(() => [])
+]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta]) => {
     window.NSW_CRIT = nswCrit || {};   // per-road computed criteria results (data/nsw_criteria.json)
     NSW_SEG_TOTAL = (nswRoads.features || []).length;   // total road segments (e.g. 17,691)
     // Manual overrides (data/ref_overrides.json) win over the auto OSM join.
@@ -104,10 +105,7 @@ Promise.all([
         // Re-categorised verdict (data/nsw_recat.json) computed from the full State/Regional
         // criteria table; falls back to the majority-by-length rollup if absent.
         f.properties._roadStatus = recat[i] || (a ? a.status : f.properties.status);
-        f.properties._nsr = a ? a._nsr : false;
-        // National verdict for the Nationally Significant lens — computed from the dashboard's own
-        // _nsr (NLTN share) + the geometry-based natCrit (centres / port-airport) in nsw_criteria.json.
-        f.properties._natStatus = natStatusOf(k, f.properties._nsr);
+        f.properties._nsr = a ? a._nsr : false;   // State road predominantly on the NLTN (factual tag in detail)
         if (a && recat[i]) a.status = recat[i];   // detail panel reflects the re-categorised verdict
     });
     nswLayer = L.geoJSON(nswRoads, {
@@ -150,31 +148,59 @@ Promise.all([
         }
     });
 
-    // NLTN 2020 reference underlay (data.gov.au "Key Freight Routes NLTN 2020 Road" = the
-    // NLTN Determination 2020 road network). Styled to match the official map's green
-    // "National Network – Road" lines, drawn as a wide soft casing UNDER the coloured roads so
-    // the green/orange/red verdicts still read on top. Only shown on the Nat. Significant lens.
+    // NLTN 2020 network (data.gov.au "Key Freight Routes NLTN 2020 Road" = the NLTN Determination
+    // 2020 road network) — the SUBJECT of the Nationally Significant lens. Each line is graded
+    // green/orange by the national criteria of the road it runs along (precomputed in
+    // data/nltn_natcat.json; see scratchpad/nltn_grade.py): green = on the network AND connects
+    // ≥2 centres or a port/airport; orange = on the network only. Proposed corridors render
+    // translucent. Shown only on the Nat. Significant lens.
     if (nltn && nltn.features) {
+        // Each NLTN line carries its determination-route values (precomputed in data/nltn_meta.json):
+        // _natGroup is the whole road it belongs to (the unit of selection), _natCat its grade,
+        // _natName/_natRef the route label + shield, _natMetros/_natPortair the national criteria.
+        nltn.features.forEach((f, i) => {
+            const m = (nltnMeta && nltnMeta[i]) || {};
+            f.properties._natCat = m.cat || 'green';
+            f.properties._proposed = !!m.proposed;
+            f.properties._natGroup = m.group || ('seg' + i);
+            f.properties._natName = m.name || ((f.properties.street && titleCase(f.properties.street)) || 'National Network road');
+            f.properties._natRef = m.ref || null;
+            f.properties._natMetros = !!m.metros;
+            f.properties._natPortair = !!m.portair;
+        });
+        // Count whole national ROADS (determination routes), not segments → Nat. Significant stat cards.
+        const _seenG = {};
+        window.NLTN_CAT_COUNTS = nltn.features.reduce((c, f) => {
+            const g = f.properties._natGroup;
+            if (!_seenG[g]) { _seenG[g] = 1; const v = f.properties._natCat; if (c[v] !== undefined) c[v]++; c.total++; }
+            return c;
+        }, { green: 0, orange: 0, red: 0, total: 0 });
+        const nltnGroups = {};   // route key -> its segment layers, so a click selects the whole road in one piece
         nltnLayer = L.geoJSON(nltn, {
             renderer: nltnRenderer,
             pane: 'nltnPane',
-            style: { color: '#3cb043', weight: 6, opacity: 0.55, lineCap: 'round', lineJoin: 'round' },
+            style: nltnFeatureStyle,
             onEachFeature: function(feature, layer) {
                 const p = feature.properties || {};
-                const name = (p.street && String(p.street).trim()) ? titleCase(p.street) : 'National Network road';
-                layer.bindTooltip(name + ' · National Network (NLTN 2020)', { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
-                let html = '<div class="town-popup"><strong>' + name + '</strong>' +
-                    '<div class="tp-meta">National Land Transport Network — Road · Determination 2020</div>';
-                if (p.part) html += '<div class="tp-meta">' + p.part + '</div>';
-                if (p.desc) html += '<div class="tp-meta" style="margin-top:6px; color:var(--ink-soft)">' + p.desc + '…</div>';
-                html += '</div>';
-                layer.bindPopup(html, { maxWidth: 340 });
-                layer.on('mouseover', function() { const s = nltnFeatureStyle(feature); layer.setStyle({ opacity: Math.min(1, s.opacity + 0.35), weight: s.weight + 3 }); });
-                layer.on('mouseout', function() { layer.setStyle(nltnFeatureStyle(feature)); });
+                const gk = p._natGroup;
+                (nltnGroups[gk] || (nltnGroups[gk] = [])).push(layer);
+                const group = () => nltnGroups[gk] || [layer];
+                layer.bindTooltip(nltnLabel(p) + (p._proposed ? ' · proposed' : ''), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
+                // Click selects the WHOLE road (all its segments) and opens the national-criteria detail.
+                layer.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    highlightRoad(group(), nltnLayer);
+                    showNltnDetail(p);
+                });
+                layer.on('mouseover', function() {
+                    if (isSelected(layer)) return;
+                    group().forEach(function(l) { const s = nltnFeatureStyle(l.feature); if (s.stroke === false) return; l.setStyle({ opacity: Math.min(1, s.opacity + 0.35), weight: s.weight + 3 }); });
+                });
+                layer.on('mouseout', function() {
+                    group().forEach(function(l) { if (!isSelected(l)) l.setStyle(nltnFeatureStyle(l.feature)); });
+                });
             }
         });
-        // Total length of the NSW national network — shown as the headline on the Nat. Significant lens.
-        window.NLTN_KM = Math.round(nltn.features.reduce((s, f) => s + roadLenKm(f.geometry), 0));
     }
 
     // CV Roads — group segments so a click selects the whole road

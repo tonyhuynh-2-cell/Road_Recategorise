@@ -19,13 +19,13 @@ const ICON = {
 // Per-lens panel copy (title / stat labels / legend rows / note).
 const NSW_VIEW_META = {
     nsr: {
-        title: 'Nationally Significant State Roads', sub: 'State roads graded against the national criteria (S-01–S-05)',
-        gLabel: 'Nationally significant', oLabel: 'Partial (meets 1)', rLabel: 'Does not meet',
-        legend: [['#16a34a', 'Nationally significant — meets ≥2 national criteria'], ['#f59e0b', 'Meets 1 of 3 — on the network only']],
-        note: 'Graded live from the criteria — a State road is nationally significant only if it meets ≥2 of: comprises the National Land Transport Network (S-01); connects ≥2 metropolitan/urban centres (S-02·S-03); connects a Major Port, International Airport or Major Intermodal (S-04·S-05). Green = meets ≥2 (earned); orange = meets only 1. The faint green underlay is the official NLTN 2020 determination, drawn purely as a reference to compare against — it never sets the grade.'
+        title: 'Nationally Significant Network', sub: 'National Land Transport Network roads (NLTN 2020), graded against the national criteria',
+        gLabel: 'Nationally significant', oLabel: 'On network only', rLabel: '', hideRed: true,
+        legend: [['#16a34a', 'Nationally significant — on the network and connects centres / a port·airport'], ['#f59e0b', 'On the National Land Transport Network only']],
+        note: 'These are the roads of the National Land Transport Network (NLTN Determination 2020, data.gov.au) — the authoritative national network. Each line is graded by how many national criteria the road it runs along meets: comprises the NLTN (S-01, met by definition); connects ≥2 metropolitan/urban centres (S-02·S-03); connects a Major Port, International Airport or Major Intermodal (S-04·S-05). Green = meets ≥2 (on the network plus at least one connection, inherited from the road criteria — earned from data); orange = on the network only. Proposed corridors render translucent.'
     },
     state: {
-        title: 'State Roads', sub: 'Graded against the State Road criteria (excludes nationally significant)',
+        title: 'State Roads', sub: 'All State roads, graded against the State Road criteria',
         gLabel: 'Meets criteria', oLabel: 'Meets 1 of 2', rLabel: 'Does not meet',
         legend: [['#16a34a', 'Meets State criteria (≥2 optional)'], ['#f59e0b', 'Meets 1 of 2 — may pass with ADT'], ['#dc2626', 'Meets none — candidate to downgrade']],
         note: 'State Roads must meet ≥2 optional criteria (connect centres; connect major hospitals / ports / airports / employment; long-distance rural route) plus the mandatory criteria. Orange roads meet 1 of 2 and would qualify if ADT exceeds the threshold; ADT is not available statewide.'

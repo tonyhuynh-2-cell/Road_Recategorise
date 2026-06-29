@@ -46,6 +46,14 @@ function roadLabel(p) {
     return '<span class="rl-shield rl-' + ref[0] + '">' + ref + '</span> ' + roadName(p);
 }
 
+// Label for an NLTN national-network road: route shield (M5 / A1 …, motorways green) + route name.
+function nltnLabel(p) {
+    const name = p._natName || 'National Network road';
+    const ref = p._natRef;
+    if (!ref) return name;
+    return '<span class="rl-shield rl-' + ref[0] + '">' + ref + '</span> ' + name;
+}
+
 // Motorway/highway exit ramps & connectors clutter interchanges — hide them.
 function isRamp(p) {
     const n = String(p.road_name || '').toUpperCase();

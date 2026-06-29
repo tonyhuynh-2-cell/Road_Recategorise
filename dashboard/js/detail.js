@@ -4,18 +4,18 @@ function showRoadDetail(p, source) {
     switchTab('detail');
     document.getElementById('detail-empty').style.display = 'none';
     document.getElementById('detail-content').style.display = 'block';
+    detailLayout('road');
 
     document.getElementById('detail-road-name').innerHTML = roadLabel(p);
     document.getElementById('detail-road-number').textContent = isHighSpeed(p) ? 'Motorway / freeway' : '';
     const isState = p.admin_class === 'S';
-    document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + (p._nsr ? ' — Nationally Significant' : '') + '</strong>';
+    document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + '</strong>' + (p._nsr ? ' <span style="color:var(--muted)">· on the National Land Transport Network</span>' : '');
 
-    // Result
+    // Result — graded by the road's own category criteria (no forced pass for being on the NLTN).
     const resultEl = document.getElementById('detail-result');
     const reasonEl = document.getElementById('detail-result-reason');
     if (source === 'nsw') {
-        if (p._nsr) { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Nationally Significant State Road — on the National Land Transport Network'; }
-        else if (p.status === 'green') { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Passes all testable criteria even without ADT data'; }
+        if (p.status === 'green') { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Passes all testable criteria even without ADT data'; }
         else if (p.status === 'orange') { resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY MEETS</span></span>'; reasonEl.textContent = 'Would meet criteria if ADT exceeds the relevant threshold'; }
         else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>'; reasonEl.textContent = 'Fails mandatory criteria or insufficient connectivity'; }
     } else {
@@ -108,4 +108,56 @@ function showRoadDetail(p, source) {
         '<div class="criteria-item"><span class="criteria-icon">' + (p.is_key_freight_route ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">National Key Freight Route (NLTN)</div></div></div>' +
         '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_major_town || p.connects_regional_city ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">Connects to Major Town / Regional City</div></div></div>' +
         '<div class="criteria-item"><span class="criteria-icon">' + (p.connects_hospital ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">Near Major Hospital</div></div></div>';
+}
+
+// Configure which detail-panel sections show + their headings: 'road' (full criteria set) vs
+// 'nltn' (national criteria only). Lets the road and NLTN detail views share the same DOM.
+function detailLayout(mode) {
+    const set = (id, show, title) => {
+        const card = document.getElementById(id);
+        if (!card) return;
+        card.style.display = show ? '' : 'none';
+        if (title) { const h = card.querySelector('h3'); if (h) h.textContent = title; }
+    };
+    const nltn = mode === 'nltn';
+    set('detail-card-traffic', true, nltn ? 'Determination route' : 'Traffic data');
+    set('detail-card-mandatory', true, nltn ? 'National significance criteria (S-01–S-05)' : 'Mandatory criteria');
+    set('detail-card-optional', true, nltn ? 'Mandatory criteria' : 'Optional criteria (must meet ≥2)');
+    set('detail-card-vehicle', !nltn, 'Vehicle access');
+    set('detail-card-connectivity', !nltn, 'Connectivity');
+}
+
+// Road Detail for an NLTN 2020 line (the Nationally Significant lens). Graded by the national
+// criteria of the road it runs along: S-01 on the NLTN (met by definition), S-02·S-03 connects
+// ≥2 centres, S-04·S-05 connects a port/airport/intermodal. Green = meets ≥2; orange = on-network-only.
+function showNltnDetail(p) {
+    switchTab('detail');
+    document.getElementById('detail-empty').style.display = 'none';
+    document.getElementById('detail-content').style.display = 'block';
+    detailLayout('nltn');
+
+    document.getElementById('detail-road-name').innerHTML = nltnLabel(p);
+    document.getElementById('detail-road-number').textContent = p._proposed ? 'Proposed corridor — not yet built' : 'National Land Transport Network — Road';
+    document.getElementById('detail-admin-class').innerHTML = 'Source: <strong>NLTN Determination 2020</strong> <span style="color:var(--muted)">· data.gov.au</span>';
+
+    const green = p._natCat === 'green';
+    document.getElementById('detail-result').innerHTML = '<span class="result-line">' + (green ? ICON.pass : ICON.maybe) + '<span style="color:' + (green ? '#16a34a' : '#d97706') + '">' + (green ? 'NATIONALLY SIGNIFICANT' : 'ON NETWORK ONLY') + '</span></span>';
+    document.getElementById('detail-result-reason').textContent = green
+        ? 'Meets ≥2 national criteria — on the National Land Transport Network and connects centres and/or a port, airport or intermodal.'
+        : 'On the National Land Transport Network (S-01), but the road it runs along connects neither ≥2 centres nor a port/airport in the assessment data.';
+
+    document.getElementById('detail-traffic').innerHTML =
+        '<div class="criteria-value" style="line-height:1.5">' + (p.desc ? (p.desc + '…') : 'Route description unavailable.') +
+        (p.part ? '<div style="margin-top:6px; color:var(--faint)">' + p.part + '</div>' : '') + '</div>';
+
+    document.getElementById('detail-mandatory').innerHTML =
+        critItem(true, 'S-01: Comprises the National Land Transport Network', 'On the NLTN 2020 determination network') +
+        critItem(!!p._natMetros, 'S-02·S-03: Connects ≥2 metropolitan / urban centres') +
+        critItem(!!p._natPortair, 'S-04·S-05: Connects a Major Port, International Airport or Major Intermodal');
+
+    // Mandatory criteria for Nationally Significant State Roads: PBS Level 2B access (S-06) + no load
+    // limits. PBS 2B is not loaded statewide (NHVR layer absent) → shown not-assessed, never forced to pass.
+    document.getElementById('detail-optional').innerHTML =
+        critItem(null, 'S-06: PBS Level 2B vehicle access', 'Higher Mass Limit freight access — NHVR PBS 2B network not loaded statewide, not assessed') +
+        critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant');
 }
