@@ -169,8 +169,8 @@ Promise.all([
                 if (p.desc) html += '<div class="tp-meta" style="margin-top:6px; color:var(--ink-soft)">' + p.desc + '…</div>';
                 html += '</div>';
                 layer.bindPopup(html, { maxWidth: 340 });
-                layer.on('mouseover', function() { layer.setStyle({ opacity: 0.85, weight: 9 }); });
-                layer.on('mouseout', function() { if (nltnLayer) nltnLayer.resetStyle(layer); });
+                layer.on('mouseover', function() { const s = nltnFeatureStyle(feature); layer.setStyle({ opacity: Math.min(1, s.opacity + 0.35), weight: s.weight + 3 }); });
+                layer.on('mouseout', function() { layer.setStyle(nltnFeatureStyle(feature)); });
             }
         });
         // Total length of the NSW national network — shown as the headline on the Nat. Significant lens.

@@ -18,6 +18,11 @@ map.createPane('nltnPane');
 map.getPane('nltnPane').style.zIndex = 350;
 const nltnRenderer = L.canvas({ pane: 'nltnPane' });
 
+// Legend visibility toggles — clicking a legend item flips its key and re-applies to the map.
+// green/orange/red = verdict colours; nltn = green national network; dashed = route-numbered roads;
+// towns = town/city pins; boundary = CV LGA outline.
+let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true };
+
 let currentTab = 'overview';
 
 let lastViewTab = 'overview';   // last view tab before opening Road Detail (for the Back button)

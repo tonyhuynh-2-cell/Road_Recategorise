@@ -16,24 +16,55 @@ function switchTab(tab) {
         if (tab === 'overview') refreshOverview(); else refreshNswView();
         showNSW();
     } else if (tab === 'cv') showCV();
+    syncLegendVisuals();
 }
 
 // Road Detail is shown on a road click (it's not a tab) — return to the view that was open.
 function backFromDetail() { switchTab(lastViewTab || 'overview'); }
 
+// Apply the legend on/off toggles + per-lens NLTN style to the map for the CURRENT view.
+function applyLegend() {
+    const onNSW = currentTab !== 'cv';
+    if (nswLayer) nswLayer.setStyle(nswStyle);   // re-filter verdict colours / dashed roads
+    if (cvLayer) cvLayer.setStyle(cvStyle);
+    // Green national network: NSW tabs only, when toggled on. Solid on Nat. Significant (and its pane
+    // lifted above the road overlay so it's clickable); faint underlay on the other NSW tabs.
+    if (nltnLayer) {
+        if (onNSW && legendToggles.nltn) {
+            map.addLayer(nltnLayer);
+            nltnLayer.setStyle(nltnFeatureStyle);   // per-feature (handles proposed translucency)
+            const np = map.getPane('nltnPane'); if (np) np.style.zIndex = (nswView === 'nsr') ? 450 : 350;
+        } else map.removeLayer(nltnLayer);
+    }
+    // Town/City pins
+    if (nswTownsLayer) map.removeLayer(nswTownsLayer);
+    if (cvTownsLayer) map.removeLayer(cvTownsLayer);
+    const towns = onNSW ? nswTownsLayer : cvTownsLayer;
+    if (towns && legendToggles.towns) map.addLayer(towns);
+    // CV LGA boundary (CV tab only)
+    if (cvBoundaryLayer) { if (!onNSW && legendToggles.boundary) map.addLayer(cvBoundaryLayer); else map.removeLayer(cvBoundaryLayer); }
+}
+
+// Clicking a legend swatch toggles that category on/off across the map.
+function toggleLegendItem(key) {
+    legendToggles[key] = !legendToggles[key];
+    syncLegendVisuals();
+    applyLegend();
+}
+
+// Dim the disabled rows on every legend so all tabs stay in sync with the toggle state.
+function syncLegendVisuals() {
+    document.querySelectorAll('.legend-item[data-legend-key]').forEach(function (el) {
+        el.classList.toggle('legend-off', !legendToggles[el.getAttribute('data-legend-key')]);
+    });
+}
+
 function showNSW() {
     if (cvLayer) map.removeLayer(cvLayer);
-    if (cvBoundaryLayer) map.removeLayer(cvBoundaryLayer);
-    if (cvTownsLayer) map.removeLayer(cvTownsLayer);
-    // NLTN 2020 green national network is part of the PDF-style base — show it on every NSW tab.
-    if (nltnLayer) map.addLayer(nltnLayer);
-    // On the Nat. Significant lens the nationally significant roads ARE the green NLTN lines, so
-    // hide the criteria-graded State-road layer (the A/B/M route-shielded roads) there. Also lift
-    // the green pane ABOVE the road overlay on that lens so the lines are clickable (otherwise the
-    // empty road canvas sits on top and swallows the clicks); drop it back under the roads elsewhere.
+    // Nat. Significant lens: hide the criteria-graded State-road layer (the A/B/M route-shielded
+    // roads) — there the nationally significant roads ARE the green NLTN lines.
     if (nswLayer) { if (nswView === 'nsr') map.removeLayer(nswLayer); else map.addLayer(nswLayer); }
-    const np = map.getPane('nltnPane'); if (np) np.style.zIndex = (nswView === 'nsr') ? 450 : 350;
-    if (nswTownsLayer) map.addLayer(nswTownsLayer);
+    applyLegend();
     // Frame NSW only when arriving from a different context (or first load) — switching among the
     // NSW lens tabs preserves the user's current pan/zoom.
     if (mapContext !== 'nsw' && nswLayer) map.fitBounds(nswLayer.getBounds().pad(0.05));
@@ -42,11 +73,8 @@ function showNSW() {
 
 function showCV() {
     if (nswLayer) map.removeLayer(nswLayer);
-    if (nswTownsLayer) map.removeLayer(nswTownsLayer);
-    if (nltnLayer) map.removeLayer(nltnLayer);
     if (cvLayer) map.addLayer(cvLayer);
-    if (cvBoundaryLayer) map.addLayer(cvBoundaryLayer);
-    if (cvTownsLayer) map.addLayer(cvTownsLayer);
+    applyLegend();
     if (mapContext !== 'cv' && cvLayer) map.fitBounds(cvLayer.getBounds().pad(0.05));
     mapContext = 'cv';
 }
@@ -91,13 +119,18 @@ function refreshNswView() {
         document.getElementById('nsw-red').textContent = c.red.toLocaleString();
         document.getElementById('nsw-red-pct').textContent = pct(c.red);
     }
+    // Clickable legend rows (data-legend-key) toggle that category on the map; static rows don't.
+    const li = (key, swatch, label) => '<div class="legend-item" data-legend-key="' + key + '" onclick="toggleLegendItem(\'' + key + '\')">' + swatch + ' ' + label + '</div>';
+    const vkeys = ['green', 'orange', 'red'];
     let lh = '<h3>Map legend</h3>';
     // State/Regional lenses grade roads (green/orange/red); the Nat. Significant lens is just the network.
-    if (nswView !== 'nsr') m.legend.forEach(([col, lab]) => { lh += '<div class="legend-item"><div class="legend-color" style="background:' + col + '"></div> ' + lab + '</div>'; });
-    lh += '<div class="legend-item"><div class="legend-color" style="background:#3cb043; opacity:0.55"></div> National Network — Road · NLTN Determination 2020 (data.gov.au)</div>';
-    lh += '<div class="legend-item"><div class="legend-color legend-dash"></div> Route-numbered road A / B / D / M (dashed)</div>';
-    lh += '<div class="legend-item"><div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div> Town / City — pin size scales with population</div>';
+    if (nswView !== 'nsr') m.legend.forEach(([col, lab], i) => { lh += li(vkeys[i], '<div class="legend-color" style="background:' + col + '"></div>', lab); });
+    lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.55"></div>', 'National Network — Road · NLTN Determination 2020 (data.gov.au)');
+    lh += '<div class="legend-item legend-static"><div class="legend-color" style="background:#3cb043; opacity:0.22"></div> Proposed corridor (translucent, dashed)</div>';
+    lh += li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)');
+    lh += li('towns', '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>', 'Town / City — pin size scales with population');
     document.getElementById('nsw-legend').innerHTML = lh;
+    syncLegendVisuals();
     const np = document.querySelector('#nsw-note p'); if (np) np.textContent = m.note;
     if (nswLayer) nswLayer.setStyle(nswStyle);
 }

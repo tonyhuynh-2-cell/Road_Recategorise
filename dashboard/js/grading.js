@@ -22,20 +22,40 @@ function nswInView(p) {
     return true;
 }
 
+const HIDDEN_STYLE = { stroke: false, opacity: 0, weight: 0 };
+
 function nswStyle(feature) {
     const p = feature.properties;
     // setStyle() MERGES options, so `stroke` must be set explicitly in BOTH branches — otherwise a
     // road hidden in one lens (stroke:false) keeps stroke:false when it returns to view and vanishes.
-    if (!nswInView(p)) return { stroke: false, opacity: 0, weight: 0 };   // hidden in this lens
+    if (!nswInView(p)) return HIDDEN_STYLE;   // hidden in this lens
     // Nationally significant roads grade by the national verdict (_natStatus) — in their own lens AND
     // in the Overview, matching the group breakdown. State/Regional lenses use the category verdict.
     const useNat = (nswView === 'nsr') || (nswView === 'all' && p.admin_class === 'S' && p._nsr);
     const v = useNat ? (p._natStatus || 'red') : (p._roadStatus || p.status);
+    if (!legendToggles[v]) return HIDDEN_STYLE;                       // verdict colour toggled off
+    if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;    // route-numbered roads toggled off
     return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: p._w || 2, opacity: v === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }
 
 function cvStyle(feature) {
     const p = feature.properties;
     const meets = (p._roadMeets !== undefined) ? p._roadMeets : p.meets_criteria;
-    return { color: meets ? '#16a34a' : '#dc2626', weight: meets ? 3.2 : 2.4, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
+    const v = meets ? 'green' : 'red';
+    if (!legendToggles[v]) return HIDDEN_STYLE;
+    if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;
+    return { stroke: true, color: meets ? '#16a34a' : '#dc2626', weight: meets ? 3.2 : 2.4, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
+}
+
+// Green national-network style, per feature. SOLID on the Nat. Significant lens (it's the content
+// there), faint wide underlay on the other NSW tabs. Proposed corridors (not yet built) render
+// translucent + dashed so they read as future network.
+function nltnFeatureStyle(feature) {
+    const nsr = (nswView === 'nsr');
+    const s = nsr
+        ? { color: '#2f9e2f', weight: 4.5, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: null }
+        : { color: '#3cb043', weight: 6, opacity: 0.55, lineCap: 'round', lineJoin: 'round', dashArray: null };
+    const street = (feature && feature.properties && feature.properties.street) || '';
+    if (/proposed/i.test(street)) { s.opacity = nsr ? 0.4 : 0.22; s.dashArray = '5 6'; }
+    return s;
 }
