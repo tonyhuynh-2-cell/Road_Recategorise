@@ -47,15 +47,12 @@ function cvStyle(feature) {
     return { stroke: true, color: meets ? '#16a34a' : '#dc2626', weight: meets ? 3.2 : 2.4, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }
 
-// Green national-network style, per feature. SOLID on the Nat. Significant lens (it's the content
-// there), faint wide underlay on the other NSW tabs. Proposed corridors (not yet built) render
-// translucent + dashed so they read as future network.
+// Green national-network style, per feature. This is the official NLTN 2020 determination shown as
+// a faint REFERENCE underlay (on every NSW tab) — it does NOT set any road's grade; the graded
+// roads draw on top. Proposed corridors (not yet built) render translucent + dashed.
 function nltnFeatureStyle(feature) {
-    const nsr = (nswView === 'nsr');
-    const s = nsr
-        ? { color: '#2f9e2f', weight: 4.5, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: null }
-        : { color: '#3cb043', weight: 6, opacity: 0.55, lineCap: 'round', lineJoin: 'round', dashArray: null };
+    const s = { color: '#3cb043', weight: 5, opacity: 0.5, lineCap: 'round', lineJoin: 'round', dashArray: null };
     const street = (feature && feature.properties && feature.properties.street) || '';
-    if (/proposed/i.test(street)) { s.opacity = nsr ? 0.4 : 0.22; s.dashArray = '5 6'; }
+    if (/proposed/i.test(street)) { s.opacity = 0.22; s.dashArray = '5 6'; }
     return s;
 }

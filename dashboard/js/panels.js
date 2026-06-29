@@ -33,7 +33,7 @@ function applyLegend() {
         if (onNSW && legendToggles.nltn) {
             map.addLayer(nltnLayer);
             nltnLayer.setStyle(nltnFeatureStyle);   // per-feature (handles proposed translucency)
-            const np = map.getPane('nltnPane'); if (np) np.style.zIndex = (nswView === 'nsr') ? 450 : 350;
+            const np = map.getPane('nltnPane'); if (np) np.style.zIndex = 350;   // reference: always UNDER the graded roads
         } else map.removeLayer(nltnLayer);
     }
     // Town/City pins
@@ -61,9 +61,9 @@ function syncLegendVisuals() {
 
 function showNSW() {
     if (cvLayer) map.removeLayer(cvLayer);
-    // Nat. Significant lens: hide the criteria-graded State-road layer (the A/B/M route-shielded
-    // roads) — there the nationally significant roads ARE the green NLTN lines.
-    if (nswLayer) { if (nswView === 'nsr') map.removeLayer(nswLayer); else map.addLayer(nswLayer); }
+    // Every NSW lens (incl. Nat. Significant) shows the criteria-graded roads; the green NLTN
+    // network is only a faint reference underneath.
+    if (nswLayer) map.addLayer(nswLayer);
     applyLegend();
     // Frame NSW only when arriving from a different context (or first load) — switching among the
     // NSW lens tabs preserves the user's current pan/zoom.
@@ -97,37 +97,30 @@ function nswViewCounts() {
 function refreshNswView() {
     const m = NSW_VIEW_META[nswView]; if (!m) return;
     const grid = document.querySelector('#tab-nsw .stat-grid');
+    if (grid) grid.style.display = '';
     document.getElementById('nsw-hero-title').textContent = m.title;
     document.getElementById('nsw-total-sub').textContent = m.sub;
-    if (nswView === 'nsr') {
-        // Nationally significant = the official NLTN green network itself (no per-road grading,
-        // no A-route shields), so show the network length and hide the green/orange/red grid.
-        document.getElementById('nsw-total').textContent = window.NLTN_KM ? (window.NLTN_KM.toLocaleString() + ' km') : '–';
-        if (grid) grid.style.display = 'none';
-    } else {
-        if (grid) grid.style.display = '';
-        const c = nswViewCounts();
-        document.getElementById('nsw-total').textContent = c.total.toLocaleString();
-        const pct = n => c.total ? (n / c.total * 100).toFixed(0) + '% of these roads' : '';
-        document.getElementById('nsw-green-label').textContent = m.gLabel;
-        document.getElementById('nsw-green').textContent = c.green.toLocaleString();
-        document.getElementById('nsw-green-pct').textContent = pct(c.green);
-        document.getElementById('nsw-orange-label').textContent = m.oLabel;
-        document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();
-        document.getElementById('nsw-orange-pct').textContent = pct(c.orange);
-        document.getElementById('nsw-red-label').textContent = m.rLabel;
-        document.getElementById('nsw-red').textContent = c.red.toLocaleString();
-        document.getElementById('nsw-red-pct').textContent = pct(c.red);
-    }
-    // Clickable legend rows (data-legend-key) toggle that category on the map; static rows don't.
+    // Every lens (incl. Nat. Significant) is graded green/orange/red from the criteria.
+    const c = nswViewCounts();
+    document.getElementById('nsw-total').textContent = c.total.toLocaleString();
+    const pct = n => c.total ? (n / c.total * 100).toFixed(0) + '% of these roads' : '';
+    document.getElementById('nsw-green-label').textContent = m.gLabel;
+    document.getElementById('nsw-green').textContent = c.green.toLocaleString();
+    document.getElementById('nsw-green-pct').textContent = pct(c.green);
+    document.getElementById('nsw-orange-label').textContent = m.oLabel;
+    document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();
+    document.getElementById('nsw-orange-pct').textContent = pct(c.orange);
+    document.getElementById('nsw-red-label').textContent = m.rLabel;
+    document.getElementById('nsw-red').textContent = c.red.toLocaleString();
+    document.getElementById('nsw-red-pct').textContent = pct(c.red);
+    // Clickable legend rows (data-legend-key) toggle that category on the map.
     const li = (key, swatch, label) => '<div class="legend-item" data-legend-key="' + key + '" onclick="toggleLegendItem(\'' + key + '\')">' + swatch + ' ' + label + '</div>';
     const vkeys = ['green', 'orange', 'red'];
     let lh = '<h3>Map legend</h3>';
-    // State/Regional lenses grade roads (green/orange/red); the Nat. Significant lens is just the network.
-    if (nswView !== 'nsr') m.legend.forEach(([col, lab], i) => { lh += li(vkeys[i], '<div class="legend-color" style="background:' + col + '"></div>', lab); });
-    lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.55"></div>', 'National Network — Road · NLTN Determination 2020 (data.gov.au)');
+    m.legend.forEach(([col, lab], i) => { lh += li(vkeys[i], '<div class="legend-color" style="background:' + col + '"></div>', lab); });
+    lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.5"></div>', 'NLTN 2020 determination — reference only (data.gov.au)');
     // Proposed corridors share the 'nltn' key — they toggle/dim together with the national network.
-    lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.22"></div>', 'Proposed corridor (translucent, dashed)');
+    lh += li('nltn', '<div class="legend-color" style="background:#3cb043; opacity:0.22"></div>', 'Proposed corridor (reference, translucent)');
     lh += li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)');
     lh += li('towns', '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>', 'Town / City — pin size scales with population');
     document.getElementById('nsw-legend').innerHTML = lh;

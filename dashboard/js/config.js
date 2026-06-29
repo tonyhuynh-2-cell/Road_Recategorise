@@ -19,10 +19,10 @@ const ICON = {
 // Per-lens panel copy (title / stat labels / legend rows / note).
 const NSW_VIEW_META = {
     nsr: {
-        title: 'Nationally Significant Roads', sub: 'National Land Transport Network — Road · Determination 2020',
-        gLabel: 'On the National Network', oLabel: '', rLabel: '',
-        legend: [],
-        note: 'The nationally significant roads are the National Land Transport Network — Road, taken directly from the official NLTN Determination 2020 (data.gov.au) — the green corridors on the Department of Infrastructure map (Pacific, New England, Newell, Hume, Sturt, Great Western, Mitchell highways, etc.). Click any green line for its determination details. The figure above is the total length of the NSW national network.'
+        title: 'Nationally Significant State Roads', sub: 'State roads graded against the national criteria (S-01–S-05)',
+        gLabel: 'Nationally significant', oLabel: 'Partial (meets 1)', rLabel: 'Does not meet',
+        legend: [['#16a34a', 'Nationally significant — meets ≥2 national criteria'], ['#f59e0b', 'Meets 1 of 3 — on the network only']],
+        note: 'Graded live from the criteria — a State road is nationally significant only if it meets ≥2 of: comprises the National Land Transport Network (S-01); connects ≥2 metropolitan/urban centres (S-02·S-03); connects a Major Port, International Airport or Major Intermodal (S-04·S-05). Green = meets ≥2 (earned); orange = meets only 1. The faint green underlay is the official NLTN 2020 determination, drawn purely as a reference to compare against — it never sets the grade.'
     },
     state: {
         title: 'State Roads', sub: 'Graded against the State Road criteria (excludes nationally significant)',
