@@ -2,6 +2,9 @@
 
 // Map setup
 const map = L.map('map', { preferCanvas: true }).setView([-32.0, 149.5], 6);
+// Drop the "Leaflet" branding watermark from the attribution box (keep the © OSM / © CARTO data
+// credit — required by the basemap tile terms).
+map.attributionControl.setPrefix(false);
 
 // PDF-style basemap: CARTO Voyager (no labels) = warm/cream land, blue water, muted grey roads —
 // close to the NLTN Determination 2020 map. A mild warm CSS filter (see .leaflet-tile-pane in the

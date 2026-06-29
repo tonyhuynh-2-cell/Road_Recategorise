@@ -93,6 +93,11 @@
         /* Map */
         .map-container { flex: 1; position: relative; background: #cfe0ee; }
         #map { width: 100%; height: 100%; background: #cfe0ee; }
+        /* No black focus box when a road / green line is clicked (canvas + SVG interactive layers). */
+        .leaflet-container:focus,
+        .leaflet-container *:focus,
+        .leaflet-interactive:focus,
+        path.leaflet-interactive:focus { outline: none !important; }
         /* PDF-style basemap: warm the Voyager tiles toward the determination map's cream land
            while keeping water blue. Only affects basemap tiles (their own pane), not the roads,
            the green NLTN underlay, or town pins (which live in other panes). */
