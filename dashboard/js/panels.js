@@ -28,8 +28,11 @@ function showNSW() {
     // NLTN 2020 green national network is part of the PDF-style base — show it on every NSW tab.
     if (nltnLayer) map.addLayer(nltnLayer);
     // On the Nat. Significant lens the nationally significant roads ARE the green NLTN lines, so
-    // hide the criteria-graded State-road layer (the A/B/M route-shielded roads) there.
+    // hide the criteria-graded State-road layer (the A/B/M route-shielded roads) there. Also lift
+    // the green pane ABOVE the road overlay on that lens so the lines are clickable (otherwise the
+    // empty road canvas sits on top and swallows the clicks); drop it back under the roads elsewhere.
     if (nswLayer) { if (nswView === 'nsr') map.removeLayer(nswLayer); else map.addLayer(nswLayer); }
+    const np = map.getPane('nltnPane'); if (np) np.style.zIndex = (nswView === 'nsr') ? 450 : 350;
     if (nswTownsLayer) map.addLayer(nswTownsLayer);
     // Frame NSW only when arriving from a different context (or first load) — switching among the
     // NSW lens tabs preserves the user's current pan/zoom.
