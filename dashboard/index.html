@@ -203,6 +203,16 @@
 
     <div class="map-container">
         <div id="map"></div>
+        <!-- Road search (top-left). Find a road by name or ID and jump to it — see js/search.js. -->
+        <div id="road-search" class="road-search">
+            <div class="rs-box">
+                <svg class="rs-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+                <input id="rs-input" type="text" placeholder="Search road name or ID…" autocomplete="off" spellcheck="false"
+                    oninput="onRoadSearchInput(this.value)" onkeydown="onRoadSearchKey(event)" onfocus="onRoadSearchInput(this.value)">
+                <button id="rs-clear" class="rs-clear" onclick="clearRoadSearch()" title="Clear" aria-label="Clear search">&times;</button>
+            </div>
+            <div id="rs-results" class="rs-results"></div>
+        </div>
         <!-- Floating map legend + highlight toggles (top-right of the map). Built by renderMapLegend(). -->
         <div id="map-legend" class="map-legend"></div>
     </div>
@@ -214,7 +224,7 @@
 <script>
 (function () {
     var v = Date.now();
-    var files = ['config', 'utils', 'state', 'grading', 'detail', 'panels', 'export', 'init'];
+    var files = ['config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'export', 'init'];
     for (var i = 0; i < files.length; i++) {
         document.write('<script src="js/' + files[i] + '.js?v=' + v + '"><\/script>');
     }
@@ -227,7 +237,7 @@
 <script>
 (function () {
     var WATCH = ['index.html', 'css/dashboard.css',
-        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/panels.js', 'js/export.js', 'js/init.js',
+        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/export.js', 'js/init.js',
         'data/nsw_assessment.geojson', 'data/nsw_nltn.json', 'data/nsw_criteria.json', 'data/nsw_recat.json',
         'data/nsw_urbanity.json', 'data/nsw_refs.json', 'data/ref_overrides.json', 'data/summary_stats.json',
         'data/clarence_valley_assessment.geojson', 'data/towns_cv.geojson', 'data/cv_refs.json',

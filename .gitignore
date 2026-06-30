@@ -12,6 +12,8 @@ POI/Remoteness/
 POI/Employment_Lands/
 NHVR GeoPackages/
 PBS_Networks/
+# Raw NHVR Heavy Vehicle Network GeoPackages (~210MB) — inputs to dashboard/rebuild_from_nhvr.py
+dashboard/data/geopackages/
 
 # Zip files
 *.zip

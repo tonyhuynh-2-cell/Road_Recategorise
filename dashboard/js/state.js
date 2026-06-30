@@ -8,6 +8,8 @@ const map = L.map('map', { preferCanvas: true, renderer: L.canvas({ tolerance: 1
 // Drop the "Leaflet" branding watermark from the attribution box (keep the © OSM / © CARTO data
 // credit — required by the basemap tile terms).
 map.attributionControl.setPrefix(false);
+// Move the zoom control off the top-left so it doesn't collide with the road search box.
+map.zoomControl.setPosition('bottomleft');
 
 // PDF-style basemap: CARTO Voyager (no labels) = warm/cream land, blue water, muted grey roads —
 // close to the NLTN Determination 2020 map. A mild warm CSS filter (see .leaflet-tile-pane in the
@@ -16,7 +18,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/
     attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
 }).addTo(map);
 
-let nswLayer, nswTownsLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer;
+let nswLayer, nswTownsLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer, bypassLayer;
 
 
 // Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
@@ -33,6 +35,18 @@ const nltnRenderer = L.svg({ pane: 'nltnPane' });
 map.createPane('cvbPane');
 map.getPane('cvbPane').style.zIndex = 420;
 const cvbRenderer = L.svg({ pane: 'cvbPane' });
+
+// HV bypass highlight — roads on an NHVR heavy-vehicle bypass route (data/nhvr_networks.json ->
+// bypass). Drawn as a translucent cyan halo in a pane BELOW the road overlay (z 390 < 400) so the
+// graded road + any selection still draw on top and the halo peeks around the line. SVG +
+// non-interactive so clicks fall straight through to the road. Toggled by the 'bypass' legend item.
+// (No dedicated bypass GeoPackage yet — surfaces the existing per-road flags; upload a bypass
+//  network and rebuild_from_nhvr.py can populate it the same way as road train / B-double.)
+map.createPane('bypassPane');
+map.getPane('bypassPane').style.zIndex = 390;
+const bypassRenderer = L.svg({ pane: 'bypassPane' });
+const BYPASS_STYLE = { pane: 'bypassPane', renderer: bypassRenderer, color: '#0891b2', weight: 8,
+    opacity: 0.5, lineCap: 'round', lineJoin: 'round', interactive: false };
 
 // --- Connectivity highlights ---------------------------------------------------------------
 // When a road is selected, ring + label every entity it connects (the evidence behind its
@@ -127,7 +141,7 @@ function fitToSua(suaId) {
 // verdict colours + dashed/towns/boundary, plus the "Highlights" group: c_centre/c_hosp/c_dest/
 // c_employ = the on-select connection rings. clip = CV tab only, hide roads outside the LGA outline.
 let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
-    c_centre: true, c_hosp: true, c_dest: true, c_employ: true };
+    bypass: false, c_centre: true, c_hosp: true, c_dest: true, c_employ: true };
 
 let currentTab = 'overview';
 

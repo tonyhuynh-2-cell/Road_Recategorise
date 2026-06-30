@@ -47,6 +47,8 @@ function applyLegend() {
     if (towns && legendToggles.towns) map.addLayer(towns);
     // CV LGA boundary (CV tab only)
     if (cvBoundaryLayer) { if (!onNSW && legendToggles.boundary) map.addLayer(cvBoundaryLayer); else map.removeLayer(cvBoundaryLayer); }
+    // HV bypass network highlight (statewide; off by default) — halo under the roads.
+    if (bypassLayer) { if (legendToggles.bypass) map.addLayer(bypassLayer); else map.removeLayer(bypassLayer); }
 }
 
 // Shared "Highlights" legend block: the on-select connection rings (blue centres, red hospitals,
@@ -97,6 +99,8 @@ function renderMapLegend() {
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     }
+    // HV bypass network highlight — a halo over roads on an NHVR heavy-vehicle bypass route.
+    h += li('bypass', '<div class="legend-color" style="background:#0891b2; height:4px; opacity:0.7"></div>', 'HV bypass network (NHVR)');
     h += hiliteLegendHTML();
     el.innerHTML = h;
     syncLegendVisuals();

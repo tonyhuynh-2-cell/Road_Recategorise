@@ -80,6 +80,10 @@ Promise.all([
     nswRoads.features.forEach(f => {
         const k = roadKeyOf(f.properties); if (!k) return;
         const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0, _byStatus: { red: 0, orange: 0, green: 0 }, _urbanLen: 0, _ruralLen: 0, _nltnLen: 0 }));
+        // The first segment of a road can have a blank name/ref while later ones are named (e.g. road
+        // 0000340 = Bronte Rd). Backfill from any segment so the road is named for display AND search.
+        if ((!a.road_name || !String(a.road_name).trim()) && f.properties.road_name && String(f.properties.road_name).trim()) a.road_name = f.properties.road_name;
+        if (!a.ref && f.properties.ref) a.ref = f.properties.ref;
         const len = roadLenKm(f.geometry);
         a._len += len;
         if (a._byStatus[f.properties.status] !== undefined) a._byStatus[f.properties.status] += len;
@@ -168,6 +172,24 @@ Promise.all([
             layer.on('mouseout', function() { if (!isSelected(layer)) group().forEach(l => nswLayer.resetStyle(l)); });
         }
     });
+
+    // HV bypass overlay — the same road geometry, filtered to roads flagged on an NHVR heavy-vehicle
+    // bypass route (window.NHVR[roadKey].bypass). Drawn as a halo under the roads; shown via the
+    // 'bypass' legend toggle (see applyLegend). Non-interactive: clicks pass through to the road.
+    bypassLayer = L.geoJSON(nswRoads, {
+        pane: 'bypassPane',
+        filter: function (f) {
+            const p = f.properties; if (isRamp(p)) return false;
+            const k = roadKeyOf(p); const e = k && window.NHVR[k];
+            return !!(e && e.bypass);
+        },
+        style: function () { return BYPASS_STYLE; }
+    });
+
+    // Expose the per-road layer groups and build the road-name / road-ID search index (js/search.js),
+    // now that NSW_AGG + the road layers are ready. Search selects a road by jumping to it on the map.
+    window.NSW_ROAD_LAYERS = nswRoadLayers;
+    if (typeof initRoadSearch === 'function') initRoadSearch();
 
     // Clipped CV-inside roads — the same criteria-graded roads, but with their geometry trimmed to the
     // LGA polygon so the "Show only roads inside the LGA" toggle leaves nothing leaking past the black
