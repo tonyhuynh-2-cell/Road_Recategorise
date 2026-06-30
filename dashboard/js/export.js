@@ -19,6 +19,7 @@ const EXPORT_COLS = [
     { key: 'Why', w: 40, wrap: true, code: true },
     { key: 'What (criteria tested)', w: 44, wrap: true, code: true },
     { key: 'HV Networks (NHVR)', w: 24, wrap: true },
+    { key: 'AADT (TfNSW)', w: 20, wrap: true },
     { key: 'Zone', w: 22 },
     { key: 'Road ID', w: 12 },
     { key: 'LGA(s) Touched', w: 26, wrap: true },

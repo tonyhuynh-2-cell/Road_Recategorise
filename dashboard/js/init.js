@@ -24,13 +24,19 @@ Promise.all([
     _f('data/nltn_evidence.json').catch(() => ({})),
     _f('data/sua_outlines.json').catch(() => []),
     _f('data/nhvr_networks.json').catch(() => ({})),
-    _f('data/nsw_road_ext.json').catch(() => ({}))
-]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt]) => {
+    _f('data/nsw_road_ext.json').catch(() => ({})),
+    _f('data/nsw_adt.json').catch(() => ({})),
+    _f('data/nsw_zone.json').catch(() => ({}))
+]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt, adt, zone]) => {
     // Real heavy-vehicle network membership per road (NHVR spatial intersect): road train (R-03),
     // 19m B-double (R-04) and HV bypass — data/nhvr_networks.json. Plus geometry-derived topology
     // (connects two State Roads; parallels a State Road within 20km) — data/nsw_road_ext.json.
     window.NHVR = nhvr || {};
     window.ROAD_EXT = roadExt || {};
+    // Statewide AADT + %HV per road (TfNSW Traffic Volume Counts, nearest count station) — data/nsw_adt.json.
+    window.ADT = adt || {};
+    // Urban / Regional / Remote zone per road (Remote = rural + west of the Newell Hwy) — data/nsw_zone.json.
+    window.ZONE = zone || {};
     window.NSW_CRIT = nswCrit || {};   // per-road computed criteria results (data/nsw_criteria.json)
     // Per-road connectivity evidence (which centres / hospitals / ports / airports / intermodals each
     // road connects, with names + qualifying attributes + coords) — data/*_evidence.json.

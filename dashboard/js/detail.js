@@ -19,7 +19,11 @@ function showRoadDetail(p, source) {
     document.getElementById('detail-road-name').innerHTML = roadLabel(p);
     document.getElementById('detail-road-number').textContent = isHighSpeed(p) ? 'Motorway / freeway' : '';
     const isState = p.admin_class === 'S';
-    document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + '</strong>' + (p._nsr ? ' <span style="color:var(--muted)">· on the National Land Transport Network</span>' : '');
+    const zone = (source === 'nsw' && window.ZONE) ? window.ZONE[roadKeyOf(p)] : null;
+    const zoneLabel = { urban: 'Urban', regional: 'Regional', remote: 'Remote (west of Newell Hwy)' }[zone];
+    document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + '</strong>' +
+        (zoneLabel ? ' <span style="color:var(--muted)">· ' + zoneLabel + ' zone</span>' : '') +
+        (p._nsr ? ' <span style="color:var(--muted)">· on the National Land Transport Network</span>' : '');
 
     // Result — graded by the road's own category criteria (no forced pass for being on the NLTN).
     const resultEl = document.getElementById('detail-result');
@@ -33,20 +37,35 @@ function showRoadDetail(p, source) {
         else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>'; reasonEl.textContent = p.mandatory_pass === 0 ? 'Fails mandatory criteria' : 'Does not meet ≥2 optional criteria'; }
     }
 
+    // Computed, area-aware criteria for this road (data/nsw_criteria.json), keyed like the map rollup.
+    const c = (source === 'nsw' && window.NSW_CRIT) ? window.NSW_CRIT[roadKeyOf(p)] : null;
+    const urbanArea = c ? c.area === 'urban' : !!p._urban;
+    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts (data/nsw_adt.json), spatially
+    // joined to the busiest count station on the road. Threshold depends on category + urban/rural.
+    const ad = (source === 'nsw' && window.ADT) ? window.ADT[roadKeyOf(p)] : null;
+    const adtThr = isState ? (urbanArea ? 10000 : 7000) : (urbanArea ? 7000 : 2000);
+    const hvThr = isState ? 8 : 6;
+
     // Traffic
     const trafficEl = document.getElementById('detail-traffic');
     if (source === 'cv' && p.adt) {
         const thr = isState ? 7000 : 2000;
-        const hvThr = isState ? 8 : 6;
+        const cvHvThr = isState ? 8 : 6;
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.adt > thr ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">ADT: ' + Math.round(p.adt).toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + thr.toLocaleString() + '</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">' + (p.hv_pct && p.hv_pct > hvThr ? ICON.pass : p.hv_pct ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (p.hv_pct ? p.hv_pct.toFixed(1) + '%' : 'No data') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%</div></div></div>';
+            '<div class="criteria-item"><span class="criteria-icon">' + (p.hv_pct && p.hv_pct > cvHvThr ? ICON.pass : p.hv_pct ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (p.hv_pct ? p.hv_pct.toFixed(1) + '%' : 'No data') + '</div><div class="criteria-value">Threshold: >' + cvHvThr + '%</div></div></div>';
+    } else if (ad) {
+        // Statewide AADT now available for this road (TfNSW count station).
+        const hvOk = ad.hv_pct != null ? ad.hv_pct > hvThr : null;
+        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (ad.aadt > adtThr ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + adtThr.toLocaleString() + ' (' + (urbanArea ? 'urban' : 'rural') + ' ' + (isState ? 'State' : 'Regional') + ') · TfNSW count, ' + ad.year + '</div></div></div>' +
+            '<div class="criteria-item"><span class="criteria-icon">' + (hvOk === true ? ICON.pass : hvOk === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · busiest of ' + ad.stations + ' stations' : '') + '</div></div></div>';
     } else {
-        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">' + (isState ? 'State Road threshold: >7,000 rural / >10,000 urban' : 'Regional Road threshold: >2,000 rural') + '</div></div></div>';
+        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">No TfNSW count station on this road · ' + (isState ? 'State threshold >' + adtThr.toLocaleString() : 'Regional threshold >' + adtThr.toLocaleString()) + '</div></div></div>';
     }
-
-    // Computed, area-aware criteria for this road (data/nsw_criteria.json), keyed like the map rollup.
-    const c = (source === 'nsw' && window.NSW_CRIT) ? window.NSW_CRIT[roadKeyOf(p)] : null;
-    const urbanArea = c ? c.area === 'urban' : !!p._urban;
+    // Shared traffic-volume criterion row — real AADT vs threshold when we have it, else "not available".
+    const trafficCrit = ad
+        ? critItem(ad.aadt > adtThr, 'Meets traffic volume + heavy-vehicle thresholds',
+            'AADT ' + ad.aadt.toLocaleString() + ' (' + ad.year + ')' + (ad.hv_pct != null ? ' · ' + ad.hv_pct + '% HV' : '') + ' vs >' + adtThr.toLocaleString())
+        : critItem(null, 'Meets traffic volume + heavy-vehicle thresholds', 'ADT not available for this road');
 
     // Mandatory
     const mandEl = document.getElementById('detail-mandatory');
@@ -106,7 +125,7 @@ function showRoadDetail(p, source) {
         if (!urbanArea) html += critItem(!!c.opt.ldr, 'Connects a centre to town centres along a long-distance rural route');
         const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / Airports / Employment Centres';
         html += critItem(!!c.opt.dest, dLabel, destVal(!!c.opt.dest, evDests, evHosps, evEmploy)) + facilityRows;
-        html += critItem(null, 'Meets traffic volume + heavy-vehicle thresholds', 'ADT not available statewide');
+        html += trafficCrit;
         optEl.innerHTML = html;
     } else if (c && !isState) {
         // Regional roads use the Sydney-Metropolitan criteria set (R-05 / R-06) in urban areas and the
@@ -121,7 +140,7 @@ function showRoadDetail(p, source) {
         html += critItem(!!c.opt.centres, rCentres, centresVal(!!c.opt.centres, evCent)) + evCentres(evCent);
         html += critItem(!!c.opt.dest, rDest, destVal(!!c.opt.dest, evDests, evHosps, evEmploy)) + facilityRows;
         html += roadTrainRow + twoStateRow;
-        html += critItem(null, 'Meets traffic volume + heavy-vehicle thresholds', urbanArea ? 'Urban Regional threshold: >7,000 ADT' : 'Regional threshold: >2,000 ADT (rural)');
+        html += trafficCrit;
         optEl.innerHTML = html;
     } else {
         // Fallback when computed criteria are unavailable
@@ -134,7 +153,7 @@ function showRoadDetail(p, source) {
             html += critItem(!!p.connects_hospital, 'R-02/R-06: Connects facilities to centres', destVal(!!p.connects_hospital, evDests, evHosps, evEmploy)) + facilityRows;
             html += roadTrainRow + twoStateRow;
         }
-        html += critItem(null, 'Meets traffic volume thresholds', 'ADT not available');
+        html += trafficCrit;
         optEl.innerHTML = html;
     }
 
