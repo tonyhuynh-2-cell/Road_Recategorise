@@ -16,6 +16,12 @@ PBS_Networks/
 # Zip files
 *.zip
 
+# Editor / working backups
+*.bak
+
 # Keep these tracked
 !dashboard/
 !dashboard/data/
+
+# Raw source shapefile (the derived dashboard/data/nltn_2020_road.geojson IS tracked)
+dashboard/data/nltn_2020_road/
