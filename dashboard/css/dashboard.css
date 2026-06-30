@@ -37,6 +37,17 @@
         .tab-btn.tab-overview { padding: 12px 6px; font-size: 13px; font-weight: 600; }
         .tab-btn.active { border-color: var(--muted); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(28,25,23,.08); }
         .tab-btn:hover:not(.active) { border-color: var(--faint); color: var(--ink); }
+
+        /* Export — minimalist link, pinned to the bottom of the sidebar */
+        .sidebar-foot { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
+        .export-link { display: inline-flex; align-items: center; gap: 7px; padding: 4px 2px; cursor: pointer;
+            font: 500 11.5px var(--sans); color: var(--muted); letter-spacing: .01em; transition: color .15s; user-select: none; }
+        .export-link:hover { color: var(--ink); }
+        .export-link .export-label { border-bottom: 1px solid transparent; padding-bottom: 1px; }
+        .export-link:hover .export-label { border-bottom-color: var(--faint); }
+        .export-link.is-busy { color: var(--faint); cursor: default; pointer-events: none; }
+        .export-ico { font-size: 12px; line-height: 1; opacity: .8; }
+
         .detail-back { background: none; border: none; color: var(--muted); font: 500 12px var(--sans); cursor: pointer; padding: 0; margin-bottom: 12px; display: inline-flex; align-items: center; gap: 5px; }
         .detail-back:hover { color: var(--ink); }
 

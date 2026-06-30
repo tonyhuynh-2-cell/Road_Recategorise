@@ -15,6 +15,11 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/
 
 let nswLayer, nswTownsLayer, cvLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer;
 
+// Shared canvas renderer for the State/Regional/CV road overlays, with a click tolerance so the
+// selection hitbox is ~25% larger than the drawn line (a 1.5px buffer ≈ 25% of the 6px selection
+// stroke). Roads become easier to click without changing how thin the lines look.
+const roadRenderer = L.canvas({ tolerance: 1.5, padding: 0.5 });
+
 // Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
 // and uses an SVG renderer so the green lines (incl. proposed corridors) stay hoverable/clickable,
 // while clicks on empty areas pass THROUGH to the graded roads underneath (canvas would swallow them).

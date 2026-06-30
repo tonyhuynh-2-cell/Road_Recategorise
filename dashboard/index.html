@@ -208,6 +208,13 @@
                 </div>
             </div>
         </div>
+
+        <!-- Export sits at the very bottom of the sidebar — scroll down to reach it -->
+        <div class="sidebar-foot">
+            <a class="export-link" onclick="exportToExcel(this)" title="Download every assessed road (Nationally Significant, State, Regional) as an Excel workbook">
+                <span class="export-ico">↓</span><span class="export-label">Export all data to Excel</span>
+            </a>
+        </div>
     </div>
 
     <div class="map-container">
@@ -221,7 +228,7 @@
 <script>
 (function () {
     var v = Date.now();
-    var files = ['config', 'utils', 'state', 'grading', 'detail', 'panels', 'init'];
+    var files = ['config', 'utils', 'state', 'grading', 'detail', 'panels', 'export', 'init'];
     for (var i = 0; i < files.length; i++) {
         document.write('<script src="js/' + files[i] + '.js?v=' + v + '"><\/script>');
     }
@@ -234,7 +241,7 @@
 <script>
 (function () {
     var WATCH = ['index.html', 'css/dashboard.css',
-        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/panels.js', 'js/init.js',
+        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/panels.js', 'js/export.js', 'js/init.js',
         'data/nsw_assessment.geojson', 'data/nsw_nltn.json', 'data/nsw_criteria.json', 'data/nsw_recat.json',
         'data/nsw_urbanity.json', 'data/nsw_refs.json', 'data/ref_overrides.json', 'data/summary_stats.json',
         'data/clarence_valley_assessment.geojson', 'data/towns_cv.geojson', 'data/cv_refs.json',

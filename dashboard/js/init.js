@@ -123,6 +123,7 @@ Promise.all([
     });
     nswLayer = L.geoJSON(nswRoads, {
         style: nswStyle,
+        renderer: roadRenderer,   // enlarged click tolerance — see roadRenderer in state.js
         smoothFactor: 1.5,
         filter: function(f) {
             const p = f.properties;
@@ -233,6 +234,7 @@ Promise.all([
     });
     cvLayer = L.geoJSON(cvRoads, {
         style: cvStyle,
+        renderer: roadRenderer,   // enlarged click tolerance — see roadRenderer in state.js
         smoothFactor: 1.5,
         filter: f => !isRamp(f.properties),
         onEachFeature: function(feature, layer) {
