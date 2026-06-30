@@ -370,18 +370,13 @@ Promise.all([
         });
     }
 
-    // Fill the static "Highlights" legend blocks (connection-ring toggles).
-    const ovh = document.getElementById('ov-hilite-legend'); if (ovh) ovh.innerHTML = hiliteLegendHTML();
-    const cvh = document.getElementById('cv-hilite-legend'); if (cvh) cvh.innerHTML = hiliteLegendHTML();
-    const dlg = document.getElementById('detail-legend'); if (dlg) dlg.innerHTML = detailLegendHTML();   // legend at the foot of Road Detail
-
     // Open on the Overview tab by default.
     nswView = 'all';
     refreshOverview();
     refreshCV();   // pre-fill the CV region stats (Overview breakdown within the LGA)
     showNSW();
     updateTownLabels();
-    syncLegendVisuals();   // reflect default toggle states across every legend
+    renderMapLegend();   // build the floating map legend (top-right) for the initial Overview view
     hideLoader();
 })
 .catch(err => { console.error('Dashboard load failed:', err); hideLoader(); });

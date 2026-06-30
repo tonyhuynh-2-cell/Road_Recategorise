@@ -16,7 +16,7 @@ function switchTab(tab) {
         if (tab === 'overview') refreshOverview(); else refreshNswView();
         showNSW();
     } else if (tab === 'cv') { refreshCV(); showCV(); }
-    syncLegendVisuals();
+    renderMapLegend();   // rebuild the floating legend for this view (also re-syncs the toggle dimming)
 }
 
 // Road Detail is shown on a road click (it's not a tab) — return to the view that was open.
@@ -63,17 +63,43 @@ function hiliteLegendHTML() {
     return h;
 }
 
-// Legend + highlight toggles shown at the bottom of the Road Detail panel, so the map layers and the
-// selected road's connection rings can be toggled without leaving the detail view. Same data-legend-key
-// wiring (toggleLegendItem) as every other legend, so all the legends stay in sync.
-function detailLegendHTML() {
+// The single floating legend (top-right of the map). Rebuilt for the current view: verdict colours +
+// route/town rows + the tab-specific rows (CV boundary/clip, Nat. Significant proposed note) + the
+// shared Highlights block. All rows are data-legend-key toggles handled by toggleLegendItem.
+function renderMapLegend() {
+    const el = document.getElementById('map-legend');
+    if (!el) return;
     const li = (key, swatch, label) => '<div class="legend-item" data-legend-key="' + key + '" onclick="toggleLegendItem(\'' + key + '\')">' + swatch + ' ' + label + '</div>';
-    return li('green', '<div class="legend-color" style="background:#16a34a"></div>', 'Meets its criteria') +
-        li('orange', '<div class="legend-color" style="background:#f59e0b"></div>', 'Meets 1 of 2 — may pass with ADT') +
-        li('red', '<div class="legend-color" style="background:#dc2626"></div>', 'Does not meet') +
-        li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)') +
-        li('towns', '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>', 'Town / City') +
-        hiliteLegendHTML();
+    const liStatic = (swatch, label) => '<div class="legend-item legend-static">' + swatch + ' ' + label + '</div>';
+    const sw = c => '<div class="legend-color" style="background:' + c + '"></div>';
+    const dashSw = '<div class="legend-color legend-dash"></div>';
+    const townSw = '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>';
+    const vkeys = ['green', 'orange', 'red'];
+    let h = '<h3>Map legend</h3>';
+    if (currentTab === 'cv') {
+        h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
+        h += li('orange', sw('#f59e0b'), 'Meets 1 of 2 — may pass with ADT');
+        h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
+        h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
+        h += li('towns', townSw, 'Town centres / POIs');
+        h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', 'LGA boundary (outline)');
+        h += li('clip', '<div class="legend-color" style="background:transparent; border:1.5px solid #1c1917; height:11px; border-radius:2px"></div>', 'Show only roads inside the LGA');
+    } else if (NSW_LENSES.includes(currentTab) && NSW_VIEW_META[nswView]) {
+        const m = NSW_VIEW_META[nswView];
+        m.legend.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
+        if (nswView === 'nsr') h += liStatic('<div class="legend-color" style="background:#16a34a; opacity:0.45"></div>', 'Proposed corridor — not yet built (translucent)');
+        else h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
+        h += li('towns', townSw, 'Town / City — pin size scales with population');
+    } else {   // overview + detail
+        h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
+        h += li('orange', sw('#f59e0b'), 'Meets 1 of 2 — may pass with ADT');
+        h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
+        h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
+        h += li('towns', townSw, 'Town / City — pin size scales with population');
+    }
+    h += hiliteLegendHTML();
+    el.innerHTML = h;
+    syncLegendVisuals();
 }
 
 // Clicking a legend swatch toggles that category on/off across the map.
@@ -190,22 +216,7 @@ function refreshNswView() {
     document.getElementById('nsw-red-label').textContent = m.rLabel;
     document.getElementById('nsw-red').textContent = c.red.toLocaleString();
     document.getElementById('nsw-red-pct').textContent = pct(c.red);
-    // Clickable legend rows (data-legend-key) toggle that category on the map.
-    const li = (key, swatch, label) => '<div class="legend-item" data-legend-key="' + key + '" onclick="toggleLegendItem(\'' + key + '\')">' + swatch + ' ' + label + '</div>';
-    const liStatic = (swatch, label) => '<div class="legend-item legend-static">' + swatch + ' ' + label + '</div>';
-    const vkeys = ['green', 'orange', 'red'];
-    let lh = '<h3>Map legend</h3>';
-    m.legend.forEach(([col, lab], i) => { lh += li(vkeys[i], '<div class="legend-color" style="background:' + col + '"></div>', lab); });
-    if (nswView === 'nsr') {
-        // The NLTN green/orange lines ARE the verdict colours above; just note the proposed styling.
-        lh += liStatic('<div class="legend-color" style="background:#16a34a; opacity:0.45"></div>', 'Proposed corridor — not yet built (translucent)');
-    } else {
-        lh += li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)');
-    }
-    lh += li('towns', '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>', 'Town / City — pin size scales with population');
-    lh += hiliteLegendHTML();
-    document.getElementById('nsw-legend').innerHTML = lh;
-    syncLegendVisuals();
+    // The map legend itself is the floating panel (renderMapLegend), rebuilt by switchTab.
     const np = document.querySelector('#nsw-note p'); if (np) np.textContent = m.note;
     if (nswLayer) nswLayer.setStyle(nswStyle);
     if (nltnLayer && nswView === 'nsr') nltnLayer.setStyle(nltnFeatureStyle);

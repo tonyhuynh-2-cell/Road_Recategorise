@@ -94,6 +94,17 @@
         .legend-item.legend-static:hover { opacity: 1; }
         .legend-color { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
         .legend-color.legend-dash { height: 0; border-top: 3px dashed #57534e; border-radius: 0; }
+        /* Floating map legend — top-right of the map, over the tiles */
+        .map-legend { position: absolute; top: 14px; right: 14px; z-index: 600; width: 252px; max-height: calc(100% - 28px);
+            overflow-y: auto; background: rgba(255,255,255,.96); backdrop-filter: blur(3px);
+            border: 1px solid var(--line); border-radius: 11px; padding: 13px 15px 14px;
+            box-shadow: 0 4px 16px rgba(28,25,23,.12); }
+        .map-legend::-webkit-scrollbar { width: 7px; }
+        .map-legend::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
+        .map-legend h3 { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 11px; }
+        .map-legend .legend-item { margin-bottom: 8px; font-size: 12px; }
+        .map-legend .legend-item:last-child { margin-bottom: 0; }
+        @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
         /* "Highlights" sub-heading + the round connection swatches (kept in a 22px box so labels align) */
         .legend-sub { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 11px; }
         .legend-swatch { width: 22px; display: inline-flex; justify-content: center; flex-shrink: 0; }
