@@ -124,7 +124,7 @@ Promise.all([
     nswLayer = L.geoJSON(nswRoads, {
         style: nswStyle,
         renderer: roadRenderer,   // enlarged click tolerance — see roadRenderer in state.js
-        smoothFactor: 1.5,
+        smoothFactor: 2.5,        // ~17.7k segments — simplify more aggressively so zoom redraws stay smooth
         filter: function(f) {
             const p = f.properties;
             if (isRamp(p)) return false;

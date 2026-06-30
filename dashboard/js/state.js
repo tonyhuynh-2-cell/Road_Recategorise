@@ -17,8 +17,9 @@ let nswLayer, nswTownsLayer, cvLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer;
 
 // Shared canvas renderer for the State/Regional/CV road overlays, with a click tolerance so the
 // selection hitbox is ~25% larger than the drawn line (a 1.5px buffer ≈ 25% of the 6px selection
-// stroke). Roads become easier to click without changing how thin the lines look.
-const roadRenderer = L.canvas({ tolerance: 1.5, padding: 0.5 });
+// stroke). Roads become easier to click without changing how thin the lines look. Keep the default
+// render padding (0.1) — a larger buffer redraws far more of the canvas on every zoom and lags.
+const roadRenderer = L.canvas({ tolerance: 1.5 });
 
 // Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
 // and uses an SVG renderer so the green lines (incl. proposed corridors) stay hoverable/clickable,
