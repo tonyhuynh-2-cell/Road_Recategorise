@@ -10,8 +10,11 @@ function showRoadDetail(p, source) {
     // Centres mix town points and Significant Urban Areas (kind:'sua') — the urban area a road runs
     // through is how city roads "connect centres". Route termini are tagged endpoint:true.
     const evd = (((source === 'cv') ? window.CV_EVID : window.NSW_EVID) || {})[roadKeyOf(p)] || {};
-    const evCent = evd.centres || [], evHosps = evd.hospitals || [], evDests = evd.dests || [];
-    showConnections({ centres: evCent, hospitals: evHosps, dests: evDests });   // ring/outline + label on the map
+    const evCent = evd.centres || [], evHosps = evd.hospitals || [], evDests = evd.dests || [], evEmploy = evd.employment || [];
+    // Real network membership (NHVR spatial intersect) + geometry-derived topology for this road.
+    const nh = (window.NHVR || {})[roadKeyOf(p)] || {};
+    const rx = (window.ROAD_EXT || {})[roadKeyOf(p)] || {};
+    showConnections({ centres: evCent, hospitals: evHosps, dests: evDests, employment: evEmploy });   // ring/outline + label on the map
 
     document.getElementById('detail-road-name').innerHTML = roadLabel(p);
     document.getElementById('detail-road-number').textContent = isHighSpeed(p) ? 'Motorway / freeway' : '';
@@ -47,17 +50,24 @@ function showRoadDetail(p, source) {
 
     // Mandatory
     const mandEl = document.getElementById('detail-mandatory');
+    const par = rx.parallel_state_20;   // true = a State Road closely parallels this one (geometry test)
     if (isState) {
         const pbs1 = c ? !!c.mand.pbs1 : !!p.has_pbs1;
+        // "Does not parallel a State Road" — PASS when it does NOT parallel one. Now tested (not assumed).
+        const parPass = par === true ? false : par === false ? true : null;
         mandEl.innerHTML =
             critItem(pbs1, 'S-09: PBS Level 1 vehicle access', 'Facilitates movement of PBS Level 1 or equivalent') +
             critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant') +
-            (urbanArea
-                ? critItem(null, 'Does not closely parallel a State Road (unless similar traffic volumes)', 'Urban criterion — assumed compliant')
-                : critItem(null, 'Does not parallel a rural State Road within 20km', 'Not assessed (rural criterion)'));
+            critItem(parPass, 'Does not closely parallel another State Road within 20km',
+                par === true ? 'A State Road runs parallel nearby — candidate to review'
+                    : par === false ? 'No State Road runs parallel within range' : 'Not assessed');
     } else {
+        // R-04 now uses the real NHVR 19m B-double network (falls back to the prior flag if unknown).
+        const bd = nh.bdouble19;
+        const bdPass = bd === true ? true : bd === false ? false : !!p.has_bdouble;
         mandEl.innerHTML =
-            critItem(!!p.has_bdouble, 'R-04: GML/CML 19m B-double access (50+ tonnes)', 'Facilitates movement of 19m B-double routes') +
+            critItem(bdPass, 'R-04: GML/CML 19m B-double access (50+ tonnes)',
+                bd === true ? 'NHVR-approved 19m B-double route' : bd === false ? 'Not on the NHVR 19m B-double network' : 'Facilitates movement of 19m B-double routes') +
             critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant');
     }
 
@@ -68,16 +78,24 @@ function showRoadDetail(p, source) {
         if (pass) return items.length ? ('Connects ' + items.length + ' centre' + (items.length > 1 ? 's' : '') + ' (named below)') : 'Connects centres (per assessment)';
         return items.length ? (items.length + ' centre' + (items.length > 1 ? 's' : '') + ' nearby — needs ≥2 connected') : 'No qualifying centre within range';
     };
-    const destVal = function (pass, ds, hs) {
-        const n = ds.length + hs.length;
+    const destVal = function (pass, ds, hs, em) {
+        const n = ds.length + hs.length + (em ? em.length : 0);
         if (pass) return n ? ('Connects ' + n + ' facilit' + (n > 1 ? 'ies' : 'y') + ' (named below)') : 'Connects a facility (per assessment)';
-        return n ? (n + ' nearby — not a qualifying connection') : 'No hospital / port / airport / intermodal within range';
+        return n ? (n + ' nearby — not a qualifying connection') : 'No hospital / port / airport / intermodal / employment centre within range';
     };
+    const facilityRows = evList(evDests, 'dest') + evList(evHosps, 'hosp') + evList(evEmploy, 'employ');
+    // Road train (R-03) — real NHVR membership; shown for Regional roads.
+    const roadTrainRow = critItem(nh.roadtrain === true ? true : nh.roadtrain === false ? false : null,
+        'R-03: On the road train network',
+        nh.roadtrain === true ? 'NHVR Road Train (32m) approved route' : nh.roadtrain === false ? 'Not on the NHVR road train network' : 'NHVR status unavailable');
+    // Links two State Roads — real geometry topology (a Regional road that joins two State Roads).
+    const twoStateRow = critItem(rx.two_state === true ? true : rx.two_state === false ? false : null,
+        'Links two State Roads', rx.two_state === true ? 'Both ends meet a State Road' : rx.two_state === false ? 'Does not link two State Roads' : 'Not assessed');
     if (source === 'cv' && (p.criteria_met || p.criteria_failed)) {
         let html = '';
         if (p.criteria_met) p.criteria_met.split('; ').forEach(cc => { html += critItem(true, cc); });
         if (p.criteria_failed) p.criteria_failed.split('; ').forEach(cc => { html += critItem(false, cc); });
-        html += evCentres(evCent) + evList(evDests, 'dest') + evList(evHosps, 'hosp');
+        html += evCentres(evCent) + facilityRows;
         optEl.innerHTML = html;
     } else if (c && isState) {
         let html = '';
@@ -87,7 +105,7 @@ function showRoadDetail(p, source) {
         html += critItem(!!c.opt.centres, cLabel, centresVal(!!c.opt.centres, evCent)) + evCentres(evCent);
         if (!urbanArea) html += critItem(!!c.opt.ldr, 'Connects a centre to town centres along a long-distance rural route');
         const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / Airports / Employment Centres';
-        html += critItem(!!c.opt.dest, dLabel, destVal(!!c.opt.dest, evDests, evHosps)) + evList(evDests, 'dest') + evList(evHosps, 'hosp');
+        html += critItem(!!c.opt.dest, dLabel, destVal(!!c.opt.dest, evDests, evHosps, evEmploy)) + facilityRows;
         html += critItem(null, 'Meets traffic volume + heavy-vehicle thresholds', 'ADT not available statewide');
         optEl.innerHTML = html;
     } else if (c && !isState) {
@@ -101,7 +119,8 @@ function showRoadDetail(p, source) {
             ? 'R-06: Connects Major Hospitals / Ports / Airports / Intermodals / Employment Centres'
             : 'R-02: Connects Major/Regional Hospitals / Ports / Airports / Employment Centres';
         html += critItem(!!c.opt.centres, rCentres, centresVal(!!c.opt.centres, evCent)) + evCentres(evCent);
-        html += critItem(!!c.opt.dest, rDest, destVal(!!c.opt.dest, evDests, evHosps)) + evList(evDests, 'dest') + evList(evHosps, 'hosp');
+        html += critItem(!!c.opt.dest, rDest, destVal(!!c.opt.dest, evDests, evHosps, evEmploy)) + facilityRows;
+        html += roadTrainRow + twoStateRow;
         html += critItem(null, 'Meets traffic volume + heavy-vehicle thresholds', urbanArea ? 'Urban Regional threshold: >7,000 ADT' : 'Regional threshold: >2,000 ADT (rural)');
         optEl.innerHTML = html;
     } else {
@@ -109,21 +128,28 @@ function showRoadDetail(p, source) {
         let html = '';
         if (isState) {
             html += critItem(!!p.connects_major_town, 'S-07/S-10: Connects centres to each other', centresVal(!!p.connects_major_town, evCent)) + evCentres(evCent);
-            html += critItem(!!p.connects_hospital, 'S-08/S-11: Connects hospitals / ports / airports', destVal(!!p.connects_hospital, evDests, evHosps)) + evList(evDests, 'dest') + evList(evHosps, 'hosp');
+            html += critItem(!!p.connects_hospital, 'S-08/S-11: Connects hospitals / ports / airports', destVal(!!p.connects_hospital, evDests, evHosps, evEmploy)) + facilityRows;
         } else {
             html += critItem(!!p.connects_major_town, 'R-01/R-05: Connects Urban / Town Centres', centresVal(!!p.connects_major_town, evCent)) + evCentres(evCent);
-            html += critItem(!!p.connects_hospital, 'R-02/R-06: Connects facilities to centres', destVal(!!p.connects_hospital, evDests, evHosps)) + evList(evDests, 'dest') + evList(evHosps, 'hosp');
+            html += critItem(!!p.connects_hospital, 'R-02/R-06: Connects facilities to centres', destVal(!!p.connects_hospital, evDests, evHosps, evEmploy)) + facilityRows;
+            html += roadTrainRow + twoStateRow;
         }
         html += critItem(null, 'Meets traffic volume thresholds', 'ADT not available');
         optEl.innerHTML = html;
     }
 
-    // Vehicle access
-    // PBS Level 2B is the Nationally Significant mandatory (S-06) and is shown only on that tab;
-    // State/Regional vehicle access lists PBS Level 1 and 19m B-double (their relevant standards).
+    // Vehicle access — road train, 19m B-double and HV bypass come from the real NHVR networks
+    // (data/nhvr_networks.json, spatial intersect). PBS Level 2B (S-06) stays on the Nat. Significant tab.
+    const va = function (ok, label, on, off) {
+        const icon = ok === true ? ICON.pass : ok === false ? ICON.fail : ICON.warn;
+        const val = ok === true ? on : ok === false ? off : 'NHVR status unavailable';
+        return '<div class="criteria-item"><span class="criteria-icon">' + icon + '</span><div class="criteria-text"><div class="criteria-label">' + label + '</div><div class="criteria-value">' + val + '</div></div></div>';
+    };
     document.getElementById('detail-vehicle-access').innerHTML =
-        '<div class="criteria-item"><span class="criteria-icon">' + (p.has_pbs1 ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">PBS Level 1</div></div></div>' +
-        '<div class="criteria-item"><span class="criteria-icon">' + (p.has_bdouble ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">GML/CML 19m B-double (50+ tonnes)</div></div></div>';
+        va(!!p.has_pbs1, 'PBS Level 1', 'Facilitates PBS Level 1 access', 'No PBS Level 1 access') +
+        va(nh.bdouble19 === undefined ? !!p.has_bdouble : nh.bdouble19, 'GML/CML 19m B-double (50+ tonnes)', 'NHVR-approved 19m B-double route', 'Not on the 19m B-double network') +
+        va(nh.roadtrain, 'Road train (32m)', 'NHVR-approved road train route', 'Not on the road train network') +
+        va(nh.bypass, 'Heavy-vehicle bypass', 'On an NHVR heavy-vehicle bypass', 'Not on a bypass route');
 
     // Connectivity — a plain-language summary derived from the SAME source as the optional criteria
     // above (c.opt) so the two cards can never contradict. NLTN membership is a separate factual tag.

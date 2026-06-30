@@ -187,6 +187,7 @@
         .ev-dot.ev-sua { background: #1d4ed8; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #1d4ed8; }   /* urban area = ringed dot */
         .ev-dot.ev-hosp { background: #dc2626; }
         .ev-dot.ev-dest { background: #7c3aed; }
+        .ev-dot.ev-employ { background: #0f766e; }
         .ev-name { font-weight: 600; color: var(--ink); }
         .ev-meta { color: var(--faint); font-size: 10.5px; margin-left: auto; white-space: nowrap; padding-left: 8px; }
 
@@ -200,6 +201,8 @@
         .conn-sua .conn-glyph { background: #1d4ed8; }
         .conn-hosp .conn-glyph { background: #dc2626; }
         .conn-dest .conn-glyph { background: #7c3aed; }
+        .conn-employ .conn-glyph { background: #0f766e; }
+        .conn-employ .conn-name { color: #0f766e; }
         .conn-town .conn-name { color: #1d4ed8; }
         .conn-sua .conn-name { color: #1d4ed8; }
         .conn-sua .conn-pin { border-color: #1d4ed8; }

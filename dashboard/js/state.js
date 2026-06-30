@@ -1,7 +1,10 @@
 // state.js — Leaflet map instance, shared mutable state, selection + loader + town-label control.
 
-// Map setup
-const map = L.map('map', { preferCanvas: true }).setView([-32.0, 149.5], 6);
+// Map setup. The map's default renderer is ONE shared canvas with a click tolerance, so the road
+// hitbox is ~25% larger than the drawn line (a 1.5px buffer) without changing how thin roads look.
+// Using the map default (not per-layer renderers) is deliberate: a per-layer canvas gets detached or
+// stacked on tab switches, which silently kills road clicking until reload.
+const map = L.map('map', { preferCanvas: true, renderer: L.canvas({ tolerance: 1.5 }) }).setView([-32.0, 149.5], 6);
 // Drop the "Leaflet" branding watermark from the attribution box (keep the © OSM / © CARTO data
 // credit — required by the basemap tile terms).
 map.attributionControl.setPrefix(false);
@@ -15,11 +18,6 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/
 
 let nswLayer, nswTownsLayer, cvLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer;
 
-// Shared canvas renderer for the State/Regional/CV road overlays, with a click tolerance so the
-// selection hitbox is ~25% larger than the drawn line (a 1.5px buffer ≈ 25% of the 6px selection
-// stroke). Roads become easier to click without changing how thin the lines look. Keep the default
-// render padding (0.1) — a larger buffer redraws far more of the canvas on every zoom and lags.
-const roadRenderer = L.canvas({ tolerance: 1.5 });
 
 // Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
 // and uses an SVG renderer so the green lines (incl. proposed corridors) stay hoverable/clickable,
@@ -37,10 +35,11 @@ map.getPane('connPane').style.zIndex = 660;   // above road/marker panes, below 
 const connRenderer = L.svg({ pane: 'connPane' });   // SVG so rings draw even with preferCanvas
 const connLayer = L.layerGroup();
 const CONN_STYLE = {
-    town: { color: '#1d4ed8', radius: 2200, glyph: '' },
-    sua:  { color: '#1d4ed8', radius: 0,    glyph: '◍' },
-    hosp: { color: '#dc2626', radius: 1600, glyph: 'H' },
-    dest: { color: '#7c3aed', radius: 2200, glyph: '★' }
+    town:  { color: '#1d4ed8', radius: 2200, glyph: '' },
+    sua:   { color: '#1d4ed8', radius: 0,    glyph: '◍' },
+    hosp:  { color: '#dc2626', radius: 1600, glyph: 'H' },
+    dest:  { color: '#7c3aed', radius: 2200, glyph: '★' },
+    employ:{ color: '#0f766e', radius: 1800, glyph: '⬢' }   // employment / commercial / industrial centre
 };
 function destGlyph(ftype) {
     const t = String(ftype || '').toLowerCase();
@@ -84,8 +83,8 @@ function showConnections(ev) {
             connMarker(e, 'town').addTo(connLayer);
         }
     });
-    ['hosp', 'dest'].forEach(function (kind) {
-        const items = kind === 'hosp' ? ev.hospitals : ev.dests;
+    ['hosp', 'dest', 'employ'].forEach(function (kind) {
+        const items = kind === 'hosp' ? ev.hospitals : kind === 'dest' ? ev.dests : ev.employment;
         const s = CONN_STYLE[kind];
         (items || []).forEach(function (e) {
             L.circle([e.lat, e.lon], { pane: 'connPane', renderer: connRenderer, radius: s.radius, color: s.color, weight: 1.5,
@@ -108,7 +107,7 @@ function fitToSua(suaId) {
 // Legend visibility toggles — clicking a legend item flips its key and re-applies to the map.
 // green/orange/red = verdict colours; nltn = green national network; dashed = route-numbered roads;
 // towns = town/city pins; boundary = CV LGA outline.
-let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true };
+let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, outside: true };
 
 let currentTab = 'overview';
 

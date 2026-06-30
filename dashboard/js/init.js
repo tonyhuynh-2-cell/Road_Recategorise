@@ -22,8 +22,15 @@ Promise.all([
     _f('data/nsw_evidence.json').catch(() => ({})),
     _f('data/cv_evidence.json').catch(() => ({})),
     _f('data/nltn_evidence.json').catch(() => ({})),
-    _f('data/sua_outlines.json').catch(() => [])
-]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines]) => {
+    _f('data/sua_outlines.json').catch(() => []),
+    _f('data/nhvr_networks.json').catch(() => ({})),
+    _f('data/nsw_road_ext.json').catch(() => ({}))
+]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt]) => {
+    // Real heavy-vehicle network membership per road (NHVR spatial intersect): road train (R-03),
+    // 19m B-double (R-04) and HV bypass — data/nhvr_networks.json. Plus geometry-derived topology
+    // (connects two State Roads; parallels a State Road within 20km) — data/nsw_road_ext.json.
+    window.NHVR = nhvr || {};
+    window.ROAD_EXT = roadExt || {};
     window.NSW_CRIT = nswCrit || {};   // per-road computed criteria results (data/nsw_criteria.json)
     // Per-road connectivity evidence (which centres / hospitals / ports / airports / intermodals each
     // road connects, with names + qualifying attributes + coords) — data/*_evidence.json.
@@ -121,9 +128,37 @@ Promise.all([
         f.properties._nsr = a ? a._nsr : false;   // State road predominantly on the NLTN (factual tag in detail)
         if (a && recat[i]) a.status = recat[i];   // detail panel reflects the re-categorised verdict
     });
+    // Tag each NSW road inside/outside the Clarence Valley LGA, so the CV tab can keep the CV roads +
+    // border and toggle the surrounding network (roads outside the perimeter).
+    (function tagInsideCV() {
+        const gb = cvBoundary && cvBoundary.features && cvBoundary.features[0] && cvBoundary.features[0].geometry;
+        if (!gb) return;
+        const polys = gb.type === 'Polygon' ? [gb.coordinates] : gb.type === 'MultiPolygon' ? gb.coordinates : [];
+        let bx0 = 180, by0 = 90, bx1 = -180, by1 = -90;
+        polys.forEach(poly => poly[0].forEach(p => { if (p[0] < bx0) bx0 = p[0]; if (p[0] > bx1) bx1 = p[0]; if (p[1] < by0) by0 = p[1]; if (p[1] > by1) by1 = p[1]; }));
+        const inside = (x, y) => {
+            for (const poly of polys) {
+                let inP = false;
+                for (const ring of poly) {
+                    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                        const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+                        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-12) + xi)) inP = !inP;
+                    }
+                }
+                if (inP) return true;
+            }
+            return false;
+        };
+        const coords = g => g.type === 'LineString' ? g.coordinates : g.type === 'MultiLineString' ? [].concat.apply([], g.coordinates) : [];
+        nswRoads.features.forEach(f => {
+            f.properties._inCV = false;
+            for (const pt of coords(f.geometry)) {
+                if (pt[0] >= bx0 && pt[0] <= bx1 && pt[1] >= by0 && pt[1] <= by1 && inside(pt[0], pt[1])) { f.properties._inCV = true; break; }
+            }
+        });
+    })();
     nswLayer = L.geoJSON(nswRoads, {
         style: nswStyle,
-        renderer: roadRenderer,   // enlarged click tolerance — see roadRenderer in state.js
         smoothFactor: 2.5,        // ~17.7k segments — simplify more aggressively so zoom redraws stay smooth
         filter: function(f) {
             const p = f.properties;
@@ -234,7 +269,6 @@ Promise.all([
     });
     cvLayer = L.geoJSON(cvRoads, {
         style: cvStyle,
-        renderer: roadRenderer,   // enlarged click tolerance — see roadRenderer in state.js
         smoothFactor: 1.5,
         filter: f => !isRamp(f.properties),
         onEachFeature: function(feature, layer) {

@@ -71,7 +71,9 @@ function showNSW() {
 }
 
 function showCV() {
-    if (nswLayer) map.removeLayer(nswLayer);
+    // Keep nswLayer on the map as the SURROUNDING network (styled muted, outside-LGA only, toggleable
+    // via the 'outside' legend key); cvLayer + the LGA border sit on top.
+    if (nswLayer) { map.addLayer(nswLayer); nswLayer.setStyle(nswStyle); }
     if (cvLayer) map.addLayer(cvLayer);
     applyLegend();
     if (mapContext !== 'cv' && cvLayer) map.fitBounds(cvLayer.getBounds().pad(0.05));
