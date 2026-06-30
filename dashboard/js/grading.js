@@ -6,11 +6,16 @@
 // its category verdict; roads outside the active lens are hidden. The 'nsr' (Nationally Significant)
 // lens hides the road overlay entirely — its subject is the NLTN network layer (see nltnFeatureStyle).
 function nswInView(p) {
-    // On the CV tab the NSW layer is only the SURROUNDING network — roads OUTSIDE the LGA, toggleable.
-    if (currentTab === 'cv') return !!legendToggles.outside && !p._inCV && (p.admin_class === 'S' || p.admin_class === 'R');
+    // The CV tab is the Overview, geographically focused on the Clarence Valley LGA (+ its outline).
+    // The 'clip' toggle swaps the full road overlay for a copy clipped to the LGA polygon (so nothing
+    // leaks past the outline) — handled by the layer swap in applyLegend, not here.
+    if (currentTab === 'cv') return p.admin_class === 'S' || p.admin_class === 'R';
     if (nswView === 'all') return p.admin_class === 'S' || p.admin_class === 'R';
     if (nswView === 'nsr') return false;                    // Nat. Significant lens shows the NLTN network, not the road overlay
-    if (nswView === 'state') return p.admin_class === 'S';  // ALL State roads (incl. those on the NLTN, e.g. A33)
+    // State lens = State roads that are NOT nationally significant. A nationally significant State road
+    // (predominantly on the National Land Transport Network, _nsr) lives on the Nat. Significant tab
+    // instead, so it doesn't double-appear here.
+    if (nswView === 'state') return p.admin_class === 'S' && !p._nsr;
     if (nswView === 'regional') return p.admin_class === 'R';
     return true;
 }
@@ -22,9 +27,6 @@ function nswStyle(feature) {
     // setStyle() MERGES options, so `stroke` must be set explicitly in BOTH branches — otherwise a
     // road hidden in one lens (stroke:false) keeps stroke:false when it returns to view and vanishes.
     if (!nswInView(p)) return HIDDEN_STYLE;   // hidden in this lens
-    // On the CV tab, surrounding roads are drawn as muted grey context (the CV assessment colours
-    // belong to the cvLayer on top); their own verdict colours would compete with it.
-    if (currentTab === 'cv') return { stroke: true, color: '#cbd5e1', weight: 1.4, opacity: 0.9, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '6 5' : null };
     // Every road grades by its own category criteria (State / Regional). National significance is a
     // property of the NLTN network (its own lens + green layer), not a re-grade of the road overlay.
     const v = p._roadStatus || p.status;
@@ -39,7 +41,9 @@ function cvStyle(feature) {
     const v = meets ? 'green' : 'red';
     if (!legendToggles[v]) return HIDDEN_STYLE;
     if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;
-    return { stroke: true, color: meets ? '#16a34a' : '#dc2626', weight: meets ? 3.2 : 2.4, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
+    // Same visual treatment as nswStyle (length-based weight, '8 6' dash, round caps) so a road looks
+    // identical on the CV tab and the main map — only the colour source differs (pass/fail vs verdict).
+    return { stroke: true, color: meets ? '#16a34a' : '#dc2626', weight: p._w || 2, opacity: meets ? 1 : 0.85, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }
 
 // NLTN 2020 network style, per feature — the SUBJECT of the Nationally Significant lens. Each line

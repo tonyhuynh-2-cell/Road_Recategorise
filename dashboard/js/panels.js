@@ -15,7 +15,7 @@ function switchTab(tab) {
         nswView = (tab === 'overview') ? 'all' : tab;
         if (tab === 'overview') refreshOverview(); else refreshNswView();
         showNSW();
-    } else if (tab === 'cv') showCV();
+    } else if (tab === 'cv') { refreshCV(); showCV(); }
     syncLegendVisuals();
 }
 
@@ -25,16 +25,21 @@ function backFromDetail() { switchTab(lastViewTab || 'overview'); }
 // Apply the legend on/off toggles + per-lens NLTN style to the map for the CURRENT view.
 function applyLegend() {
     const onNSW = currentTab !== 'cv';
-    if (nswLayer) nswLayer.setStyle(nswStyle);   // re-filter verdict colours / dashed roads
+    // CV tab + "Show only roads inside the LGA" → swap the full road overlay for the clipped copy.
+    const cvClip = !onNSW && legendToggles.clip;
+    if (nswLayer) { if (cvClip) map.removeLayer(nswLayer); else { map.addLayer(nswLayer); nswLayer.setStyle(nswStyle); } }
+    if (cvClipLayer) { if (cvClip) { map.addLayer(cvClipLayer); cvClipLayer.setStyle(nswStyle); } else map.removeLayer(cvClipLayer); }
     if (cvLayer) cvLayer.setStyle(cvStyle);
     // NLTN national network: the SUBJECT of the Nat. Significant lens only — graded green/orange.
-    // Hidden on every other tab (it is no longer a reference underlay).
+    // Hidden on every other tab, incl. CV (it is no longer a reference underlay).
     if (nltnLayer) {
-        if (nswView === 'nsr') {
+        if (onNSW && nswView === 'nsr') {
             map.addLayer(nltnLayer);
             nltnLayer.setStyle(nltnFeatureStyle);   // per-feature grade + proposed translucency
         } else map.removeLayer(nltnLayer);
     }
+    // Connectivity highlights honour their per-category toggles — re-render the current selection.
+    refreshConnections();
     // Town/City pins
     if (nswTownsLayer) map.removeLayer(nswTownsLayer);
     if (cvTownsLayer) map.removeLayer(cvTownsLayer);
@@ -44,9 +49,37 @@ function applyLegend() {
     if (cvBoundaryLayer) { if (!onNSW && legendToggles.boundary) map.addLayer(cvBoundaryLayer); else map.removeLayer(cvBoundaryLayer); }
 }
 
+// Shared "Highlights" legend block: the on-select connection rings (blue centres, red hospitals,
+// purple ports/airports/intermodals, teal employment). Same data-legend-key wiring as the verdict
+// rows, so toggleLegendItem handles them generically.
+function hiliteLegendHTML() {
+    const dot = c => '<span class="legend-swatch"><span class="legend-pin" style="background:' + c + '"></span></span>';
+    const row = (key, swatch, label) => '<div class="legend-item" data-legend-key="' + key + '" onclick="toggleLegendItem(\'' + key + '\')">' + swatch + ' ' + label + '</div>';
+    let h = '<h3 class="legend-sub">Highlights</h3>';
+    h += row('c_centre', dot('#1d4ed8'), 'Connected centres / urban areas');
+    h += row('c_hosp', dot('#dc2626'), 'Connected hospitals');
+    h += row('c_dest', dot('#7c3aed'), 'Connected ports / airports / intermodals');
+    h += row('c_employ', dot('#0f766e'), 'Connected employment centres');
+    return h;
+}
+
+// Legend + highlight toggles shown at the bottom of the Road Detail panel, so the map layers and the
+// selected road's connection rings can be toggled without leaving the detail view. Same data-legend-key
+// wiring (toggleLegendItem) as every other legend, so all the legends stay in sync.
+function detailLegendHTML() {
+    const li = (key, swatch, label) => '<div class="legend-item" data-legend-key="' + key + '" onclick="toggleLegendItem(\'' + key + '\')">' + swatch + ' ' + label + '</div>';
+    return li('green', '<div class="legend-color" style="background:#16a34a"></div>', 'Meets its criteria') +
+        li('orange', '<div class="legend-color" style="background:#f59e0b"></div>', 'Meets 1 of 2 — may pass with ADT') +
+        li('red', '<div class="legend-color" style="background:#dc2626"></div>', 'Does not meet') +
+        li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)') +
+        li('towns', '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>', 'Town / City') +
+        hiliteLegendHTML();
+}
+
 // Clicking a legend swatch toggles that category on/off across the map.
 function toggleLegendItem(key) {
     legendToggles[key] = !legendToggles[key];
+    if (key === 'clip') deselect();   // swapping the road layer — clear any stale selection/highlight
     syncLegendVisuals();
     applyLegend();
 }
@@ -71,13 +104,48 @@ function showNSW() {
 }
 
 function showCV() {
-    // Keep nswLayer on the map as the SURROUNDING network (styled muted, outside-LGA only, toggleable
-    // via the 'outside' legend key); cvLayer + the LGA border sit on top.
-    if (nswLayer) { map.addLayer(nswLayer); nswLayer.setStyle(nswStyle); }
-    if (cvLayer) map.addLayer(cvLayer);
+    // The CV tab IS the Overview, zoomed into the Clarence Valley LGA with its outline drawn. The
+    // council assessment layer (cvLayer) is retired; applyLegend adds the road overlay (full nswLayer,
+    // or the clipped cvClipLayer when "inside only" is on).
+    if (cvLayer) map.removeLayer(cvLayer);
     applyLegend();
-    if (mapContext !== 'cv' && cvLayer) map.fitBounds(cvLayer.getBounds().pad(0.05));
+    // Frame the LGA from the boundary outline (with padding) when arriving from a different context.
+    if (mapContext !== 'cv' && cvBoundaryLayer) map.fitBounds(cvBoundaryLayer.getBounds().pad(0.12));
     mapContext = 'cv';
+}
+
+// CV tab stats = the Overview breakdown, filtered to roads that touch the Clarence Valley LGA (_inCV).
+function refreshCV() {
+    let g = 0, o = 0, r = 0;
+    const grp = {
+        'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
+        'Regional Roads': { green: 0, orange: 0, red: 0, total: 0 }
+    };
+    for (const k in NSW_AGG) {
+        const a = NSW_AGG[k];
+        if (!a._inCV || (a.admin_class !== 'S' && a.admin_class !== 'R')) continue;
+        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
+        const v = (cr && cr.verdict) || a.status;
+        const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
+        if (v === 'green') g++; else if (v === 'orange') o++; else r++;
+        grp[group][v]++; grp[group].total++;
+    }
+    const total = g + o + r;
+    const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('cv-total', total.toLocaleString());
+    set('cv-green', g.toLocaleString()); set('cv-green-pct', pct(g));
+    set('cv-orange', o.toLocaleString()); set('cv-orange-pct', pct(o));
+    set('cv-red', r.toLocaleString()); set('cv-red-pct', pct(r));
+    let bh = '';
+    for (const [name, d] of Object.entries(grp)) {
+        const gp = d.total ? (d.green / d.total * 100).toFixed(0) : 0;
+        const op = d.total ? (d.orange / d.total * 100).toFixed(0) : 0;
+        bh += '<div class="category-row"><span class="cat-name">' + name + ' <span style="color:var(--faint)">(' + d.total + ')</span></span>' +
+            '<div class="cat-bar"><div class="bar-bg"><div class="bar-fill green" style="width:' + gp + '%"></div>' +
+            '<div class="bar-fill orange" style="width:' + op + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
+    }
+    const gb = document.getElementById('cv-group-breakdown'); if (gb) gb.innerHTML = bh;
 }
 
 // Counts for the active lens. Nat. Significant counts the NLTN network's national-criteria grades;
@@ -135,6 +203,7 @@ function refreshNswView() {
         lh += li('dashed', '<div class="legend-color legend-dash"></div>', 'Route-numbered road A / B / D / M (dashed)');
     }
     lh += li('towns', '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>', 'Town / City — pin size scales with population');
+    lh += hiliteLegendHTML();
     document.getElementById('nsw-legend').innerHTML = lh;
     syncLegendVisuals();
     const np = document.querySelector('#nsw-note p'); if (np) np.textContent = m.note;

@@ -83,6 +83,7 @@
                 <div class="legend-item" data-legend-key="dashed" onclick="toggleLegendItem('dashed')"><div class="legend-color legend-dash"></div> Route-numbered road A / B / D / M (dashed)</div>
                 <div class="legend-item" data-legend-key="towns" onclick="toggleLegendItem('towns')"><div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div> Town / City — pin size scales with population</div>
             </div>
+            <div class="legend" id="ov-hilite-legend"></div>
             <div class="data-note">
                 <span class="note-label">Note</span>
                 <p>The full NSW State &amp; Regional network, each road graded against its own category criteria (no ADT). Use the Nat. Significant, State and Regional tabs to focus on each group; ADT-based assessment is on the Clarence Valley tab.</p>
@@ -120,45 +121,48 @@
             </div>
         </div>
 
-        <!-- Clarence Valley Tab -->
+        <!-- Clarence Valley Tab — the Overview, zoomed into the Clarence Valley LGA with its outline -->
         <div class="tab-content" id="tab-cv">
             <div class="stat-card hero">
-                <h3>Overall criteria alignment</h3>
-                <div class="stat-value blue" id="cv-pct">–</div>
-                <div class="stat-sub" id="cv-detail">Loading...</div>
+                <h3>Clarence Valley LGA</h3>
+                <div class="stat-value blue" id="cv-total">–</div>
+                <div class="stat-sub">State &amp; Regional roads in the region, graded against their criteria</div>
             </div>
-            <div class="stat-grid" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="stat-grid">
                 <div class="stat-card">
                     <h3>Meets criteria</h3>
-                    <div class="stat-value green" id="cv-pass">–</div>
-                    <div class="stat-sub">of <span id="cv-total">–</span> segments</div>
+                    <div class="stat-value green" id="cv-green">–</div>
+                    <div class="stat-sub" id="cv-green-pct"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Meets 1 of 2</h3>
+                    <div class="stat-value orange" id="cv-orange">–</div>
+                    <div class="stat-sub" id="cv-orange-pct"></div>
                 </div>
                 <div class="stat-card">
                     <h3>Does not meet</h3>
-                    <div class="stat-value red" id="cv-fail">–</div>
-                    <div class="stat-sub">may need review</div>
+                    <div class="stat-value red" id="cv-red">–</div>
+                    <div class="stat-sub" id="cv-red-pct"></div>
                 </div>
             </div>
             <div class="stat-card">
-                <h3>By road category</h3>
-                <div id="cv-category-breakdown"></div>
-            </div>
-            <div class="stat-card">
-                <h3>Data coverage</h3>
-                <div id="cv-data-coverage"></div>
+                <h3>By road group</h3>
+                <div id="cv-group-breakdown"></div>
             </div>
             <div class="legend">
                 <h3>Map legend</h3>
-                <div class="legend-item" data-legend-key="green" onclick="toggleLegendItem('green')"><div class="legend-color" style="background:#16a34a"></div> Meets criteria for assigned category</div>
-                <div class="legend-item" data-legend-key="red" onclick="toggleLegendItem('red')"><div class="legend-color" style="background:#dc2626"></div> Does not meet criteria</div>
+                <div class="legend-item" data-legend-key="green" onclick="toggleLegendItem('green')"><div class="legend-color" style="background:#16a34a"></div> Meets its criteria (≥2 optional)</div>
+                <div class="legend-item" data-legend-key="orange" onclick="toggleLegendItem('orange')"><div class="legend-color" style="background:#f59e0b"></div> Meets 1 of 2 — may pass with ADT</div>
+                <div class="legend-item" data-legend-key="red" onclick="toggleLegendItem('red')"><div class="legend-color" style="background:#dc2626"></div> Does not meet (→ downgrade)</div>
                 <div class="legend-item" data-legend-key="dashed" onclick="toggleLegendItem('dashed')"><div class="legend-color legend-dash"></div> Route-numbered road A / B / D / M (dashed)</div>
                 <div class="legend-item" data-legend-key="towns" onclick="toggleLegendItem('towns')"><div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div> Town centres / POIs</div>
-                <div class="legend-item" data-legend-key="boundary" onclick="toggleLegendItem('boundary')"><div class="legend-color" style="background:#a8a29e"></div> LGA boundary</div>
-                <div class="legend-item" data-legend-key="outside" onclick="toggleLegendItem('outside')"><div class="legend-color" style="background:#cbd5e1"></div> Surrounding roads (outside LGA)</div>
+                <div class="legend-item" data-legend-key="boundary" onclick="toggleLegendItem('boundary')"><div class="legend-color" style="background:#000000; height:2.5px"></div> LGA boundary (outline)</div>
+                <div class="legend-item" data-legend-key="clip" onclick="toggleLegendItem('clip')"><div class="legend-color" style="background:transparent; border:1.5px solid #1c1917; height:11px; border-radius:2px"></div> Show only roads inside the LGA</div>
             </div>
+            <div class="legend" id="cv-hilite-legend"></div>
             <div class="data-note">
                 <span class="note-label">Note</span>
-                <p>Roads are extended beyond the LGA boundary to show full connectivity to the POIs they serve. ADT data from Clarence Valley Council covers <strong>~51%</strong> of road segments within the LGA. Load-limit data unavailable — assumed no restrictions.</p>
+                <p>The Clarence Valley tab is the Overview map zoomed into the LGA, with the boundary drawn as an outline. Roads are graded against their own State / Regional criteria — the same as everywhere else. Click any road for its full assessment.</p>
             </div>
         </div>
 
@@ -206,6 +210,11 @@
                 <div class="stat-card" id="detail-card-connectivity">
                     <h3>Connectivity</h3>
                     <div id="detail-connectivity"></div>
+                </div>
+
+                <div class="stat-card" id="detail-card-legend">
+                    <h3>Map legend &amp; highlights</h3>
+                    <div class="legend" id="detail-legend" style="margin-top:0"></div>
                 </div>
             </div>
         </div>

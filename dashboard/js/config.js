@@ -25,10 +25,10 @@ const NSW_VIEW_META = {
         note: 'These are the roads of the National Land Transport Network (NLTN Determination 2020, data.gov.au) — the authoritative national network. Each line is graded by how many national criteria the road it runs along meets: comprises the NLTN (S-01, met by definition); connects ≥2 metropolitan/urban centres (S-02·S-03); connects a Major Port, International Airport or Major Intermodal (S-04·S-05). Green = meets ≥2 (on the network plus at least one connection, inherited from the road criteria — earned from data); orange = on the network only. Proposed corridors render translucent.'
     },
     state: {
-        title: 'State Roads', sub: 'All State roads, graded against the State Road criteria',
+        title: 'State Roads', sub: 'State roads not on the national network, graded against the State Road criteria',
         gLabel: 'Meets criteria', oLabel: 'Meets 1 of 2', rLabel: 'Does not meet',
         legend: [['#16a34a', 'Meets State criteria (≥2 optional)'], ['#f59e0b', 'Meets 1 of 2 — may pass with ADT'], ['#dc2626', 'Meets none — candidate to downgrade']],
-        note: 'State Roads must meet ≥2 optional criteria (connect centres; connect major hospitals / ports / airports / employment; long-distance rural route) plus the mandatory criteria. Orange roads meet 1 of 2 and would qualify if ADT exceeds the threshold; ADT is not available statewide.'
+        note: 'State Roads must meet ≥2 optional criteria (connect centres; connect major hospitals / ports / airports / employment; long-distance rural route) plus the mandatory criteria. Nationally significant State roads (predominantly on the National Land Transport Network) are shown on the Nat. Significant tab, not here. Orange roads meet 1 of 2 and would qualify if ADT exceeds the threshold; ADT is not available statewide.'
     },
     regional: {
         title: 'Regional Roads', sub: 'Graded against the Regional Road criteria',

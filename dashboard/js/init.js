@@ -64,33 +64,7 @@ Promise.all([
     // NSW per-lens stats (totals, green/orange/red, legend, note) are computed by refreshNswView()
     // once the per-road aggregate (NSW_AGG) and criteria (NSW_CRIT) are built below.
 
-    // === CV Tab Stats ===
-    document.getElementById('cv-pct').textContent = cvStats.accuracy_pct + '%';
-    document.getElementById('cv-detail').textContent = `${cvStats.roads_meeting_criteria} of ${cvStats.total_roads} segments align`;
-    document.getElementById('cv-pass').textContent = cvStats.roads_meeting_criteria;
-    document.getElementById('cv-fail').textContent = cvStats.roads_not_meeting;
-    document.getElementById('cv-total').textContent = cvStats.total_roads;
-
-    const cvCatDiv = document.getElementById('cv-category-breakdown');
-    for (const [cat, d] of Object.entries(cvStats.by_category)) {
-        cvCatDiv.innerHTML += `
-            <div class="category-row">
-                <span class="cat-name">${cat}</span>
-                <div class="cat-bar">
-                    <div class="bar-bg"><div class="bar-fill green" style="width:${d.accuracy_pct}%"></div></div>
-                    <span class="cat-pct">${d.accuracy_pct}%</span>
-                </div>
-            </div>`;
-    }
-
-    const covDiv = document.getElementById('cv-data-coverage');
-    const cov = cvStats.criteria_breakdown;
-    covDiv.innerHTML = `
-        <div class="category-row"><span class="cat-name">ADT data</span><span class="cat-pct">${cov.with_adt_data}/${cvStats.total_roads}</span></div>
-        <div class="category-row"><span class="cat-name">Heavy vehicle %</span><span class="cat-pct">${cov.with_hv_data}/${cvStats.total_roads}</span></div>
-        <div class="category-row"><span class="cat-name">PBS Level 1</span><span class="cat-pct">${cov.with_pbs1}/${cvStats.total_roads}</span></div>
-        <div class="category-row"><span class="cat-name">B-double access</span><span class="cat-pct">${cov.with_bdouble}/${cvStats.total_roads}</span></div>
-        <div class="category-row"><span class="cat-name">Key freight route</span><span class="cat-pct">${cov.on_freight_network}/${cvStats.total_roads}</span></div>`;
+    // CV tab stats are computed by refreshCV() (Overview breakdown filtered to the LGA) — see panels.js.
 
     // === Build Map Layers ===
 
@@ -128,16 +102,19 @@ Promise.all([
         f.properties._nsr = a ? a._nsr : false;   // State road predominantly on the NLTN (factual tag in detail)
         if (a && recat[i]) a.status = recat[i];   // detail panel reflects the re-categorised verdict
     });
-    // Tag each NSW road inside/outside the Clarence Valley LGA, so the CV tab can keep the CV roads +
-    // border and toggle the surrounding network (roads outside the perimeter).
-    (function tagInsideCV() {
+    // Clarence Valley LGA boundary polygon(s) + a point-in-polygon test, hoisted so they can both tag
+    // roads inside the LGA AND clip road geometry to the LGA outline (for the "inside only" toggle).
+    let cvPolys = [];
+    let cvInside = function () { return false; };
+    (function buildCV() {
         const gb = cvBoundary && cvBoundary.features && cvBoundary.features[0] && cvBoundary.features[0].geometry;
         if (!gb) return;
-        const polys = gb.type === 'Polygon' ? [gb.coordinates] : gb.type === 'MultiPolygon' ? gb.coordinates : [];
+        cvPolys = gb.type === 'Polygon' ? [gb.coordinates] : gb.type === 'MultiPolygon' ? gb.coordinates : [];
         let bx0 = 180, by0 = 90, bx1 = -180, by1 = -90;
-        polys.forEach(poly => poly[0].forEach(p => { if (p[0] < bx0) bx0 = p[0]; if (p[0] > bx1) bx1 = p[0]; if (p[1] < by0) by0 = p[1]; if (p[1] > by1) by1 = p[1]; }));
-        const inside = (x, y) => {
-            for (const poly of polys) {
+        cvPolys.forEach(poly => poly[0].forEach(p => { if (p[0] < bx0) bx0 = p[0]; if (p[0] > bx1) bx1 = p[0]; if (p[1] < by0) by0 = p[1]; if (p[1] > by1) by1 = p[1]; }));
+        cvInside = function (x, y) {
+            if (x < bx0 || x > bx1 || y < by0 || y > by1) return false;
+            for (const poly of cvPolys) {
                 let inP = false;
                 for (const ring of poly) {
                     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -153,9 +130,11 @@ Promise.all([
         nswRoads.features.forEach(f => {
             f.properties._inCV = false;
             for (const pt of coords(f.geometry)) {
-                if (pt[0] >= bx0 && pt[0] <= bx1 && pt[1] >= by0 && pt[1] <= by1 && inside(pt[0], pt[1])) { f.properties._inCV = true; break; }
+                if (cvInside(pt[0], pt[1])) { f.properties._inCV = true; break; }
             }
         });
+        // Roll the flag up to the per-road aggregate so the CV tab stats can count roads in the LGA.
+        nswRoads.features.forEach(f => { if (f.properties._inCV) { const k = roadKeyOf(f.properties); if (k && nswRoadAgg[k]) nswRoadAgg[k]._inCV = true; } });
     })();
     nswLayer = L.geoJSON(nswRoads, {
         style: nswStyle,
@@ -183,6 +162,81 @@ Promise.all([
             layer.on('mouseout', function() { if (!isSelected(layer)) group().forEach(l => nswLayer.resetStyle(l)); });
         }
     });
+
+    // Clipped CV-inside roads — the same criteria-graded roads, but with their geometry trimmed to the
+    // LGA polygon so the "Show only roads inside the LGA" toggle leaves nothing leaking past the black
+    // outline. Built once here; shown in place of nswLayer when the clip toggle is on (see applyLegend).
+    (function buildCvClip() {
+        if (!cvPolys.length) return;
+        // t-values where segment a→b crosses any boundary edge (with a bbox cull so this stays fast).
+        const cross = function (a, b) {
+            const ts = [], ax = a[0], ay = a[1], rx = b[0] - a[0], ry = b[1] - a[1];
+            const sx0 = Math.min(ax, b[0]), sx1 = Math.max(ax, b[0]), sy0 = Math.min(ay, b[1]), sy1 = Math.max(ay, b[1]);
+            for (const poly of cvPolys) for (const ring of poly) {
+                for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                    const c = ring[j], d = ring[i];
+                    if (Math.max(c[0], d[0]) < sx0 || Math.min(c[0], d[0]) > sx1 || Math.max(c[1], d[1]) < sy0 || Math.min(c[1], d[1]) > sy1) continue;
+                    const ex = d[0] - c[0], ey = d[1] - c[1];
+                    const den = rx * ey - ry * ex;
+                    if (den === 0) continue;
+                    const t = ((c[0] - ax) * ey - (c[1] - ay) * ex) / den;
+                    const u = ((c[0] - ax) * ry - (c[1] - ay) * rx) / den;
+                    if (t > 0 && t < 1 && u >= 0 && u <= 1) ts.push(t);
+                }
+            }
+            ts.sort((m, n) => m - n);
+            return ts;
+        };
+        // Return the inside-the-polygon runs of a polyline as an array of coordinate arrays.
+        const clipLine = function (cs) {
+            const out = []; let cur = null;
+            for (let i = 0; i < cs.length - 1; i++) {
+                const a = cs[i], b = cs[i + 1], dx = b[0] - a[0], dy = b[1] - a[1];
+                const pts = [0].concat(cross(a, b), [1]);
+                for (let k = 0; k < pts.length - 1; k++) {
+                    const t0 = pts[k], t1 = pts[k + 1];
+                    if (t1 - t0 < 1e-12) continue;
+                    const mt = (t0 + t1) / 2;
+                    const p1 = [a[0] + dx * t1, a[1] + dy * t1];
+                    if (cvInside(a[0] + dx * mt, a[1] + dy * mt)) {
+                        if (!cur) cur = [[a[0] + dx * t0, a[1] + dy * t0]];
+                        cur.push(p1);
+                    } else if (cur) { out.push(cur); cur = null; }
+                }
+            }
+            if (cur) out.push(cur);
+            return out;
+        };
+        const feats = [];
+        nswRoads.features.forEach(function (f) {
+            const p = f.properties;
+            if (!p._inCV || isRamp(p)) return;
+            const g = f.geometry;
+            const lines = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
+            const parts = [];
+            lines.forEach(cs => clipLine(cs).forEach(s => { if (s.length >= 2) parts.push(s); }));
+            if (parts.length) feats.push({ type: 'Feature', properties: p, geometry: { type: 'MultiLineString', coordinates: parts } });
+        });
+        const cvClipLayers = {};
+        cvClipLayer = L.geoJSON({ type: 'FeatureCollection', features: feats }, {
+            style: nswStyle,
+            smoothFactor: 2.5,
+            onEachFeature: function (feature, layer) {
+                const k = roadKeyOf(feature.properties);
+                if (k) (cvClipLayers[k] || (cvClipLayers[k] = [])).push(layer);
+                const group = () => (k && cvClipLayers[k]) ? cvClipLayers[k] : [layer];
+                layer.bindTooltip(roadLabel(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
+                layer.on('click', function (e) {
+                    L.DomEvent.stopPropagation(e);
+                    highlightRoad(group(), cvClipLayer);
+                    const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
+                    showRoadDetail(agg, 'nsw');
+                });
+                layer.on('mouseover', function () { if (!isSelected(layer)) group().forEach(l => l.setStyle({ weight: 5, opacity: 1 })); });
+                layer.on('mouseout', function () { if (!isSelected(layer)) group().forEach(l => cvClipLayer.resetStyle(l)); });
+            }
+        });
+    })();
 
     // NSW Towns
     nswTownsLayer = L.geoJSON(nswTowns, {
@@ -265,11 +319,11 @@ Promise.all([
     });
     cvRoads.features.forEach(f => {
         const k = roadKeyOf(f.properties); const a = k && cvRoadAgg[k];
-        if (a) f.properties._roadMeets = a.yes > a.no;
+        if (a) { f.properties._roadMeets = a.yes > a.no; f.properties._w = weightForKm(a.yes + a.no); }
     });
     cvLayer = L.geoJSON(cvRoads, {
         style: cvStyle,
-        smoothFactor: 1.5,
+        smoothFactor: 2.5,   // match the NSW road overlay so the same road renders identically across tabs
         filter: f => !isRamp(f.properties),
         onEachFeature: function(feature, layer) {
             const k = roadKeyOf(feature.properties);
@@ -291,7 +345,10 @@ Promise.all([
     // click inside the LGA (the roads sit underneath it in the same canvas).
     cvBoundaryLayer = L.geoJSON(cvBoundary, {
         interactive: false,
-        style: {color: '#a8a29e', weight: 2, fill: false, dashArray: '5,5'}
+        pane: 'cvbPane',
+        renderer: cvbRenderer,
+        smoothFactor: 2,   // 25k-vertex outline — simplify on render so the SVG stays smooth on pan/zoom
+        style: {color: '#000000', weight: 2.5, fill: false, opacity: 0.9, lineJoin: 'round'}
     });
 
     // CV Towns
@@ -307,11 +364,18 @@ Promise.all([
         });
     }
 
+    // Fill the static "Highlights" legend blocks (connection-ring toggles).
+    const ovh = document.getElementById('ov-hilite-legend'); if (ovh) ovh.innerHTML = hiliteLegendHTML();
+    const cvh = document.getElementById('cv-hilite-legend'); if (cvh) cvh.innerHTML = hiliteLegendHTML();
+    const dlg = document.getElementById('detail-legend'); if (dlg) dlg.innerHTML = detailLegendHTML();   // legend at the foot of Road Detail
+
     // Open on the Overview tab by default.
     nswView = 'all';
     refreshOverview();
+    refreshCV();   // pre-fill the CV region stats (Overview breakdown within the LGA)
     showNSW();
     updateTownLabels();
+    syncLegendVisuals();   // reflect default toggle states across every legend
     hideLoader();
 })
 .catch(err => { console.error('Dashboard load failed:', err); hideLoader(); });

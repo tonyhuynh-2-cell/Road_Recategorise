@@ -16,7 +16,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/
     attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
 }).addTo(map);
 
-let nswLayer, nswTownsLayer, cvLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer;
+let nswLayer, nswTownsLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer;
 
 
 // Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
@@ -25,6 +25,14 @@ let nswLayer, nswTownsLayer, cvLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer;
 map.createPane('nltnPane');
 map.getPane('nltnPane').style.zIndex = 450;
 const nltnRenderer = L.svg({ pane: 'nltnPane' });
+
+// CV LGA boundary outline — its own pane just above the road overlay (z 420 > 400) so the black
+// outline always draws on top of the roads. MUST be SVG, not canvas: a second canvas pane stacks
+// over the road canvas and swallows every click across the map (and lingers after leaving the CV
+// tab), killing road selection. Leaflet sets SVG panes to pointer-events:none, so clicks pass through.
+map.createPane('cvbPane');
+map.getPane('cvbPane').style.zIndex = 420;
+const cvbRenderer = L.svg({ pane: 'cvbPane' });
 
 // --- Connectivity highlights ---------------------------------------------------------------
 // When a road is selected, ring + label every entity it connects (the evidence behind its
@@ -39,7 +47,7 @@ const CONN_STYLE = {
     sua:   { color: '#1d4ed8', radius: 0,    glyph: '◍' },
     hosp:  { color: '#dc2626', radius: 1600, glyph: 'H' },
     dest:  { color: '#7c3aed', radius: 2200, glyph: '★' },
-    employ:{ color: '#0f766e', radius: 1800, glyph: '⬢' }   // employment / commercial / industrial centre
+    employ:{ color: '#0f766e', radius: 1000, glyph: '⬢' }   // employment / commercial / industrial centre (smaller ring)
 };
 function destGlyph(ftype) {
     const t = String(ftype || '').toLowerCase();
@@ -68,11 +76,15 @@ function drawSuaOutline(suaId) {
             fill: true, fillColor: '#1d4ed8', fillOpacity: su.big ? 0.03 : 0.06, interactive: false }).addTo(connLayer);
     });
 }
+// The evidence for the currently-selected road, kept so the legend toggles can re-render the
+// highlights without re-selecting the road (see refreshConnections / applyLegend).
+let _lastConnEv = null;
 function showConnections(ev) {
     clearConnections();
+    _lastConnEv = ev || null;
     if (!ev) return;
-    // Centres: a mix of town points (ring + pin) and urban areas (boundary outline + pin).
-    (ev.centres || []).forEach(function (e) {
+    // Centres (blue): a mix of town points (ring + pin) and urban areas (boundary outline + pin).
+    if (legendToggles.c_centre) (ev.centres || []).forEach(function (e) {
         if (e.kind === 'sua') {
             drawSuaOutline(e.suaId);
             connMarker(e, 'sua').addTo(connLayer);
@@ -83,7 +95,10 @@ function showConnections(ev) {
             connMarker(e, 'town').addTo(connLayer);
         }
     });
-    ['hosp', 'dest', 'employ'].forEach(function (kind) {
+    // Facility highlights — each category honours its own legend toggle (c_hosp / c_dest / c_employ).
+    [['hosp', 'c_hosp'], ['dest', 'c_dest'], ['employ', 'c_employ']].forEach(function (pair) {
+        const kind = pair[0];
+        if (!legendToggles[pair[1]]) return;
         const items = kind === 'hosp' ? ev.hospitals : kind === 'dest' ? ev.dests : ev.employment;
         const s = CONN_STYLE[kind];
         (items || []).forEach(function (e) {
@@ -94,6 +109,8 @@ function showConnections(ev) {
     });
     if (!map.hasLayer(connLayer)) connLayer.addTo(map);
 }
+// Re-draw the current selection's highlights after a highlight legend toggle changes.
+function refreshConnections() { if (_lastConnEv) showConnections(_lastConnEv); }
 function clearConnections() { connLayer.clearLayers(); }
 function panToConn(lon, lat) { map.panTo([lat, lon], { animate: true }); }
 // Frame a Significant Urban Area: fit to its bounding box so the whole perimeter is in view.
@@ -107,7 +124,10 @@ function fitToSua(suaId) {
 // Legend visibility toggles — clicking a legend item flips its key and re-applies to the map.
 // green/orange/red = verdict colours; nltn = green national network; dashed = route-numbered roads;
 // towns = town/city pins; boundary = CV LGA outline.
-let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, outside: true };
+// verdict colours + dashed/towns/boundary, plus the "Highlights" group: c_centre/c_hosp/c_dest/
+// c_employ = the on-select connection rings. clip = CV tab only, hide roads outside the LGA outline.
+let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
+    c_centre: true, c_hosp: true, c_dest: true, c_employ: true };
 
 let currentTab = 'overview';
 
@@ -139,6 +159,7 @@ function isSelected(layer) { return selectedLayers.indexOf(layer) !== -1; }
 
 function deselect() {
     clearConnections();
+    _lastConnEv = null;
     if (!selectedLayers.length) return;
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = [];

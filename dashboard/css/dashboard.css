@@ -94,6 +94,10 @@
         .legend-item.legend-static:hover { opacity: 1; }
         .legend-color { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
         .legend-color.legend-dash { height: 0; border-top: 3px dashed #57534e; border-radius: 0; }
+        /* "Highlights" sub-heading + the round connection swatches (kept in a 22px box so labels align) */
+        .legend-sub { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 11px; }
+        .legend-swatch { width: 22px; display: inline-flex; justify-content: center; flex-shrink: 0; }
+        .legend-pin { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 
         /* Note */
         .data-note { margin-top: 16px; background: var(--bg-soft); border: 1px solid var(--line-soft); border-radius: 12px; padding: 13px 15px; }
