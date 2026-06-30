@@ -86,7 +86,7 @@ function evMeta(e, kind) {
     }
     if (kind === 'hosp') return (e.cat || 'Major Hospital') + ' · ' + e.km + ' km';
     if (kind === 'dest') return (e.ftype || 'Key destination') + ' · ' + e.km + ' km';
-    if (kind === 'employ') return (e.kind || 'Employment') + ' · ' + (e.tier || 'centre') + ' (' + e.ha + ' ha' + (e.out_m != null ? ', ~$' + e.out_m + 'm' : '') + ') · ' + e.km + ' km';
+    if (kind === 'employ') return (e.kind || 'Employment') + ' · ' + (e.tier || 'centre') + ' (' + e.ha + ' ha) · ' + e.km + ' km';
     return e.km + ' km';
 }
 // Centres list (towns + Significant Urban Areas). An SUA row frames its boundary on click; a town
