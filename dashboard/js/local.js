@@ -207,23 +207,55 @@ function progFail() { clearInterval(_progTimer); const el = document.getElementB
 function suburbLabel(g) { return (g && (g.name || (g.display_name || '').split(',')[0])) || 'the suburb'; }
 function subEsc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+// Keep the Local-tab search STRICTLY to residential suburbs. The bundled list is a postcode dataset, so it
+// also carries non-suburb localities: postal delivery / business centres (a "<Suburb> Dc / Bc / Po / Msc"
+// suffix), airports, universities, hospitals, military bases (Hmas… / …Raaf), the Sydney CBD/region name and
+// a stray shopping centre. isNonSuburb() drops those. The suffix patterns are END-ANCHORED so they never hit
+// real suburbs (Purfleet, Depot Beach, Cams/Nords Wharf, Port Kembla, Len Waters Estate, Megan, Megalong,
+// Shellharbour City Centre, Sydney Olympic Park, North Sydney… all kept).
+const NON_SUBURB_SUFFIX = / (dc|bc|po|msc|raaf)$/;                     // postal delivery / business-centre suffix
+const NON_SUBURB_WORD = /\b(airport|universit(?:y|ies)|hospital)\b/;   // named facilities, never a suburb
+const NON_SUBURB_EXACT = { 'sydney': 1, 'sydney south': 1, 'macquarie centre': 1 };
+function isNonSuburb(name) {
+    const n = String(name || '').toLowerCase();
+    return !!NON_SUBURB_EXACT[n] || n.indexOf('hmas ') === 0 || NON_SUBURB_SUFFIX.test(n) || NON_SUBURB_WORD.test(n);
+}
+
+// Sydney CBD access. The core CBD is a real ~2.4 x 2.6 km suburb (OSM relation 5729534) — but a text search
+// for "Sydney" geocodes to the 100 km Greater Sydney region and postcode 2000 is only a point, so we resolve
+// the CBD by its exact OSM id (pickSuburb uses the /lookup endpoint for entries with an osmId). Town Hall /
+// Wynyard / Martin Place / Circular Quay are train STATIONS (points) inside this suburb — not areas of their
+// own — so they all map here; searching any of them, or "CBD" / "City" / "Sydney", offers the CBD to load.
+const CBD_ENTRY = { name: 'Sydney CBD', postcode: '2000', osmId: 'R5729534', meta: 'Town Hall · Wynyard · Martin Place · CBD' };
+const CBD_TERMS = ['sydney cbd', 'sydney city', 'cbd', 'city', 'town hall', 'townhall', 'wynyard', 'martin place', 'circular quay', 'chinatown'];
+
 function onSuburbInput(val) {
     const q = String(val || '').trim().toLowerCase();
     if (q.length < 2) { hideSuburbResults(); return; }
+    const scored = [];
+    // Sydney CBD alias — surfaced first when the query matches the CBD, one of its precinct names, or "CBD".
+    let cbd = -1;
+    for (let t = 0; t < CBD_TERMS.length; t++) {
+        const term = CBD_TERMS[t];
+        if (term === q) { cbd = 106; break; }
+        else if (term.indexOf(q) === 0) cbd = Math.max(cbd, 96);
+        else if (term.indexOf(q) !== -1) cbd = Math.max(cbd, 66);
+    }
+    if (cbd >= 0) scored.push([cbd, Object.assign({}, CBD_ENTRY)]);
     // Instant prefix / substring match over the bundled NSW suburb list (Cabra → Cabramatta, Cabramatta West…).
     const list = window.NSW_SUBURBS || [];
-    const scored = [];
     for (let i = 0; i < list.length; i++) {
         const nml = list[i][0].toLowerCase();
+        if (isNonSuburb(nml)) continue;   // STRICTLY suburbs — drop DCs, airports, universities, bases, etc.
         let s = -1;
         if (nml === q) s = 100;
         else if (nml.indexOf(q) === 0) s = 90;          // starts with the query
         else if (nml.indexOf(' ' + q) !== -1) s = 70;   // a later word starts with it
         else if (nml.indexOf(q) !== -1) s = 55;         // substring
-        if (s >= 0) scored.push([s, list[i]]);
+        if (s >= 0) scored.push([s, { name: list[i][0], postcode: list[i][1] }]);
     }
-    scored.sort(function (a, b) { return b[0] - a[0] || a[1][0].localeCompare(b[1][0]); });
-    _subResults = scored.slice(0, 40).map(function (x) { return { name: x[1][0], postcode: x[1][1] }; });
+    scored.sort(function (a, b) { return b[0] - a[0] || String(a[1].name).localeCompare(String(b[1].name)); });
+    _subResults = scored.slice(0, 40).map(function (x) { return x[1]; });
     renderSuburbResults(_subResults);
 }
 
@@ -244,7 +276,7 @@ function renderSuburbResults(arr) {
     box.innerHTML = arr.map(function (s, i) {
         return '<div class="sub-item' + (i === 0 ? ' sub-on' : '') + '" data-i="' + i + '"' +
             ' onmousedown="event.preventDefault(); pickSuburb(' + i + ')" onmouseenter="subSetActive(' + i + ')">' +
-            '<div class="sub-name">' + subEsc(s.name) + '</div><div class="sub-meta">' + subEsc(s.postcode || '') + ' · NSW</div></div>';
+            '<div class="sub-name">' + subEsc(s.name) + '</div><div class="sub-meta">' + subEsc(s.meta || ((s.postcode || '') + ' · NSW')) + '</div></div>';
     }).join('');
     box.classList.add('sub-open');
 }
@@ -278,13 +310,19 @@ function pickSuburb(i) {
     const inp = document.getElementById('local-suburb-input'); if (inp) { inp.value = s.name; inp.blur(); }
     progStart();
     setLocalXStatus('Finding ' + s.name + '…');
-    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&limit=6&countrycodes=au&q=' +
-        encodeURIComponent(s.name + ', New South Wales ' + (s.postcode || '') + ', Australia');
+    // An entry with an osmId (Sydney CBD) resolves to that exact OSM boundary via /lookup — a text search for
+    // "Sydney" returns the 100 km Greater Sydney region, not the CBD suburb, so we pin the id instead.
+    const url = s.osmId
+        ? 'https://nominatim.openstreetmap.org/lookup?format=jsonv2&polygon_geojson=1&osm_ids=' + encodeURIComponent(s.osmId)
+        : 'https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&limit=6&countrycodes=au&q=' +
+            encodeURIComponent(s.name + ', New South Wales ' + (s.postcode || '') + ', Australia');
     fetch(url)
         .then(function (r) { return r.json(); })
         .then(function (arr) {
             arr = Array.isArray(arr) ? arr : [];
-            const g = arr.filter(isSuburbResult).find(hasPolygon) || arr.find(hasPolygon) || arr.filter(isSuburbResult)[0] || arr[0];
+            const g = s.osmId
+                ? (arr.find(hasPolygon) || arr[0])
+                : (arr.filter(isSuburbResult).find(hasPolygon) || arr.find(hasPolygon) || arr.filter(isSuburbResult)[0] || arr[0]);
             if (!g) { progFail(); setLocalXStatus('Could not locate ' + s.name); return; }
             loadSuburbResult(g);
         })
