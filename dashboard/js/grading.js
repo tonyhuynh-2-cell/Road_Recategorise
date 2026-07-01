@@ -9,14 +9,10 @@ function nswInView(p) {
     // The CV tab is the Overview, geographically focused on the Clarence Valley LGA (+ its outline).
     // The 'clip' toggle swaps the full road overlay for a copy clipped to the LGA polygon (so nothing
     // leaks past the outline) — handled by the layer swap in applyLegend, not here.
+    // CV and Sydney tabs show the full State + Regional network (they add a region outline on top).
     if (currentTab === 'cv' || currentTab === 'sydney') return p.admin_class === 'S' || p.admin_class === 'R';
-    // Cross-test tab: show Regional roads (re-graded as State) and/or State roads (re-graded as
-    // Regional), per that tab's own direction toggles (xtestDir).
-    if (currentTab === 'xtest') {
-        if (p.admin_class === 'R') return xtestDir.regional;
-        if (p.admin_class === 'S') return xtestDir.state;
-        return false;
-    }
+    // Local tab shows ONLY the green council roads — the S/R overlay is removed entirely (see applyLegend).
+    if (currentTab === 'local') return false;
     // Overview: show EVERY State + Regional road. Nationally significant routes get the green/orange
     // NLTN network drawn ON TOP (see applyLegend), so M5 etc. read as nationally significant — WITHOUT
     // hiding any road. (Hiding by _nsr deleted State roads the drawn NLTN layer doesn't cover, e.g. A44
@@ -39,13 +35,16 @@ const HIDDEN_STYLE = { stroke: false, opacity: 0, weight: 0 };
 
 function nswStyle(feature) {
     const p = feature.properties;
-    if (currentTab === 'xtest') return xtestStyle(p);   // Cross-test tab colours by the OTHER category's verdict
     // setStyle() MERGES options, so `stroke` must be set explicitly in BOTH branches — otherwise a
     // road hidden in one lens (stroke:false) keeps stroke:false when it returns to view and vanishes.
     if (!nswInView(p)) return HIDDEN_STYLE;   // hidden in this lens
     // Every road grades by its own category criteria (State / Regional). National significance is a
     // property of the NLTN network (its own lens + green layer), not a re-grade of the road overlay.
-    const v = p._roadStatus || p.status;
+    let v = p._roadStatus || p.status;
+    // Cross-criteria toggle (State / Regional tabs only): re-grade this road AGAINST the other category.
+    // State tab → grade as Regional (asReg); Regional tab → grade as State (asState). See buildXtest().
+    if (currentTab === 'state' && xLens.state) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = x.asReg; }
+    else if (currentTab === 'regional' && xLens.regional) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = x.asState; }
     if (!legendToggles[v]) return HIDDEN_STYLE;                       // verdict colour toggled off
     if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;    // route-numbered roads toggled off
     return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: p._w || 2, opacity: v === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
@@ -93,15 +92,4 @@ function buildXtest() {
     }
     window.XTEST = X;
     return X;
-}
-
-// Style for the Cross-test tab: Regional roads coloured by their verdict AS a State road; State roads
-// by their verdict AS a Regional road. Honours the green/orange/red + dashed legend toggles.
-function xtestStyle(p) {
-    if (!nswInView(p)) return HIDDEN_STYLE;
-    const x = buildXtest()[roadKeyOf(p)];
-    const v = x ? (p.admin_class === 'R' ? x.asState : x.asReg) : 'red';
-    if (!legendToggles[v]) return HIDDEN_STYLE;
-    if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;
-    return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: p._w || 2, opacity: v === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }

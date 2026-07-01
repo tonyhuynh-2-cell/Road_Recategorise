@@ -45,10 +45,10 @@ const NSR_EXCLUDE = {
     '0000005': 'A44 — The Northern Rd (not on the NLTN Determination 2020)',
 };
 
-// Local roads: the authoritative TfNSW RoadSegment service is ~20-30s per viewport (verified) — far too
-// slow for live use — so local roads surface via the basemap instead: a CARTO street-label overlay
-// (see local.js) that switches on only at/after this zoom, naming the local roads already drawn on the
-// base map. Instant, no external queries.
+// Local roads surface two ways (see local.js): street NAMES via a CARTO label overlay that switches on
+// at/after this zoom (instant, no queries), and — on the Local tab — the actual council roads as green
+// vectors fetched live from OpenStreetMap / Overpass (~5s/viewport). The authoritative TfNSW RoadSegment
+// service is ~28s per viewport (verified) — far too slow for live use, which is why we don't use it.
 const LOCAL_ZOOM = 14;
 
 // Town markers turn into name text-boxes once zoomed in past this level

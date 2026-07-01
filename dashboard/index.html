@@ -38,15 +38,17 @@
         <h2>Criteria alignment vs. current classification</h2>
 
         <div class="tabs">
-            <button class="tab-btn tab-overview active" onclick="switchTab('overview')">Overview</button>
+            <button class="tab-btn tab-overview tab-g1 active" onclick="switchTab('overview')">Overview</button>
             <div class="tab-row">
-                <button class="tab-btn" onclick="switchTab('nsr')">Nat. Significant</button>
-                <button class="tab-btn" onclick="switchTab('state')">State Roads</button>
-                <button class="tab-btn" onclick="switchTab('regional')">Regional</button>
+                <button class="tab-btn tab-g2" onclick="switchTab('nsr')">Nat. Sig.</button>
+                <button class="tab-btn tab-g2" onclick="switchTab('state')">State</button>
+                <button class="tab-btn tab-g2" onclick="switchTab('regional')">Regional</button>
+                <button class="tab-btn tab-g2" onclick="switchTab('local')">Local</button>
             </div>
-            <button class="tab-btn" onclick="switchTab('sydney')">Sydney</button>
-            <button class="tab-btn" onclick="switchTab('cv')">Clarence Valley</button>
-            <button class="tab-btn tab-xtest" onclick="switchTab('xtest')">⇄ Cross-criteria test</button>
+            <div class="tab-row">
+                <button class="tab-btn tab-g3" onclick="switchTab('sydney')">Sydney</button>
+                <button class="tab-btn tab-g3" onclick="switchTab('cv')">Clarence Valley</button>
+            </div>
         </div>
 
         <!-- Overview Tab — whole NSW network, each road graded against its own category criteria -->
@@ -106,6 +108,18 @@
                     <div class="stat-value red" id="nsw-red">–</div>
                     <div class="stat-sub" id="nsw-red-pct"></div>
                 </div>
+            </div>
+            <!-- Verdict distribution bar — the green/orange(/red) split for this lens (populated by
+                 refreshNswView). Nat. Significant is 2-tier (green/orange); State/Regional are 3-tier. -->
+            <div class="stat-card" id="nsw-dist-card">
+                <h3>Distribution</h3>
+                <div class="dist-track" id="nsw-dist-bar"></div>
+                <div class="dist-key" id="nsw-dist-key"></div>
+            </div>
+            <!-- Cross-criteria (reclassification) toggle — shown only on the State / Regional lenses -->
+            <div class="stat-card" id="nsw-xtest" style="display:none">
+                <label class="xt-toggle"><input type="checkbox" id="nsw-xtest-cb" onchange="toggleCrossLens(this.checked)"><span id="nsw-xtest-label">Grade as the other category</span></label>
+                <p class="xt-fine">Optional connectivity criteria are shared; only the mandatory gate swaps — State needs PBS-1 access, Regional needs 19m B-double access. Verdicts are earned from the data, not forced.</p>
             </div>
             <div class="data-note" id="nsw-note">
                 <span class="note-label">Note</span>
@@ -181,42 +195,36 @@
             </div>
         </div>
 
-        <!-- Cross-criteria (reclassification) test — each road re-graded against the OTHER category's
-             criteria. Its own direction toggles are a separate legend. See refreshXtest() in js/panels.js. -->
-        <div class="tab-content" id="tab-xtest">
+        <!-- Local Tab — council/local roads for the current viewport (OpenStreetMap), zoom in to load.
+             The State + Regional network stays visible underneath for context. See local.js. -->
+        <div class="tab-content" id="tab-local">
             <div class="stat-card hero">
+                <h3>Local roads</h3>
+                <div class="stat-value blue" id="local-total">—</div>
+                <div class="stat-sub">Council-managed local roads (OpenStreetMap)</div>
+            </div>
+            <div class="stat-card">
+                <h3>Find a suburb</h3>
+                <div class="local-search-wrap">
+                    <form class="local-search" onsubmit="return onSuburbSubmit();">
+                        <input id="local-suburb-input" type="text" placeholder="Search a suburb… e.g. Newtown" autocomplete="off"
+                               oninput="onSuburbInput(this.value)" onkeydown="onSuburbKey(event)">
+                        <button type="submit" class="local-search-btn">Load</button>
+                    </form>
+                    <div id="sub-results" class="sub-results"></div>
+                </div>
+                <div class="local-progress" id="local-progress" hidden><div class="local-progress-bar" id="local-progress-bar"></div></div>
+                <div id="local-status" class="xt-status">Search a suburb to load its local roads</div>
+                <p class="xt-fine">Type a suburb, pick it from the list, and its council / local roads load (drawn green) clipped to the suburb outline.</p>
+            </div>
+            <div class="stat-card">
                 <h3>Cross-criteria test</h3>
-                <div class="stat-value blue" id="xt-total">–</div>
-                <div class="stat-sub">Roads that would meet the OTHER category's criteria — reclassification candidates</div>
-            </div>
-            <div class="stat-card">
-                <h3>Test direction</h3>
-                <div class="xt-legend">
-                    <label class="xt-toggle"><input type="checkbox" checked onchange="toggleXtestDir('regional', this.checked)"><span>Regional roads → tested as <strong>State</strong></span></label>
-                    <label class="xt-toggle"><input type="checkbox" checked onchange="toggleXtestDir('state', this.checked)"><span>State roads → tested as <strong>Regional</strong></span></label>
-                </div>
-                <div class="xt-key">
-                    <div><span class="xt-dot" style="background:#16a34a"></span> Meets that category (≥2 optional)</div>
-                    <div><span class="xt-dot" style="background:#f59e0b"></span> Meets 1 of 2 — may pass with ADT</div>
-                    <div><span class="xt-dot" style="background:#dc2626"></span> Fails that category</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <h3>Reclassification candidates</h3>
-                <div id="xt-breakdown"></div>
-            </div>
-            <div class="stat-card">
-                <h3>Local roads (council)</h3>
-                <div class="xt-legend">
-                    <label class="xt-toggle"><input type="checkbox" onchange="toggleXtLocalShow(this.checked)"><span>Show Local roads (green) <span style="color:var(--faint)">· zoom in</span></span></label>
-                    <label class="xt-toggle"><input type="checkbox" onchange="toggleXtLocalTest(this.checked)"><span>Test them as <strong>Regional</strong></span></label>
-                </div>
-                <div id="xt-local-status" class="xt-status"></div>
-                <p class="xt-fine">Live from TfNSW (~20s to load a view). The test is connectivity-only (≥2 town centres nearby) — B-double access isn't published for local roads.</p>
+                <label class="xt-toggle"><input type="checkbox" onchange="toggleLocalTest(this.checked)"><span>Grade these local roads as <strong>Regional</strong></span></label>
+                <p class="xt-fine">The Regional test is connectivity-only (≥2 town / urban centres nearby); B-double access isn't published for local roads, so it's indicative and strongest in regional areas.</p>
             </div>
             <div class="data-note">
                 <span class="note-label">Note</span>
-                <p>Each road is re-graded against the OTHER category's criteria: Regional roads tested as State (would they qualify to be upgraded?) and State roads tested as Regional. The optional connectivity criteria are shared; only the mandatory gate swaps — State needs PBS-1 access, Regional needs 19m B-double access. Verdicts are earned from the data, not forced.</p>
+                <p>Only the council-managed local roads are shown, drawn green. Toggle the test to see which local roads have the connectivity of a Regional road (≥2 town / urban centres nearby). Verdicts are earned from the data, not forced.</p>
             </div>
         </div>
 
@@ -324,7 +332,7 @@
 <script>
 (function () {
     var v = Date.now();
-    var files = ['config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'local', 'export', 'init'];
+    var files = ['config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'init'];
     for (var i = 0; i < files.length; i++) {
         document.write('<script src="js/' + files[i] + '.js?v=' + v + '"><\/script>');
     }
@@ -337,7 +345,7 @@
 <script>
 (function () {
     var WATCH = ['index.html', 'css/dashboard.css',
-        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/local.js', 'js/export.js', 'js/init.js',
+        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/suburbs.js', 'js/local.js', 'js/export.js', 'js/init.js',
         'data/nsw_assessment.geojson', 'data/nsw_nltn.json', 'data/nsw_criteria.json', 'data/nsw_recat.json',
         'data/nsw_urbanity.json', 'data/nsw_refs.json', 'data/ref_overrides.json', 'data/summary_stats.json',
         'data/clarence_valley_assessment.geojson', 'data/towns_cv.geojson', 'data/cv_refs.json',

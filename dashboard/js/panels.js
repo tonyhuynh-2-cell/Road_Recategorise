@@ -17,28 +17,36 @@ function switchTab(tab) {
         showNSW();
     } else if (tab === 'cv') { refreshCV(); showCV(); }
     else if (tab === 'sydney') { refreshSydney(); showSydney(); }
-    else if (tab === 'xtest') { refreshXtest(); showXtest(); }
+    else if (tab === 'local') { refreshLocal(); showLocal(); }
     renderMapLegend();   // rebuild the floating legend for this view (also re-syncs the toggle dimming)
 }
 
 // Road Detail is shown on a road click (it's not a tab) — return to the view that was open.
 function backFromDetail() { switchTab(lastViewTab || 'overview'); }
 
+// Tab colour group (matches the tab-btn tinting + the floating legend accent):
+// g1 = Overview · g2 = Nat.Significant / State / Regional / Local · g3 = Sydney / Clarence Valley.
+function tabGroup(tab) {
+    if (tab === 'nsr' || tab === 'state' || tab === 'regional' || tab === 'local') return 'g2';
+    if (tab === 'sydney' || tab === 'cv') return 'g3';
+    return 'g1';   // overview + detail
+}
+
 // Apply the legend on/off toggles + per-lens NLTN style to the map for the CURRENT view.
 function applyLegend() {
-    // Region tabs (CV, Sydney) show the road overlay zoomed to a boundary; the statewide NSW tabs don't.
-    const onNSW = currentTab !== 'cv' && currentTab !== 'sydney';
     // CV tab + "Show only roads inside the LGA" → swap the full road overlay for the clipped copy.
+    // Local tab → hide the State/Regional overlay entirely, so only the green local roads show.
     const cvClip = currentTab === 'cv' && legendToggles.clip;
-    if (nswLayer) { if (cvClip) map.removeLayer(nswLayer); else { map.addLayer(nswLayer); nswLayer.setStyle(nswStyle); } }
+    const hideNsw = cvClip || currentTab === 'local';
+    if (nswLayer) { if (hideNsw) map.removeLayer(nswLayer); else { map.addLayer(nswLayer); nswLayer.setStyle(nswStyle); } }
     if (cvClipLayer) { if (cvClip) { map.addLayer(cvClipLayer); cvClipLayer.setStyle(nswStyle); } else map.removeLayer(cvClipLayer); }
     if (cvLayer) cvLayer.setStyle(cvStyle);
     // NLTN national network: the SUBJECT of the Nat. Significant lens only — graded green/orange.
     // Hidden on every other tab, incl. CV (it is no longer a reference underlay).
     if (nltnLayer) {
-        // Shown on the Nat. Significant lens AND the Overview: the green/orange national network drawn
-        // alongside the nat-sig road overlays (which are now the clickable subject — see nswInView).
-        if (onNSW && (currentTab === 'nsr' || currentTab === 'overview') && legendToggles.nltn) {
+        // Shown on the Nat. Significant lens, the Overview AND the Sydney tab (which IS the Overview,
+        // just framed on Sydney): the green/orange national network drawn alongside the road overlays.
+        if ((currentTab === 'nsr' || currentTab === 'overview' || currentTab === 'sydney') && legendToggles.nltn) {
             map.addLayer(nltnLayer);
             nltnLayer.setStyle(nltnFeatureStyle);   // per-feature grade + proposed translucency
         } else map.removeLayer(nltnLayer);
@@ -102,11 +110,12 @@ function renderMapLegend() {
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
         h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', 'Sydney outline');
-    } else if (currentTab === 'xtest') {
-        h += li('green', sw('#16a34a'), 'Meets the other category (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 of 2 — may pass with ADT');
-        h += li('red', sw('#dc2626'), 'Fails the other category');
-        h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
+    } else if (currentTab === 'local') {
+        h += liStatic('<div class="legend-color" style="background:#16a34a; height:2px"></div>', 'Local road (council) — green');
+        h += li('green', sw('#16a34a'), 'Tested: meets Regional (≥2 centres)');
+        h += li('orange', sw('#f59e0b'), 'Tested: 1 centre nearby');
+        h += li('red', sw('#dc2626'), 'Tested: no ≥2-centre link');
+        h += li('towns', townSw, 'Town / City — pin size scales with population');
     } else if (NSW_LENSES.includes(currentTab) && NSW_VIEW_META[nswView]) {
         const m = NSW_VIEW_META[nswView];
         m.legend.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
@@ -122,10 +131,12 @@ function renderMapLegend() {
     }
     // Local roads & street names (basemap label overlay) — a toggle on the road-map tabs; the labels
     // switch on once zoomed in (LOCAL_ZOOM), naming the local roads already drawn on the base map.
-    if (['overview', 'state', 'regional', 'sydney', 'cv'].indexOf(currentTab) !== -1)
+    if (['overview', 'state', 'regional', 'sydney', 'cv', 'local'].indexOf(currentTab) !== -1)
         h += li('local', '<div class="legend-color" style="background:#9a938c; height:2px"></div>', 'Local roads & street names · zoom in');
     h += hiliteLegendHTML();
     el.innerHTML = h;
+    el.classList.remove('legend-g1', 'legend-g2', 'legend-g3');
+    el.classList.add('legend-' + tabGroup(currentTab));   // accent the legend to match the active tab group
     syncLegendVisuals();
 }
 
@@ -194,6 +205,77 @@ function showSydney() {
     mapContext = 'sydney';
 }
 
+// --- Region-filtered national-network (NLTN) counts, self-healing --------------------------------------
+// The Sydney / CV "Nationally Significant" by-group row needs the count of national-network routes inside
+// each region. init.js precomputes these (NLTN_CAT_COUNTS_SYD / _CV) — the fast path — but if a live-reload
+// re-ran the display code WITHOUT re-running init.js, those globals are unset. So we recompute here on
+// demand from the NLTN layer + the region outline: no dependency on init.js having run. Cached per region.
+const _natRegionCache = {};
+function _pointInRing(x, y, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-12) + xi)) inside = !inside;
+    }
+    return inside;
+}
+function _pointInPolys(x, y, polys) {                 // polys: [ [outerRing, hole1, ...], ... ]
+    for (const poly of polys) {
+        if (!_pointInRing(x, y, poly[0])) continue;   // outside outer ring
+        let inHole = false;
+        for (let h = 1; h < poly.length; h++) { if (_pointInRing(x, y, poly[h])) { inHole = true; break; } }
+        if (!inHole) return true;
+    }
+    return false;
+}
+function _polysFromGeoJSON(gj) {
+    const polys = [], feats = (gj && gj.type === 'FeatureCollection') ? gj.features : [gj];
+    feats.forEach(function (f) {
+        const g = f && (f.geometry || f); if (!g || !g.type) return;
+        if (g.type === 'Polygon') polys.push(g.coordinates);
+        else if (g.type === 'MultiPolygon') g.coordinates.forEach(function (p) { polys.push(p); });
+    });
+    return polys;
+}
+function nltnRegionCounts(which) {
+    const pre = which === 'syd' ? window.NLTN_CAT_COUNTS_SYD : window.NLTN_CAT_COUNTS_CV;
+    if (pre) return pre;                              // fast path — init.js already computed it this load
+    if (_natRegionCache[which]) return _natRegionCache[which];
+    const bl = which === 'syd' ? (typeof sydBoundaryLayer !== 'undefined' && sydBoundaryLayer)
+                               : (typeof cvBoundaryLayer !== 'undefined' && cvBoundaryLayer);
+    if (!bl || typeof nltnLayer === 'undefined' || !nltnLayer) return null;
+    const polys = _polysFromGeoJSON(bl.toGeoJSON());
+    if (!polys.length) return null;
+    let bx0 = 180, by0 = 90, bx1 = -180, by1 = -90;   // region bbox for a quick reject
+    polys.forEach(function (p) { p[0].forEach(function (pt) { if (pt[0] < bx0) bx0 = pt[0]; if (pt[0] > bx1) bx1 = pt[0]; if (pt[1] < by0) by0 = pt[1]; if (pt[1] > by1) by1 = pt[1]; }); });
+    const coordsOf = function (g) { return g.type === 'LineString' ? g.coordinates : g.type === 'MultiLineString' ? [].concat.apply([], g.coordinates) : []; };
+    const inReg = {}, cat = {};                       // a route (group) counts if ANY segment falls inside
+    nltnLayer.eachLayer(function (l) {
+        const f = l.feature; if (!f) return; const p = f.properties || {}; const grp = p._natGroup;
+        cat[grp] = p._natCat;
+        if (inReg[grp]) return;
+        for (const pt of coordsOf(f.geometry)) {
+            const x = pt[0], y = pt[1];
+            if (x < bx0 || x > bx1 || y < by0 || y > by1) continue;
+            if (_pointInPolys(x, y, polys)) { inReg[grp] = 1; break; }
+        }
+    });
+    const c = { green: 0, orange: 0, red: 0, total: 0 };
+    Object.keys(inReg).forEach(function (g) { const v = cat[g]; if (c[v] !== undefined) c[v]++; c.total++; });
+    _natRegionCache[which] = c;
+    return c;
+}
+
+// The Nat. Significant overlay as a "by road group" row — the NLTN national network (green = nationally
+// significant; orange = on-network only), matching the Nat. Significant tab + its distribution bar. `counts`
+// is the scope's NLTN counts: statewide (NLTN_CAT_COUNTS) on Overview, region-filtered on Sydney / CV.
+// Returns null when the scope has no national-network road, so the row is simply omitted.
+function natSigGroupRow(counts) {
+    const nc = counts || {};
+    if (!nc.total) return null;
+    return ['Nationally Significant', { green: nc.green || 0, orange: nc.orange || 0, red: 0, total: nc.total }];
+}
+
 // CV tab stats = the Overview breakdown, filtered to roads that touch the Clarence Valley LGA (_inCV).
 function refreshCV() {
     let g = 0, o = 0, r = 0;
@@ -217,13 +299,16 @@ function refreshCV() {
     set('cv-green', g.toLocaleString()); set('cv-green-pct', pct(g));
     set('cv-orange', o.toLocaleString()); set('cv-orange-pct', pct(o));
     set('cv-red', r.toLocaleString()); set('cv-red-pct', pct(r));
+    const grpRows = [natSigGroupRow(nltnRegionCounts('cv')), ...Object.entries(grp)].filter(Boolean);
     let bh = '';
-    for (const [name, d] of Object.entries(grp)) {
-        const gp = d.total ? (d.green / d.total * 100).toFixed(0) : 0;
-        const op = d.total ? (d.orange / d.total * 100).toFixed(0) : 0;
+    for (const [name, d] of grpRows) {
+        const gp = d.total ? Math.round(d.green / d.total * 100) : 0;
+        const op = d.total ? Math.round(d.orange / d.total * 100) : 0;
+        const rp = d.total ? Math.max(0, 100 - gp - op) : 0;   // red = does-not-meet, fills the remainder
         bh += '<div class="category-row"><span class="cat-name">' + name + ' <span style="color:var(--faint)">(' + d.total + ')</span></span>' +
             '<div class="cat-bar"><div class="bar-bg"><div class="bar-fill green" style="width:' + gp + '%"></div>' +
-            '<div class="bar-fill orange" style="width:' + op + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
+            '<div class="bar-fill orange" style="width:' + op + '%"></div>' +
+            '<div class="bar-fill red" style="width:' + rp + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
     }
     const gb = document.getElementById('cv-group-breakdown'); if (gb) gb.innerHTML = bh;
 }
@@ -251,59 +336,40 @@ function refreshSydney() {
     set('syd-green', g.toLocaleString()); set('syd-green-pct', pct(g));
     set('syd-orange', o.toLocaleString()); set('syd-orange-pct', pct(o));
     set('syd-red', r.toLocaleString()); set('syd-red-pct', pct(r));
+    const grpRows = [natSigGroupRow(nltnRegionCounts('syd')), ...Object.entries(grp)].filter(Boolean);
     let bh = '';
-    for (const [name, d] of Object.entries(grp)) {
-        const gp = d.total ? (d.green / d.total * 100).toFixed(0) : 0;
-        const op = d.total ? (d.orange / d.total * 100).toFixed(0) : 0;
+    for (const [name, d] of grpRows) {
+        const gp = d.total ? Math.round(d.green / d.total * 100) : 0;
+        const op = d.total ? Math.round(d.orange / d.total * 100) : 0;
+        const rp = d.total ? Math.max(0, 100 - gp - op) : 0;   // red = does-not-meet, fills the remainder
         bh += '<div class="category-row"><span class="cat-name">' + name + ' <span style="color:var(--faint)">(' + d.total + ')</span></span>' +
             '<div class="cat-bar"><div class="bar-bg"><div class="bar-fill green" style="width:' + gp + '%"></div>' +
-            '<div class="bar-fill orange" style="width:' + op + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
+            '<div class="bar-fill orange" style="width:' + op + '%"></div>' +
+            '<div class="bar-fill red" style="width:' + rp + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
     }
     const gb = document.getElementById('syd-group-breakdown'); if (gb) gb.innerHTML = bh;
 }
 
-// --- Cross-criteria (reclassification) test tab ---
-function showXtest() {
+// --- Local tab: council roads (green) drawn over the State + Regional network (context) ---
+function showLocal() {
     if (cvLayer) map.removeLayer(cvLayer);
-    if (nswLayer) map.addLayer(nswLayer);
-    applyLegend();   // nswStyle → xtestStyle while currentTab === 'xtest'
-    if (mapContext !== 'nsw' && nswLayer) map.fitBounds(nswLayer.getBounds().pad(0.05));
-    mapContext = 'nsw';
+    applyLegend();   // removes the S/R overlay (Local shows only local roads) + kicks off updateLocalX
+    // No refit — keep the current pan/zoom; local roads load once zoomed in past LOCALX_ZOOM.
+    mapContext = 'local';
 }
 
-// The Cross-test tab's own legend toggles (separate from the main map legend): which test directions show.
-function toggleXtestDir(which, on) {
-    xtestDir[which] = !!on;
-    if (nswLayer) nswLayer.setStyle(nswStyle);
-    refreshXtest();
+// Local tab panel: the in-view count is filled by the Overpass fetch (setLocalTotal, local.js). Reset it
+// on (re)entering so a stale number doesn't linger before the fetch runs.
+function refreshLocal() {
+    if (typeof setLocalTotal === 'function') setLocalTotal(null);
 }
 
-function xtRow(label, d, active) {
-    const gp = d.total ? Math.round(d.green / d.total * 100) : 0;
-    const op = d.total ? Math.round(d.orange / d.total * 100) : 0;
-    return '<div class="category-row" style="opacity:' + (active ? 1 : 0.4) + '"><span class="cat-name">' + label +
-        ' <span style="color:var(--faint)">(' + d.total + ')</span></span><div class="cat-bar"><div class="bar-bg">' +
-        '<div class="bar-fill green" style="width:' + gp + '%"></div><div class="bar-fill orange" style="width:' + op + '%"></div></div>' +
-        '<span class="cat-pct">' + d.green + ' ✓</span></div></div>';
-}
-
-// Cross-test stats: how many Regional roads would meet State criteria, and State roads meet Regional.
-function refreshXtest() {
-    const X = buildXtest();
-    const R = { green: 0, orange: 0, red: 0, total: 0 };   // Regional graded AS State
-    const S = { green: 0, orange: 0, red: 0, total: 0 };   // State graded AS Regional
-    for (const k in NSW_AGG) {
-        const a = NSW_AGG[k], x = X[k]; if (!x) continue;
-        if (a.admin_class === 'R') { R[x.asState]++; R.total++; }
-        else if (a.admin_class === 'S') { S[x.asReg]++; S.total++; }
-    }
-    const cand = (xtestDir.regional ? R.green + R.orange : 0) + (xtestDir.state ? S.green + S.orange : 0);
-    const set = function (id, v) { const el = document.getElementById(id); if (el) el.textContent = v; };
-    set('xt-total', cand.toLocaleString());
-    let h = '';
-    h += xtRow('Regional → meets State', R, xtestDir.regional);
-    h += xtRow('State → meets Regional', S, xtestDir.state);
-    const gb = document.getElementById('xt-breakdown'); if (gb) gb.innerHTML = h;
+// Cross-criteria toggle for the State / Regional lenses (folded in from the old Cross-test tab): re-grade
+// the shown roads against the OTHER category. refreshNswView recolours the map and re-counts the cards.
+function toggleCrossLens(on) {
+    if (nswView === 'state') xLens.state = !!on;
+    else if (nswView === 'regional') xLens.regional = !!on;
+    refreshNswView();
 }
 
 // Counts for the active lens. Nat. Significant counts the NLTN network's national-criteria grades;
@@ -313,12 +379,17 @@ function nswViewCounts() {
         const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };
         return { green: n.green, orange: n.orange, red: 0, total: n.total };
     }
+    // Cross-criteria toggle on: count each road by its verdict AGAINST the other category (asReg on the
+    // State lens, asState on the Regional lens) so the stat cards match the recoloured map.
+    const cross = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional);
+    const X = cross ? buildXtest() : null;
     const c = { green: 0, orange: 0, red: 0, total: 0 };
     for (const k in NSW_AGG) {
         const a = NSW_AGG[k];
         if (!nswInView(a)) continue;
-        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
-        const v = (cr && cr.verdict) || a.status;
+        let v;
+        if (cross) { const x = X[k]; v = x ? (nswView === 'state' ? x.asReg : x.asState) : 'red'; }
+        else { const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null; v = (cr && cr.verdict) || a.status; }
         if (c[v] !== undefined) c[v]++;
         c.total++;
     }
@@ -333,23 +404,59 @@ function refreshNswView() {
     // Nat. Significant has no "does not meet" tier — everything on the network meets S-01 — so hide that card.
     const redCard = document.getElementById('nsw-red').closest('.stat-card');
     if (redCard) redCard.style.display = m.hideRed ? 'none' : '';
-    document.getElementById('nsw-hero-title').textContent = m.title;
-    document.getElementById('nsw-total-sub').textContent = m.sub;
+
+    // Cross-criteria toggle — only on the State / Regional lenses. When ON, the roads are re-graded
+    // against the OTHER category (State→Regional, Regional→State) and the panel copy reflects that.
+    const canCross = nswView === 'state' || nswView === 'regional';
+    const cross = canCross && (nswView === 'state' ? xLens.state : xLens.regional);
+    const other = nswView === 'state' ? 'Regional' : 'State';
+    const xc = document.getElementById('nsw-xtest');
+    if (xc) {
+        xc.style.display = canCross ? '' : 'none';
+        if (canCross) {
+            const lbl = document.getElementById('nsw-xtest-label');
+            if (lbl) lbl.innerHTML = 'Grade these ' + (nswView === 'state' ? 'State' : 'Regional') + ' roads as <strong>' + other + '</strong> (reclassification test)';
+            const cb = document.getElementById('nsw-xtest-cb'); if (cb) cb.checked = !!cross;
+        }
+    }
+
+    document.getElementById('nsw-hero-title').textContent = cross ? (m.title + ' — tested as ' + other) : m.title;
+    document.getElementById('nsw-total-sub').textContent = cross ? ('Re-graded against the ' + other + ' Road criteria — reclassification test') : m.sub;
     // Every lens (incl. Nat. Significant) is graded green/orange/red from the criteria.
     const c = nswViewCounts();
     document.getElementById('nsw-total').textContent = c.total.toLocaleString();
     const pct = n => c.total ? (n / c.total * 100).toFixed(0) + '% of these roads' : '';
-    document.getElementById('nsw-green-label').textContent = m.gLabel;
+    document.getElementById('nsw-green-label').textContent = cross ? ('Would meet ' + other) : m.gLabel;
     document.getElementById('nsw-green').textContent = c.green.toLocaleString();
     document.getElementById('nsw-green-pct').textContent = pct(c.green);
     document.getElementById('nsw-orange-label').textContent = m.oLabel;
     document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();
     document.getElementById('nsw-orange-pct').textContent = pct(c.orange);
-    document.getElementById('nsw-red-label').textContent = m.rLabel;
+    document.getElementById('nsw-red-label').textContent = cross ? ('Would not meet ' + other) : m.rLabel;
     document.getElementById('nsw-red').textContent = c.red.toLocaleString();
     document.getElementById('nsw-red-pct').textContent = pct(c.red);
+    // Verdict distribution bar — the green/orange(/red) split for this lens, mirroring the Overview's
+    // "by road group" bars. Nat. Significant is 2-tier (green/orange, no red — orange takes the
+    // remainder); State/Regional are 3-tier (red fills the remainder). Local has no such panel.
+    const distBar = document.getElementById('nsw-dist-bar');
+    if (distBar) {
+        const gp = c.total ? Math.round(c.green / c.total * 100) : 0;
+        const op = m.hideRed ? (c.total ? Math.max(0, 100 - gp) : 0)
+            : (c.total ? Math.round(c.orange / c.total * 100) : 0);
+        const rp = m.hideRed ? 0 : (c.total ? Math.max(0, 100 - gp - op) : 0);
+        const seg = (w, col) => w > 0 ? '<span style="width:' + w + '%; background:' + col + '"></span>' : '';
+        distBar.innerHTML = seg(gp, '#16a34a') + seg(op, '#f59e0b') + seg(rp, '#dc2626');
+        const gLbl = cross ? ('Would meet ' + other) : m.gLabel;
+        const rLbl = cross ? ('Would not meet ' + other) : m.rLabel;
+        const dk = (col, label, n) => label ? '<span class="dk"><i style="background:' + col + '"></i>' + label + ' <b>' + n.toLocaleString() + '</b></span>' : '';
+        document.getElementById('nsw-dist-key').innerHTML =
+            dk('#16a34a', gLbl, c.green) + dk('#f59e0b', m.oLabel, c.orange) + (m.hideRed ? '' : dk('#dc2626', rLbl, c.red));
+    }
     // The map legend itself is the floating panel (renderMapLegend), rebuilt by switchTab.
-    const np = document.querySelector('#nsw-note p'); if (np) np.textContent = m.note;
+    const np = document.querySelector('#nsw-note p');
+    if (np) np.textContent = cross
+        ? ('Reclassification test — each road re-graded against the ' + other + ' Road criteria. The optional connectivity criteria are shared; only the mandatory gate swaps (State needs PBS-1 access, Regional needs 19m B-double access). Green = would meet ≥2 optional. Verdicts are earned from the data, not forced.')
+        : m.note;
     if (nswLayer) nswLayer.setStyle(nswStyle);
     if (nltnLayer && nswView === 'nsr') nltnLayer.setStyle(nltnFeatureStyle);
 }
@@ -379,13 +486,17 @@ function refreshOverview() {
     document.getElementById('ov-green').textContent = g.toLocaleString(); document.getElementById('ov-green-pct').textContent = pct(g);
     document.getElementById('ov-orange').textContent = o.toLocaleString(); document.getElementById('ov-orange-pct').textContent = pct(o);
     document.getElementById('ov-red').textContent = r.toLocaleString(); document.getElementById('ov-red-pct').textContent = pct(r);
+    // Prepend the Nat. Significant national network (statewide) above the two road groups.
+    const grpRows = [natSigGroupRow(window.NLTN_CAT_COUNTS), ...Object.entries(grp)].filter(Boolean);
     let bh = '';
-    for (const [name, d] of Object.entries(grp)) {
-        const gp = d.total ? (d.green / d.total * 100).toFixed(0) : 0;
-        const op = d.total ? (d.orange / d.total * 100).toFixed(0) : 0;
+    for (const [name, d] of grpRows) {
+        const gp = d.total ? Math.round(d.green / d.total * 100) : 0;
+        const op = d.total ? Math.round(d.orange / d.total * 100) : 0;
+        const rp = d.total ? Math.max(0, 100 - gp - op) : 0;   // red = does-not-meet, fills the remainder
         bh += '<div class="category-row"><span class="cat-name">' + name + ' <span style="color:var(--faint)">(' + d.total + ')</span></span>' +
             '<div class="cat-bar"><div class="bar-bg"><div class="bar-fill green" style="width:' + gp + '%"></div>' +
-            '<div class="bar-fill orange" style="width:' + op + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
+            '<div class="bar-fill orange" style="width:' + op + '%"></div>' +
+            '<div class="bar-fill red" style="width:' + rp + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
     }
     document.getElementById('ov-group-breakdown').innerHTML = bh;
     if (nswLayer) nswLayer.setStyle(nswStyle);

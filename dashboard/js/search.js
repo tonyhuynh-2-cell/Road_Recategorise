@@ -15,10 +15,16 @@ function initRoadSearch() {
         const a = agg[key];
         if (!a || (a.admin_class !== 'S' && a.admin_class !== 'R')) return;
         const num = (a.road_number != null && String(a.road_number).trim()) ? String(a.road_number).trim() : '';
-        const name = (a.road_name && String(a.road_name).trim()) ? String(a.road_name).trim() : '';
         const ref = a.ref ? String(a.ref).trim() : '';
-        if (!num && !name && !ref) return;
-        ROAD_INDEX.push({ key: key, num: num, name: name, ref: ref, cls: a.admin_class });
+        // Index EVERY distinct name the road carries — a single road_number can span several named sections
+        // (e.g. 0000090 = The Bucketts Way + Wallanbah Rd), so any of its names should find it. One entry per
+        // name (all sharing the key); the dropdown de-dupes by key and shows the best-matching name.
+        let names = (a._names && a._names.length) ? a._names.slice() : [];
+        const primaryName = (a.road_name && String(a.road_name).trim()) ? String(a.road_name).trim() : '';
+        if (primaryName && names.indexOf(primaryName) === -1) names.unshift(primaryName);
+        if (!names.length) names = [''];
+        if (!num && !ref && !names.some(function (n) { return n; })) return;
+        names.forEach(function (nm) { ROAD_INDEX.push({ key: key, num: num, name: nm, ref: ref, cls: a.admin_class, pri: nm === primaryName }); });
     });
 }
 
@@ -47,8 +53,16 @@ function onRoadSearchInput(val) {
         const s = _scoreRoad(ROAD_INDEX[i], q);
         if (s >= 0) scored.push([s, ROAD_INDEX[i]]);
     }
-    scored.sort(function (a, b) { return b[0] - a[0] || a[1].name.localeCompare(b[1].name); });
-    const top = scored.slice(0, 12);
+    scored.sort(function (a, b) { return b[0] - a[0] || ((b[1].pri ? 1 : 0) - (a[1].pri ? 1 : 0)) || a[1].name.localeCompare(b[1].name); });
+    // De-dupe by road key — a road indexed under several names can match more than once; keep its
+    // best-scoring name (already first after the sort) so each road appears once.
+    const seenKeys = {}, top = [];
+    for (let i = 0; i < scored.length && top.length < 12; i++) {
+        const e = scored[i][1];
+        if (seenKeys[e.key]) continue;
+        seenKeys[e.key] = 1;
+        top.push(scored[i]);
+    }
     _rsResults = top.map(function (x) { return x[1].key; });
     _rsActive = top.length ? 0 : -1;
     box.classList.add('rs-open');

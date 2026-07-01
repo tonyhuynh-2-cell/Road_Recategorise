@@ -1,14 +1,18 @@
-// local.js — Local roads & street names via the basemap. The authoritative TfNSW RoadSegment service is
-// far too slow (~20-30s per viewport, verified — its functionhi filter full-scans the whole state) for
-// live loading. Instead we lean on the base map, which already draws local roads: a CARTO
-// "voyager_only_labels" street-label overlay is switched ON only at/after LOCAL_ZOOM, so those local
-// roads become NAMED once you zoom in — instant, no external queries, no lag.
+// local.js — Local (council) roads.
+//
+// Two jobs:
+//  1. Street NAMES on the normal road-map tabs, via the basemap: a CARTO "voyager_only_labels" overlay
+//     switched on once zoomed in past LOCAL_ZOOM (instant, no queries).
+//  2. The Local TAB: search a SUBURB → we load that suburb's council/local roads (OpenStreetMap / Overpass)
+//     as GREEN vectors, CLIPPED to the suburb boundary so nothing leaks past the outline, with an optional
+//     "grade as Regional" cross-test. A suburb is a small, bounded query, so it loads fast and reliably —
+//     unlike a whole-viewport fetch (the state has too many local roads to draw at once).
 
 const localLabelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
     subdomains: 'abcd', maxZoom: 20, pane: 'localPane', opacity: 0.95, attribution: '&copy; OSM &copy; CARTO'
 });
 
-const LOCAL_TABS = ['overview', 'state', 'regional', 'sydney', 'cv'];   // road-map tabs (not Nat.Sig / Detail)
+const LOCAL_TABS = ['overview', 'state', 'regional', 'sydney', 'cv', 'local'];   // road-map tabs (not Nat.Sig / Detail)
 
 // Street labels show when: the toggle is on, we're on a road-map tab, AND zoomed in past LOCAL_ZOOM.
 function localRoadsAllowed() {
@@ -23,28 +27,45 @@ function updateLocalRoads() {
 
 map.on('zoomend', updateLocalRoads);
 
-// --- Cross-test tab: council Local roads as GREEN vectors, optionally graded as Regional ---
-// Fetched live from TfNSW for the current viewport (zoom-gated, on-demand, ~20s — the service is slow).
-// Green by default; the "Test for Regional" toggle grades them by a simplified connectivity proxy.
-const LOCALX_ZOOM = 15;
-const LOCAL_ROADS_URL = 'https://portal.data.nsw.gov.au/arcgis/rest/services/RoadSegment/MapServer/0';   // council roads (functionhi=6)
+// --- Local tab: a searched SUBURB's council roads as GREEN vectors, clipped to its perimeter ---
+// Overpass endpoints are tried in order: the canonical server, then a verified full-data mirror as fallback.
+const OVERPASS_URLS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+// Local / council road classes in OSM (residential streets, unclassified, tertiary connectors). We omit
+// `service` (driveways / parking aisles) so the count stays meaningful and the query stays fast.
+const LOCAL_HW = '^(residential|unclassified|living_street|tertiary|tertiary_link|road)$';
+let suburbOutlineLayer = null;             // the searched suburb's perimeter outline
+let _subResults = [], _subActive = -1, _subTimer = null, _subAbort = null, _subLoadAbort = null;
 
-localRoadsXLayer = L.geoJSON(null, {
-    renderer: localRenderer,
-    style: styleLocalX,
-    onEachFeature: function (f, layer) {
-        layer.on('click', function (e) {
-            L.DomEvent.stopPropagation(e);
-            const nm = localRoadName(f.properties), v = regionalTestOfLocal(f);
-            const verdict = v === 'green' ? 'Would meet Regional (≥2 centres nearby)' : v === 'orange' ? 'Marginal — 1 centre nearby' : 'No ≥2-centre link';
-            L.popup().setLatLng(e.latlng).setContent('<strong>' + nm + '</strong><br><span style="color:#78716c; font-size:11px">Local road · council-managed<br>Regional test: ' + verdict + '</span>').openOn(map);
-        });
+localRoadsXLayer = L.geoJSON(null, { renderer: localRenderer, style: styleLocalX }).addTo(map);
+map.removeLayer(localRoadsXLayer);   // shown only on the Local tab
+
+// Local road selection. Per-feature canvas hit-testing on these thin lines is unreliable when the graded
+// road layer is swapped off the shared canvas, so we find the nearest local road to the click ourselves
+// and open its popup. Only active on the Local tab; on any other tab it returns immediately.
+function localRoadClickHandler(e) {
+    if (currentTab !== 'local' || !localRoadsXLayer) return;
+    const layers = localRoadsXLayer.getLayers(); if (!layers.length) return;
+    const p = map.latLngToLayerPoint(e.latlng);
+    let bestFeat = null, bestD = Infinity;
+    for (let n = 0; n < layers.length; n++) {
+        const lls0 = layers[n].getLatLngs(); if (!lls0 || !lls0.length) continue;
+        const segs = Array.isArray(lls0[0]) ? lls0 : [lls0];   // LineString → wrap; MultiLineString → as-is
+        for (let s = 0; s < segs.length; s++) {
+            const seg = segs[s];
+            for (let i = 1; i < seg.length; i++) {
+                const d = L.LineUtil.pointToSegmentDistance(p, map.latLngToLayerPoint(seg[i - 1]), map.latLngToLayerPoint(seg[i]));
+                if (d < bestD) { bestD = d; bestFeat = layers[n].feature; }
+            }
+        }
     }
-}).addTo(map);
-map.removeLayer(localRoadsXLayer);   // shown only on the Cross-test tab, when toggled on
+    if (!bestFeat || bestD > 10) return;   // clicked empty space — leave it for the map's deselect
+    const nm = (bestFeat.properties && bestFeat.properties.name) || 'Local road';
+    L.popup().setLatLng(e.latlng).setContent('<strong>' + nm + '</strong><br><span style="color:#78716c; font-size:11px">Local road · council-managed</span>').openOn(map);
+}
+map.on('click', localRoadClickHandler);
 
 function styleLocalX(f) {
-    if (!xtLocal.test) return { color: '#16a34a', weight: 1.5, opacity: 0.9, lineCap: 'round' };
+    if (!xLens.local) return { color: '#16a34a', weight: 1.5, opacity: 0.9, lineCap: 'round' };
     const v = regionalTestOfLocal(f);
     return { color: ROAD_COLORS[v] || '#9a938c', weight: 1.5, opacity: v === 'red' ? 0.7 : 0.95, lineCap: 'round' };
 }
@@ -52,8 +73,7 @@ function styleLocalX(f) {
 // Simplified Regional test: count distinct town/urban centres within ~1.2km of the road — ≥2 → green
 // (a Regional road connects ≥2 centres), 1 → orange, 0 → red. B-double access (the Regional mandatory
 // gate) isn't available for local roads, so this is connectivity-only (flagged in the panel).
-// Centre points for the proximity test = the 170 major towns PLUS the Significant Urban Area centroids
-// (so a local road in/near an urban area registers a centre too). Built once.
+// Centre points = the 170 major towns PLUS the Significant Urban Area centroids. Built once.
 function xtCentrePts() {
     if (window._XT_CENTRES) return window._XT_CENTRES;
     const c = (window.NSW_TOWN_PTS || []).slice();
@@ -79,47 +99,254 @@ function regionalTestOfLocal(f) {
     return n >= 2 ? 'green' : n === 1 ? 'orange' : 'red';
 }
 
-let _lxTimer = null, _lxKey = null, _lxAbort = null, _lxLoading = false;
+// --- Clip roads to the suburb polygon so they don't leak past the perimeter ---
+// Extract all linear rings from a GeoJSON Polygon / MultiPolygon (outer + holes, flattened).
+function geojsonRings(gj) {
+    if (!gj) return [];
+    if (gj.type === 'Polygon') return gj.coordinates;
+    if (gj.type === 'MultiPolygon') { const r = []; gj.coordinates.forEach(function (poly) { poly.forEach(function (ring) { r.push(ring); }); }); return r; }
+    return [];
+}
+// Ray-cast point-in-polygon (even-odd across all rings — suburb multipolygons are disjoint islands + holes).
+function ringsContain(rings, lon, lat) {
+    let inside = false;
+    for (let r = 0; r < rings.length; r++) {
+        const ring = rings[r];
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+            if (((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
+        }
+    }
+    return inside;
+}
+// Split a way's coordinates into the runs that are INSIDE the polygon (each ≥2 pts). Crossing segments are
+// cut at the last inside vertex — roads stop just inside the boundary rather than leaking past it.
+function clipCoordsToRings(coords, rings) {
+    const out = []; let cur = [];
+    for (let i = 0; i < coords.length; i++) {
+        if (ringsContain(rings, coords[i][0], coords[i][1])) cur.push(coords[i]);
+        else { if (cur.length >= 2) out.push(cur); cur = []; }
+    }
+    if (cur.length >= 2) out.push(cur);
+    return out;
+}
+
+// Overpass `out geom` → GeoJSON FeatureCollection, clipped to `rings` (if given). Returns the collection
+// plus the count of source ways that kept at least one segment (so the tally isn't inflated by splitting).
+function overpassToClippedGeojson(data, rings) {
+    const feats = []; let roads = 0;
+    ((data && data.elements) || []).forEach(function (el) {
+        if (el.type !== 'way' || !el.geometry || el.geometry.length < 2) return;
+        const coords = el.geometry.map(function (pt) { return [pt.lon, pt.lat]; });
+        const props = { name: (el.tags && el.tags.name) || '', hw: (el.tags && el.tags.highway) || '' };
+        const parts = (rings && rings.length) ? clipCoordsToRings(coords, rings) : [coords];
+        if (parts.length) roads++;
+        parts.forEach(function (p) { feats.push({ type: 'Feature', properties: props, geometry: { type: 'LineString', coordinates: p } }); });
+    });
+    return { fc: { type: 'FeatureCollection', features: feats }, roads: roads };
+}
+
+// Tab sync (called by applyLegend): show the loaded suburb roads on the Local tab, hide them elsewhere.
+// Loading is search-driven — panning does NOT fetch — and the last result persists across tab switches.
 function updateLocalX() {
-    if (currentTab !== 'xtest' || !xtLocal.show) { if (localRoadsXLayer) { localRoadsXLayer.clearLayers(); if (map.hasLayer(localRoadsXLayer)) map.removeLayer(localRoadsXLayer); } _lxKey = null; setLocalXStatus(''); return; }
-    if (!map.hasLayer(localRoadsXLayer)) map.addLayer(localRoadsXLayer);
-    if (map.getZoom() < LOCALX_ZOOM) { localRoadsXLayer.clearLayers(); _lxKey = null; setLocalXStatus('Zoom in to load local roads'); return; }
-    clearTimeout(_lxTimer);
-    _lxTimer = setTimeout(fetchLocalX, 300);
+    if (currentTab !== 'local') {
+        if (localRoadsXLayer && map.hasLayer(localRoadsXLayer)) map.removeLayer(localRoadsXLayer);
+        if (suburbOutlineLayer && map.hasLayer(suburbOutlineLayer)) map.removeLayer(suburbOutlineLayer);
+        hideSuburbResults();
+        return;
+    }
+    if (localRoadsXLayer && !map.hasLayer(localRoadsXLayer)) map.addLayer(localRoadsXLayer);
+    if (suburbOutlineLayer && !map.hasLayer(suburbOutlineLayer)) map.addLayer(suburbOutlineLayer);
+    if (!localRoadsXLayer.getLayers().length) setLocalXStatus('Search a suburb to load its local roads');
 }
 
-function fetchLocalX() {
-    if (currentTab !== 'xtest' || !xtLocal.show || map.getZoom() < LOCALX_ZOOM) return;
-    const b = map.getBounds(), key = Math.round(map.getZoom()) + ':' + b.toBBoxString();
-    if (key === _lxKey && (_lxLoading || localRoadsXLayer.getLayers().length)) return;   // same view: loading or loaded
-    _lxKey = key; _lxLoading = true;
-    const bbox = b.getWest().toFixed(5) + ',' + b.getSouth().toFixed(5) + ',' + b.getEast().toFixed(5) + ',' + b.getNorth().toFixed(5);
-    const url = LOCAL_ROADS_URL + '/query?where=' + encodeURIComponent("functionhi='6'") + '&geometry=' + bbox +
-        '&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects' +
-        '&outFields=roadnameba,roadnamety&returnGeometry=true&geometryPrecision=5&f=geojson';
-    if (_lxAbort) { try { _lxAbort.abort(); } catch (e) {} }
-    _lxAbort = ('AbortController' in window) ? new AbortController() : null;
-    setLocalXStatus('Loading local roads… (TfNSW, ~20s)');
-    fetch(url, _lxAbort ? { signal: _lxAbort.signal } : undefined)
+// POST an Overpass query to the endpoints in turn, resolving with the first JSON that parses. A 200 that
+// isn't JSON (e.g. a rate-limit HTML page) throws and falls through to the next endpoint too.
+function overpassFetch(q, signal) {
+    const body = 'data=' + encodeURIComponent(q);
+    let i = 0;
+    function attempt() {
+        const url = OVERPASS_URLS[i++];
+        const opts = { method: 'POST', body: body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } };
+        if (signal) opts.signal = signal;
+        // Cap each endpoint at 18s so a hung/slow primary doesn't block the fallback (the leaked fetch is harmless).
+        const race = Promise.race([
+            fetch(url, opts).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+            new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 18000); })
+        ]);
+        return race.catch(function (err) {
+            if (err && err.name === 'AbortError') throw err;    // user moved on — stop, don't try the next one
+            if (i < OVERPASS_URLS.length) return attempt();     // primary busy/failed/slow — try the mirror
+            throw err;
+        });
+    }
+    return attempt();
+}
+
+function setLocalXStatus(msg) { const el = document.getElementById('local-status'); if (el) el.textContent = msg; }
+function setLocalTotal(n) { const el = document.getElementById('local-total'); if (el) el.textContent = (n === null || n === undefined) ? '—' : n.toLocaleString(); }
+
+// --- Determinate loading bar: a constant-speed linear fill 0→100%, like the page-load bar (ipwea-fill).
+// Overpass gives no progress events, so the bar ramps at a steady rate toward ~92% over the estimated load
+// time (so it reads as real progression, not a stalled "loading"), then snaps to 100% on completion. ---
+let _progVal = 0, _progTimer = null;
+const PROG_EST_MS = 12000;   // estimated load time the steady ramp is paced against
+function progSet(v) { _progVal = Math.max(0, Math.min(100, v)); const b = document.getElementById('local-progress-bar'); if (b) b.style.width = _progVal + '%'; }
+function progStart() {
+    clearInterval(_progTimer);
+    const el = document.getElementById('local-progress'); if (el) el.hidden = false;
+    progSet(0);
+    const tick = 120, step = 92 / (PROG_EST_MS / tick);   // steady, constant-speed fill toward ~92%
+    _progTimer = setInterval(function () { progSet(_progVal < 92 ? _progVal + step : 92); }, tick);
+}
+function progDone() { clearInterval(_progTimer); progSet(100); setTimeout(function () { const el = document.getElementById('local-progress'); if (el) el.hidden = true; progSet(0); }, 400); }
+function progFail() { clearInterval(_progTimer); const el = document.getElementById('local-progress'); if (el) el.hidden = true; progSet(0); }
+
+// --- Suburb search with a typeahead dropdown (Nominatim). Autocomplete is kept LIGHT (no geometry); the
+// boundary polygon is fetched only when a suggestion is picked (one lookup), then used to clip the roads. ---
+function suburbLabel(g) { return (g && (g.name || (g.display_name || '').split(',')[0])) || 'the suburb'; }
+function subEsc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function onSuburbInput(val) {
+    const q = String(val || '').trim().toLowerCase();
+    if (q.length < 2) { hideSuburbResults(); return; }
+    // Instant prefix / substring match over the bundled NSW suburb list (Cabra → Cabramatta, Cabramatta West…).
+    const list = window.NSW_SUBURBS || [];
+    const scored = [];
+    for (let i = 0; i < list.length; i++) {
+        const nml = list[i][0].toLowerCase();
+        let s = -1;
+        if (nml === q) s = 100;
+        else if (nml.indexOf(q) === 0) s = 90;          // starts with the query
+        else if (nml.indexOf(' ' + q) !== -1) s = 70;   // a later word starts with it
+        else if (nml.indexOf(q) !== -1) s = 55;         // substring
+        if (s >= 0) scored.push([s, list[i]]);
+    }
+    scored.sort(function (a, b) { return b[0] - a[0] || a[1][0].localeCompare(b[1][0]); });
+    _subResults = scored.slice(0, 40).map(function (x) { return { name: x[1][0], postcode: x[1][1] }; });
+    renderSuburbResults(_subResults);
+}
+
+// Keep only suburb / locality places in the dropdown — drop streets (class=highway), POIs, buildings, etc.
+function isSuburbResult(g) {
+    if (!g) return false;
+    const PLACE = ['suburb', 'neighbourhood', 'quarter', 'town', 'village', 'hamlet', 'locality', 'city'];
+    if (g.class === 'place' && PLACE.indexOf(g.type) !== -1) return true;
+    if (PLACE.indexOf(g.addresstype) !== -1) return true;   // e.g. a suburb held as an admin boundary
+    return false;
+}
+
+function renderSuburbResults(arr) {
+    _subActive = arr.length ? 0 : -1;
+    const box = document.getElementById('sub-results');
+    if (!box) return;
+    if (!arr.length) { box.innerHTML = '<div class="sub-empty">No matching suburb in NSW</div>'; box.classList.add('sub-open'); return; }
+    box.innerHTML = arr.map(function (s, i) {
+        return '<div class="sub-item' + (i === 0 ? ' sub-on' : '') + '" data-i="' + i + '"' +
+            ' onmousedown="event.preventDefault(); pickSuburb(' + i + ')" onmouseenter="subSetActive(' + i + ')">' +
+            '<div class="sub-name">' + subEsc(s.name) + '</div><div class="sub-meta">' + subEsc(s.postcode || '') + ' · NSW</div></div>';
+    }).join('');
+    box.classList.add('sub-open');
+}
+
+function subSetActive(i) {
+    _subActive = i;
+    const items = document.querySelectorAll('#sub-results .sub-item');
+    items.forEach(function (el, k) { el.classList.toggle('sub-on', k === i); });
+    if (items[i]) items[i].scrollIntoView({ block: 'nearest' });
+}
+function hideSuburbResults() { const b = document.getElementById('sub-results'); if (b) b.classList.remove('sub-open'); }
+
+function onSuburbKey(ev) {
+    const n = _subResults.length;
+    if (ev.key === 'Escape') { hideSuburbResults(); return; }
+    if (!n) return;
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); subSetActive((_subActive + 1) % n); }
+    else if (ev.key === 'ArrowUp') { ev.preventDefault(); subSetActive((_subActive - 1 + n) % n); }
+    else if (ev.key === 'Enter') { ev.preventDefault(); if (_subActive >= 0) pickSuburb(_subActive); }
+}
+function onSuburbSubmit() {
+    if (_subActive >= 0 && _subResults[_subActive]) pickSuburb(_subActive);
+    else if (_subResults.length) pickSuburb(0);
+    return false;
+}
+
+// Pick a suburb → geocode it (Nominatim, exact name + postcode) for the boundary polygon → load + clip roads.
+function pickSuburb(i) {
+    const s = _subResults[i]; if (!s) return;
+    hideSuburbResults();
+    const inp = document.getElementById('local-suburb-input'); if (inp) { inp.value = s.name; inp.blur(); }
+    progStart();
+    setLocalXStatus('Finding ' + s.name + '…');
+    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&limit=6&countrycodes=au&q=' +
+        encodeURIComponent(s.name + ', New South Wales ' + (s.postcode || '') + ', Australia');
+    fetch(url)
         .then(function (r) { return r.json(); })
-        .then(function (gj) {
-            _lxLoading = false;
-            if (currentTab !== 'xtest' || !xtLocal.show) return;
-            localRoadsXLayer.clearLayers();
-            if (gj && gj.features && gj.features.length) { localRoadsXLayer.addData(gj); setLocalXStatus(gj.features.length + ' local roads' + (xtLocal.test ? ' · graded' : ' · green')); }
-            else setLocalXStatus('No local roads in view');
+        .then(function (arr) {
+            arr = Array.isArray(arr) ? arr : [];
+            const g = arr.filter(isSuburbResult).find(hasPolygon) || arr.find(hasPolygon) || arr.filter(isSuburbResult)[0] || arr[0];
+            if (!g) { progFail(); setLocalXStatus('Could not locate ' + s.name); return; }
+            loadSuburbResult(g);
         })
-        .catch(function () { _lxLoading = false; setLocalXStatus('Load failed — pan/zoom to retry'); });
+        .catch(function () { progFail(); setLocalXStatus('Search failed — try again'); });
+}
+function hasPolygon(g) { return g && g.geojson && (g.geojson.type === 'Polygon' || g.geojson.type === 'MultiPolygon'); }
+
+// Load a suburb: frame it (zoom IN), outline its perimeter, fetch its local roads, clip to the polygon, draw.
+function loadSuburbResult(g) {
+    const bb = g.boundingbox;   // [south, north, west, east] (strings)
+    if (!bb) { progFail(); setLocalXStatus('That place has no area — try another'); return; }
+    const rings = geojsonRings(g.geojson);
+    drawSuburbOutline(g.geojson);
+    setLocalXStatus('Loading local roads in ' + suburbLabel(g) + '…');
+    // Frame the suburb — zoom IN (maxZoom caps it; never zooms further out than the suburb itself).
+    try { map.fitBounds([[+bb[0], +bb[2]], [+bb[1], +bb[3]]], { maxZoom: 16, padding: [15, 15] }); } catch (e) {}
+    const q = '[out:json][timeout:60];way["highway"~"' + LOCAL_HW + '"](' +
+        (+bb[0]).toFixed(5) + ',' + (+bb[2]).toFixed(5) + ',' + (+bb[1]).toFixed(5) + ',' + (+bb[3]).toFixed(5) + ');out geom;';
+    if (_subLoadAbort) { try { _subLoadAbort.abort(); } catch (e) {} }
+    _subLoadAbort = ('AbortController' in window) ? new AbortController() : null;
+    overpassFetch(q, _subLoadAbort ? _subLoadAbort.signal : null)
+        .then(function (data) {
+            if (currentTab !== 'local') { progFail(); return; }
+            const res = overpassToClippedGeojson(data, rings);
+            localRoadsXLayer.clearLayers();
+            if (!map.hasLayer(localRoadsXLayer)) map.addLayer(localRoadsXLayer);
+            if (res.fc.features.length) {
+                localRoadsXLayer.addData(res.fc);
+                setLocalTotal(res.roads);
+                setLocalXStatus(res.roads.toLocaleString() + ' local roads in ' + suburbLabel(g) + (xLens.local ? ' · graded as Regional' : ' · green'));
+            } else { setLocalTotal(0); setLocalXStatus('No local roads found in ' + suburbLabel(g)); }
+            progDone();
+        })
+        .catch(function (err) {
+            if (err && err.name === 'AbortError') return;
+            progFail();
+            setLocalXStatus('Load failed — try again');
+        });
 }
 
-function setLocalXStatus(msg) { const el = document.getElementById('xt-local-status'); if (el) el.textContent = msg; }
+// Draw the searched suburb's boundary as a dashed outline (its perimeter). Polygon geometry only — if
+// Nominatim has no polygon for the place, we skip the outline (and load unclipped by bbox).
+function drawSuburbOutline(gj) {
+    if (suburbOutlineLayer) { map.removeLayer(suburbOutlineLayer); suburbOutlineLayer = null; }
+    if (!gj || (gj.type !== 'Polygon' && gj.type !== 'MultiPolygon')) return;
+    // renderer: cvbRenderer is REQUIRED — without it, `pane: 'cvbPane'` makes Leaflet spin up a CANVAS in
+    // that pane that spans the map and swallows clicks to the graded roads below (breaking State/Regional/
+    // Overview selection). The SVG cvbRenderer (same as the Sydney/CV outlines) lets clicks pass through.
+    suburbOutlineLayer = L.geoJSON(gj, { pane: 'cvbPane', renderer: cvbRenderer, interactive: false,
+        style: { color: '#1c1917', weight: 2, opacity: 0.9, fill: false, dashArray: '4 4' } }).addTo(map);
+}
 
-function toggleXtLocalShow(on) { xtLocal.show = !!on; updateLocalX(); }
-function toggleXtLocalTest(on) {
-    xtLocal.test = !!on;
+// Local tab cross-test toggle: grade the loaded council roads by the Regional connectivity test.
+function toggleLocalTest(on) {
+    xLens.local = !!on;
     if (localRoadsXLayer) localRoadsXLayer.setStyle(styleLocalX);
-    const n = localRoadsXLayer ? localRoadsXLayer.getLayers().length : 0;
-    if (n) setLocalXStatus(n + ' local roads' + (xtLocal.test ? ' · graded' : ' · green'));
+    const nn = localRoadsXLayer ? localRoadsXLayer.getLayers().length : 0;
+    if (nn) { const el = document.getElementById('local-status'); if (el && /local roads/.test(el.textContent)) el.textContent = el.textContent.replace(/· (green|graded as Regional)$/, xLens.local ? '· graded as Regional' : '· green'); }
 }
 
-map.on('moveend zoomend', updateLocalX);
+// Close the suburb dropdown when clicking outside the search box.
+document.addEventListener('click', function (e) {
+    const wrap = document.querySelector('.local-search-wrap');
+    if (wrap && !wrap.contains(e.target)) hideSuburbResults();
+});

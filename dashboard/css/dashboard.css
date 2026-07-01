@@ -83,6 +83,13 @@
         .bar-fill.orange { background: var(--warn); }
         .bar-fill.red { background: var(--fail); }
         .cat-pct { font: 500 12px var(--mono); color: var(--ink); min-width: 38px; text-align: right; font-feature-settings: 'tnum'; }
+        /* Full-width verdict distribution bar (Nat.Sig / State / Regional lens panels) */
+        .dist-track { display: flex; height: 12px; background: #eceae8; border-radius: 6px; overflow: hidden; margin: 10px 0 12px; }
+        .dist-track > span { height: 100%; transition: width .6s ease; }
+        .dist-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 400 12px var(--sans); color: var(--muted); }
+        .dist-key .dk { display: inline-flex; align-items: center; gap: 6px; }
+        .dist-key .dk i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+        .dist-key .dk b { color: var(--ink); font-weight: 600; font-feature-settings: 'tnum'; }
 
         /* Legend */
         .legend { margin-top: 4px; }
@@ -276,9 +283,7 @@
         .mw-scale-bar { height: 8px; border: 2px solid var(--ink-soft); border-top: 0; min-width: 44px; transition: width .15s ease; }
         .mw-scale-label { display: block; text-align: center; font: 600 12px var(--mono); color: var(--ink-soft); margin-top: 3px; line-height: 1; }
 
-        /* --- Cross-criteria test: tab button (accent) + its own panel legend (direction toggles + key) --- */
-        .tab-xtest { border-color: #cdbcee !important; color: #6d28d9 !important; font-weight: 600; }
-        .tab-xtest.active { background: #6d28d9 !important; color: #fff !important; border-color: #6d28d9 !important; }
+        /* --- Cross-criteria test toggle (folded into the State / Regional / Local tab panels) --- */
         .xt-legend { display: flex; flex-direction: column; gap: 9px; margin-bottom: 11px; }
         .xt-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font: 400 12.5px var(--sans); color: var(--ink-soft); }
         .xt-toggle input { width: 15px; height: 15px; accent-color: #6d28d9; cursor: pointer; flex: 0 0 auto; }
@@ -287,3 +292,42 @@
         .xt-dot { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
         .xt-status { font: 600 11.5px var(--sans); color: #6d28d9; min-height: 14px; margin-top: 2px; }
         .xt-fine { font-size: 11px; color: var(--muted); margin: 6px 0 0; line-height: 1.4; }
+        /* Local roads loading bar — determinate, fills 0→100% at constant speed like the page-load bar */
+        .local-progress { height: 5px; background: #e7e5e4; border-radius: 3px; overflow: hidden; margin: 8px 0 4px; }
+        .local-progress[hidden] { display: none; }
+        .local-progress-bar { height: 100%; width: 0; border-radius: 3px; background: #16a34a; transition: width .15s linear; }
+        /* Suburb search (Local tab) + typeahead dropdown */
+        .local-search-wrap { position: relative; }
+        .local-search { display: flex; gap: 6px; margin: 2px 0 9px; }
+        .local-search input { flex: 1 1 auto; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: 400 13px var(--sans); color: #292524; background: #fff; }
+        .local-search input:focus { outline: none; border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,.15); }
+        .local-search-btn { flex: 0 0 auto; padding: 8px 15px; border: none; border-radius: 8px; background: #16a34a; color: #fff; font: 600 12.5px var(--sans); cursor: pointer; }
+        .local-search-btn:hover { background: #15803d; }
+        .sub-results { display: none; position: absolute; top: 38px; left: 0; right: 0; z-index: 40; background: #fff;
+            border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 6px 18px rgba(28,25,23,.14);
+            max-height: 178px; overflow-y: auto; }
+        .sub-results.sub-open { display: block; }
+        .sub-item { padding: 7px 11px; cursor: pointer; border-bottom: 1px solid var(--line-soft); }
+        .sub-item:last-child { border-bottom: 0; }
+        .sub-item.sub-on { background: var(--bg-soft); }
+        .sub-name { color: var(--ink); font: 500 12.5px/1.3 var(--sans); }
+        .sub-meta { color: var(--muted); font: 400 11px var(--mono); margin-top: 1px; }
+        .sub-empty { padding: 9px 11px; color: var(--muted); font: 400 12px var(--sans); }
+
+        /* --- Tab colour groups: g1 Overview · g2 Nat/State/Reg/Local · g3 Sydney/Clarence --- */
+        .tab-btn.tab-g1 { color: #2563eb; border-color: #cddbfa; }
+        .tab-btn.tab-g2 { color: #dc2626; border-color: #f4c9c9; }
+        .tab-btn.tab-g3 { color: #0d9488; border-color: #bfe6e2; }
+        .tab-btn.tab-g1:hover:not(.active) { border-color: #2563eb; color: #1e40af; }
+        .tab-btn.tab-g2:hover:not(.active) { border-color: #dc2626; color: #b91c1c; }
+        .tab-btn.tab-g3:hover:not(.active) { border-color: #0d9488; color: #0f766e; }
+        .tab-btn.tab-g1.active { background: #2563eb; border-color: #2563eb; color: #fff; box-shadow: 0 1px 3px rgba(37,99,235,.3); }
+        .tab-btn.tab-g2.active { background: #dc2626; border-color: #dc2626; color: #fff; box-shadow: 0 1px 3px rgba(220,38,38,.3); }
+        .tab-btn.tab-g3.active { background: #0d9488; border-color: #0d9488; color: #fff; box-shadow: 0 1px 3px rgba(13,148,136,.3); }
+        /* Floating legend accent matches the active tab group */
+        .map-legend.legend-g1 { border-top: 3px solid #2563eb; }
+        .map-legend.legend-g2 { border-top: 3px solid #dc2626; }
+        .map-legend.legend-g3 { border-top: 3px solid #0d9488; }
+        .map-legend.legend-g1 h3 { color: #2563eb; }
+        .map-legend.legend-g2 h3 { color: #dc2626; }
+        .map-legend.legend-g3 h3 { color: #0d9488; }

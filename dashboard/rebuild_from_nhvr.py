@@ -127,9 +127,22 @@ for r in ("pbs1", "pbs2b", "bdouble", "roadtrain"):
     roads[r] = on_network(roads, nets[r])
     log(f"  segments on {r:10}: {int(roads[r].sum()):>6} / {len(roads)}")
 
-log("\n[5] Rolling up to road_number (a road is on a network if ANY segment is)...")
-roll = roads.dropna(subset=["rn"]).groupby("rn")[["pbs1","pbs2b","bdouble","roadtrain"]].any()
-log(f"  road_numbers: {len(roll)}")
+log("\n[5] Rolling up to road_number...")
+# pbs1 / pbs2b: on-network if ANY segment is (unchanged). B-double (R-04, Regional mandatory gate) and
+# road-train: require the MAJORITY of the road's LENGTH on the network, not merely any segment. A single
+# road_number can stitch several distinct roads together (e.g. 0000152 = Southgate / Grafton-Lawrence /
+# Lawrence-Yamba: only ~22% of length on the B-double network), so any-segment over-passes them.
+BD_THRESH = 0.5
+_rr = roads.dropna(subset=["rn"]).copy()
+_rr["_len_m"] = _rr.to_crs(3577).geometry.length
+for _c in ("bdouble", "roadtrain"):
+    _rr["_" + _c + "_len"] = _rr["_len_m"].where(_rr[_c], 0.0)
+_ag = _rr.groupby("rn").agg(_tot=("_len_m", "sum"), _bd=("_bdouble_len", "sum"), _rt=("_roadtrain_len", "sum"))
+roll = _rr.groupby("rn")[["pbs1", "pbs2b"]].any()
+roll["bdouble"]   = ((_ag["_bd"] / _ag["_tot"]) >= BD_THRESH).reindex(roll.index).fillna(False).astype(bool)
+roll["roadtrain"] = ((_ag["_rt"] / _ag["_tot"]) >= BD_THRESH).reindex(roll.index).fillna(False).astype(bool)
+roll = roll[["pbs1", "pbs2b", "bdouble", "roadtrain"]]
+log(f"  road_numbers: {len(roll)}  (B-double / road-train: >= {int(BD_THRESH*100)}% of length; PBS: any segment)")
 for r in ("pbs1","pbs2b","bdouble","roadtrain"):
     log(f"    on {r:10}: {int(roll[r].sum()):>4} / {len(roll)} roads")
 

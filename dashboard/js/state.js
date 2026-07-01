@@ -42,8 +42,12 @@ const cvbRenderer = L.svg({ pane: 'cvbPane' });
 // State/Regional grading always reads on top.
 map.createPane('localPane');
 map.getPane('localPane').style.zIndex = 260;
-// On the Cross-test tab, local roads are drawn as green vectors (fetched on demand) in the same pane —
-// a canvas renderer keeps hundreds of segments smooth. (Labels vs vectors never share a tab.)
+// Local road vectors get their OWN canvas renderer (NOT the shared default one that draws the graded
+// roads). This isolation is deliberate: mixing the on-demand local roads into the default renderer and
+// then swapping them out was found to break canvas hit-testing for the graded roads afterwards (State /
+// Regional / Nat.Sig selection would silently stop working). Keeping local roads on a separate canvas
+// leaves graded-road selection rock-solid across tab switches. Local roads are picked via a nearest-road
+// map-click handler (see local.js), so they don't rely on this canvas's hit-testing. Labels: localPane too.
 const localRenderer = L.canvas({ pane: 'localPane' });
 
 // HV bypass highlight — roads on an NHVR heavy-vehicle bypass route (data/nhvr_networks.json ->
@@ -153,14 +157,11 @@ function fitToSua(suaId) {
 let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
     bypass: false, local: true, c_centre: true, c_hosp: true, c_dest: true, c_employ: true };
 
-// Cross-criteria (reclassification) test — which test directions are shown on the Cross-test tab:
-// Regional roads re-graded as State, and/or State roads re-graded as Regional. Its own toggles (the
-// separate legend for that tab), independent of the main map legend.
-let xtestDir = { regional: true, state: true };
-
-// Cross-test → Local roads: `show` draws council Local roads (fetched live from TfNSW, zoom-gated) in
-// green; `test` grades them against a simplified Regional test (proximity to town centres) instead.
-let xtLocal = { show: false, test: false };
+// Cross-criteria (reclassification) test — folded into the State / Regional / Local tabs as a per-tab
+// toggle (there is no separate Cross-test tab). On the State tab it re-grades roads AS Regional; on the
+// Regional tab, AS State; on the Local tab it grades the council roads by the Regional connectivity test.
+// The optional criteria are shared; only the mandatory gate swaps (State PBS-1 ↔ Regional 19m B-double).
+let xLens = { state: false, regional: false, local: false };
 
 let currentTab = 'overview';
 
@@ -172,7 +173,7 @@ let NSW_AGG = {};           // per-road rolled-up aggregate (set during load), u
 
 let NSW_SEG_TOTAL = 0;      // total assessed road segments (features) — shown alongside the road count
 
-let mapContext = null;      // 'nsw' | 'cv' | 'sydney' — only refit the map when this changes, not on every tab switch
+let mapContext = null;      // 'nsw' | 'cv' | 'sydney' | 'local' — only refit the map when this changes, not on every tab switch
 
 let selectedLayers = [];
 

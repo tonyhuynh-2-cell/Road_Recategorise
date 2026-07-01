@@ -82,11 +82,15 @@ Promise.all([
     const nswRoadAgg = {}, nswRoadLayers = {};
     nswRoads.features.forEach(f => {
         const k = roadKeyOf(f.properties); if (!k) return;
-        const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0, _byStatus: { red: 0, orange: 0, green: 0 }, _urbanLen: 0, _ruralLen: 0, _nltnLen: 0 }));
+        const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0, _byStatus: { red: 0, orange: 0, green: 0 }, _urbanLen: 0, _ruralLen: 0, _nltnLen: 0, _names: [] }));
         // The first segment of a road can have a blank name/ref while later ones are named (e.g. road
         // 0000340 = Bronte Rd). Backfill from any segment so the road is named for display AND search.
         if ((!a.road_name || !String(a.road_name).trim()) && f.properties.road_name && String(f.properties.road_name).trim()) a.road_name = f.properties.road_name;
         if (!a.ref && f.properties.ref) a.ref = f.properties.ref;
+        // Collect EVERY distinct name a road carries — one road_number can span several named sections
+        // (e.g. 0000090 = The Bucketts Way + Wallanbah Rd), so all of them are indexed for search.
+        const _rn = f.properties.road_name && String(f.properties.road_name).trim();
+        if (_rn && a._names.indexOf(_rn) === -1) a._names.push(_rn);
         const len = roadLenKm(f.geometry);
         a._len += len;
         if (a._byStatus[f.properties.status] !== undefined) a._byStatus[f.properties.status] += len;
@@ -151,6 +155,12 @@ Promise.all([
         });
         // Roll the flag up to the per-road aggregate so the CV tab stats can count roads in the LGA.
         nswRoads.features.forEach(f => { if (f.properties._inCV) { const k = roadKeyOf(f.properties); if (k && nswRoadAgg[k]) nswRoadAgg[k]._inCV = true; } });
+        // Tag NLTN national-network lines inside the LGA too, so the CV "by road group" bar can show the
+        // national network filtered to the region (honest per-region count, not the statewide figure).
+        if (nltn && nltn.features) nltn.features.forEach(f => {
+            f.properties._inCV = false;
+            for (const pt of coords(f.geometry)) { if (cvInside(pt[0], pt[1])) { f.properties._inCV = true; break; } }
+        });
     })();
     // Sydney Significant Urban Area (SUA_OUTLINES[30], name "Sydney") — the current Sydney outline. Tags
     // roads inside it (_inSyd → Sydney tab stats) and provides the boundary outline. Same point-in-polygon
@@ -181,6 +191,11 @@ Promise.all([
             for (const pt of coords(f.geometry)) { if (sydInside(pt[0], pt[1])) { f.properties._inSyd = true; break; } }
         });
         nswRoads.features.forEach(f => { if (f.properties._inSyd) { const k = roadKeyOf(f.properties); if (k && nswRoadAgg[k]) nswRoadAgg[k]._inSyd = true; } });
+        // Tag NLTN national-network lines inside the Sydney SUA too (per-region national count for the bar).
+        if (nltn && nltn.features) nltn.features.forEach(f => {
+            f.properties._inSyd = false;
+            for (const pt of coords(f.geometry)) { if (sydInside(pt[0], pt[1])) { f.properties._inSyd = true; break; } }
+        });
         // Boundary outline (multipart) — reuse the CV boundary pane/renderer/style; only one region shows at a time.
         const sydGeo = { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: su.rings.map(r => [r]) } };
         sydBoundaryLayer = L.geoJSON(sydGeo, {
@@ -353,6 +368,16 @@ Promise.all([
             if (!_seenG[g]) { _seenG[g] = 1; const v = f.properties._natCat; if (c[v] !== undefined) c[v]++; c.total++; }
             return c;
         }, { green: 0, orange: 0, red: 0, total: 0 });
+        // Per-region national-network counts (grouped determination routes) — a route counts for a region if
+        // any of its segments falls inside it (tagged in buildCV / buildSyd). Feeds the Nat. Significant row
+        // on the Sydney / CV by-road-group bars; the statewide figure is NLTN_CAT_COUNTS above.
+        const _regionNat = (flag) => {
+            const inReg = {}, cat = {};
+            nltn.features.forEach(f => { const g = f.properties._natGroup; cat[g] = f.properties._natCat; if (f.properties[flag]) inReg[g] = 1; });
+            return Object.keys(inReg).reduce((c, g) => { const v = cat[g]; if (c[v] !== undefined) c[v]++; c.total++; return c; }, { green: 0, orange: 0, red: 0, total: 0 });
+        };
+        window.NLTN_CAT_COUNTS_SYD = _regionNat('_inSyd');
+        window.NLTN_CAT_COUNTS_CV = _regionNat('_inCV');
         const nltnGroups = {};   // route key -> its segment layers, so a click selects the whole road in one piece
         nltnLayer = L.geoJSON(nltn, {
             renderer: nltnRenderer,
