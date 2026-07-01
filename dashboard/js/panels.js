@@ -276,6 +276,32 @@ function natSigGroupRow(counts) {
     return ['Nationally Significant', { green: nc.green || 0, orange: nc.orange || 0, red: 0, total: nc.total }];
 }
 
+// Shared bar maths for the by-group breakdowns (Overview / Sydney / CV) and the NSW lens distribution
+// bar — extracted verbatim from the previously-inlined copies, so the numbers are identical. hideRed
+// (Nat. Significant only) folds the leftover into orange and forces red to 0; the group breakdowns
+// always pass hideRed=false, so red fills the remainder after green + orange.
+function barPercents(green, orange, total, hideRed) {
+    const gp = total ? Math.round(green / total * 100) : 0;
+    const op = hideRed ? (total ? Math.max(0, 100 - gp) : 0)
+        : (total ? Math.round(orange / total * 100) : 0);
+    const rp = hideRed ? 0 : (total ? Math.max(0, 100 - gp - op) : 0);
+    return { gp: gp, op: op, rp: rp };
+}
+
+// Render the "by road group" breakdown rows shared by Overview / Sydney / CV. `rows` is an array of
+// [name, {green, orange, red, total}]; red fills the remainder after green + orange.
+function groupBreakdownHTML(rows) {
+    let bh = '';
+    for (const [name, d] of rows) {
+        const p = barPercents(d.green, d.orange, d.total, false);
+        bh += '<div class="category-row"><span class="cat-name">' + name + ' <span style="color:var(--faint)">(' + d.total + ')</span></span>' +
+            '<div class="cat-bar"><div class="bar-bg"><div class="bar-fill green" style="width:' + p.gp + '%"></div>' +
+            '<div class="bar-fill orange" style="width:' + p.op + '%"></div>' +
+            '<div class="bar-fill red" style="width:' + p.rp + '%"></div></div><span class="cat-pct">' + p.gp + '%</span></div></div>';
+    }
+    return bh;
+}
+
 // CV tab stats = the Overview breakdown, filtered to roads that touch the Clarence Valley LGA (_inCV).
 function refreshCV() {
     let g = 0, o = 0, r = 0;
@@ -300,17 +326,7 @@ function refreshCV() {
     set('cv-orange', o.toLocaleString()); set('cv-orange-pct', pct(o));
     set('cv-red', r.toLocaleString()); set('cv-red-pct', pct(r));
     const grpRows = [natSigGroupRow(nltnRegionCounts('cv')), ...Object.entries(grp)].filter(Boolean);
-    let bh = '';
-    for (const [name, d] of grpRows) {
-        const gp = d.total ? Math.round(d.green / d.total * 100) : 0;
-        const op = d.total ? Math.round(d.orange / d.total * 100) : 0;
-        const rp = d.total ? Math.max(0, 100 - gp - op) : 0;   // red = does-not-meet, fills the remainder
-        bh += '<div class="category-row"><span class="cat-name">' + name + ' <span style="color:var(--faint)">(' + d.total + ')</span></span>' +
-            '<div class="cat-bar"><div class="bar-bg"><div class="bar-fill green" style="width:' + gp + '%"></div>' +
-            '<div class="bar-fill orange" style="width:' + op + '%"></div>' +
-            '<div class="bar-fill red" style="width:' + rp + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
-    }
-    const gb = document.getElementById('cv-group-breakdown'); if (gb) gb.innerHTML = bh;
+    const gb = document.getElementById('cv-group-breakdown'); if (gb) gb.innerHTML = groupBreakdownHTML(grpRows);
 }
 
 // Sydney tab stats = the Overview breakdown, filtered to roads inside the Sydney SUA (_inSyd).
@@ -337,17 +353,7 @@ function refreshSydney() {
     set('syd-orange', o.toLocaleString()); set('syd-orange-pct', pct(o));
     set('syd-red', r.toLocaleString()); set('syd-red-pct', pct(r));
     const grpRows = [natSigGroupRow(nltnRegionCounts('syd')), ...Object.entries(grp)].filter(Boolean);
-    let bh = '';
-    for (const [name, d] of grpRows) {
-        const gp = d.total ? Math.round(d.green / d.total * 100) : 0;
-        const op = d.total ? Math.round(d.orange / d.total * 100) : 0;
-        const rp = d.total ? Math.max(0, 100 - gp - op) : 0;   // red = does-not-meet, fills the remainder
-        bh += '<div class="category-row"><span class="cat-name">' + name + ' <span style="color:var(--faint)">(' + d.total + ')</span></span>' +
-            '<div class="cat-bar"><div class="bar-bg"><div class="bar-fill green" style="width:' + gp + '%"></div>' +
-            '<div class="bar-fill orange" style="width:' + op + '%"></div>' +
-            '<div class="bar-fill red" style="width:' + rp + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
-    }
-    const gb = document.getElementById('syd-group-breakdown'); if (gb) gb.innerHTML = bh;
+    const gb = document.getElementById('syd-group-breakdown'); if (gb) gb.innerHTML = groupBreakdownHTML(grpRows);
 }
 
 // --- Local tab: council roads (green) drawn over the State + Regional network (context) ---
@@ -440,10 +446,7 @@ function refreshNswView() {
     // remainder); State/Regional are 3-tier (red fills the remainder). Local has no such panel.
     const distBar = document.getElementById('nsw-dist-bar');
     if (distBar) {
-        const gp = c.total ? Math.round(c.green / c.total * 100) : 0;
-        const op = m.hideRed ? (c.total ? Math.max(0, 100 - gp) : 0)
-            : (c.total ? Math.round(c.orange / c.total * 100) : 0);
-        const rp = m.hideRed ? 0 : (c.total ? Math.max(0, 100 - gp - op) : 0);
+        const { gp, op, rp } = barPercents(c.green, c.orange, c.total, m.hideRed);
         const seg = (w, col) => w > 0 ? '<span style="width:' + w + '%; background:' + col + '"></span>' : '';
         distBar.innerHTML = seg(gp, '#16a34a') + seg(op, '#f59e0b') + seg(rp, '#dc2626');
         const gLbl = cross ? ('Would meet ' + other) : m.gLabel;
@@ -488,16 +491,6 @@ function refreshOverview() {
     document.getElementById('ov-red').textContent = r.toLocaleString(); document.getElementById('ov-red-pct').textContent = pct(r);
     // Prepend the Nat. Significant national network (statewide) above the two road groups.
     const grpRows = [natSigGroupRow(window.NLTN_CAT_COUNTS), ...Object.entries(grp)].filter(Boolean);
-    let bh = '';
-    for (const [name, d] of grpRows) {
-        const gp = d.total ? Math.round(d.green / d.total * 100) : 0;
-        const op = d.total ? Math.round(d.orange / d.total * 100) : 0;
-        const rp = d.total ? Math.max(0, 100 - gp - op) : 0;   // red = does-not-meet, fills the remainder
-        bh += '<div class="category-row"><span class="cat-name">' + name + ' <span style="color:var(--faint)">(' + d.total + ')</span></span>' +
-            '<div class="cat-bar"><div class="bar-bg"><div class="bar-fill green" style="width:' + gp + '%"></div>' +
-            '<div class="bar-fill orange" style="width:' + op + '%"></div>' +
-            '<div class="bar-fill red" style="width:' + rp + '%"></div></div><span class="cat-pct">' + gp + '%</span></div></div>';
-    }
-    document.getElementById('ov-group-breakdown').innerHTML = bh;
+    document.getElementById('ov-group-breakdown').innerHTML = groupBreakdownHTML(grpRows);
     if (nswLayer) nswLayer.setStyle(nswStyle);
 }
