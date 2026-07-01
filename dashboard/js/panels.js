@@ -33,13 +33,24 @@ function tabGroup(tab) {
 }
 
 // Apply the legend on/off toggles + per-lens NLTN style to the map for the CURRENT view.
-function applyLegend() {
+function applyLegend(opts) {
+    // opts.skipRoadRestyle (set by toggleLegendItem for keys that cannot change nswStyle's output —
+    // towns / boundaries / bypass / NLTN / highlight rings): skip re-styling the ~17.6k road paths, the
+    // most expensive thing this function does. The canvas styles stay correct because those keys are not
+    // inputs to nswStyle. A layer being (re-)ADDED always restyles, whatever the caller asked.
+    const restyleRoads = !(opts && opts.skipRoadRestyle);
     // CV tab + "Show only roads inside the LGA" → swap the full road overlay for the clipped copy.
     // Local tab → hide the State/Regional overlay entirely, so only the green local roads show.
     const cvClip = currentTab === 'cv' && legendToggles.clip;
     const hideNsw = cvClip || currentTab === 'local';
-    if (nswLayer) { if (hideNsw) map.removeLayer(nswLayer); else { map.addLayer(nswLayer); nswLayer.setStyle(nswStyle); } }
-    if (cvClipLayer) { if (cvClip) { map.addLayer(cvClipLayer); cvClipLayer.setStyle(nswStyle); } else map.removeLayer(cvClipLayer); }
+    if (nswLayer) {
+        if (hideNsw) map.removeLayer(nswLayer);
+        else { const wasOn = map.hasLayer(nswLayer); map.addLayer(nswLayer); if (restyleRoads || !wasOn) nswLayer.setStyle(nswStyle); }
+    }
+    if (cvClipLayer) {
+        if (cvClip) { const wasOn = map.hasLayer(cvClipLayer); map.addLayer(cvClipLayer); if (restyleRoads || !wasOn) cvClipLayer.setStyle(nswStyle); }
+        else map.removeLayer(cvClipLayer);
+    }
     if (cvLayer) cvLayer.setStyle(cvStyle);
     // NLTN national network: the SUBJECT of the Nat. Significant lens only — graded green/orange.
     // Hidden on every other tab, incl. CV (it is no longer a reference underlay).
@@ -157,6 +168,11 @@ function toggleBypassIsolate(on) {
     applyLegend();
 }
 
+// Legend keys that are INPUTS to the road style (nswStyle/cvStyle): the verdict colours, the dashed
+// route-number treatment, and the clip layer swap. Toggling any other key (towns, boundary, bypass,
+// nltn, the c_* highlight rings) cannot change a road's style, so the road repaint is skipped.
+const ROADSTYLE_KEYS = { green: 1, orange: 1, red: 1, dashed: 1, clip: 1 };
+
 // Clicking a legend swatch toggles that category on/off across the map.
 function toggleLegendItem(key) {
     legendToggles[key] = !legendToggles[key];
@@ -166,7 +182,7 @@ function toggleLegendItem(key) {
     document.querySelectorAll('.legend-item[data-legend-key="' + key + '"]').forEach(function (el) {
         el.classList.toggle('legend-off', !legendToggles[key]);
     });
-    applyLegend();
+    applyLegend({ skipRoadRestyle: ROADSTYLE_KEYS[key] !== 1 });
 }
 
 // Dim the disabled rows on every legend so all tabs stay in sync with the toggle state.
