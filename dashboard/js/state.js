@@ -51,7 +51,7 @@ map.getPane('localPane').style.zIndex = 260;
 const localRenderer = L.canvas({ pane: 'localPane' });
 
 // HV bypass highlight — roads on an NHVR heavy-vehicle bypass route (data/nhvr_networks.json ->
-// bypass). Drawn as a translucent cyan halo in a pane BELOW the road overlay (z 390 < 400) so the
+// bypass). Drawn as a solid cyan halo in a pane BELOW the road overlay (z 390 < 400) so the
 // graded road + any selection still draw on top and the halo peeks around the line. SVG +
 // non-interactive so clicks fall straight through to the road. Toggled by the 'bypass' legend item.
 // (No dedicated bypass GeoPackage yet — surfaces the existing per-road flags; upload a bypass
@@ -59,8 +59,8 @@ const localRenderer = L.canvas({ pane: 'localPane' });
 map.createPane('bypassPane');
 map.getPane('bypassPane').style.zIndex = 390;
 const bypassRenderer = L.svg({ pane: 'bypassPane' });
-const BYPASS_STYLE = { pane: 'bypassPane', renderer: bypassRenderer, color: '#0891b2', weight: 8,
-    opacity: 0.5, lineCap: 'round', lineJoin: 'round', interactive: false };
+const BYPASS_STYLE = { pane: 'bypassPane', renderer: bypassRenderer, color: '#0891b2', weight: 6,
+    opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false };
 
 // --- Connectivity highlights ---------------------------------------------------------------
 // When a road is selected, ring + label every entity it connects (the evidence behind its
