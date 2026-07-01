@@ -34,7 +34,7 @@ const OVERPASS_URLS = ['https://overpass-api.de/api/interpreter', 'https://maps.
 // `service` (driveways / parking aisles) so the count stays meaningful and the query stays fast.
 const LOCAL_HW = '^(residential|unclassified|living_street|tertiary|tertiary_link|road)$';
 let suburbOutlineLayer = null;             // the searched suburb's perimeter outline
-let _subResults = [], _subActive = -1, _subTimer = null, _subAbort = null, _subLoadAbort = null;
+let _subResults = [], _subActive = -1, _subTimer = null, _subAbort = null, _subLoadAbort = null, _subTabStarted = false;
 
 localRoadsXLayer = L.geoJSON(null, { renderer: localRenderer, style: styleLocalX }).addTo(map);
 map.removeLayer(localRoadsXLayer);   // shown only on the Local tab
@@ -270,6 +270,7 @@ function isSuburbResult(g) {
 
 function renderSuburbResults(arr) {
     _subActive = arr.length ? 0 : -1;
+    _subTabStarted = false;   // new result list — Tab restarts from the top option
     const box = document.getElementById('sub-results');
     if (!box) return;
     if (!arr.length) { box.innerHTML = '<div class="sub-empty">No matching suburb in NSW</div>'; box.classList.add('sub-open'); return; }
@@ -293,8 +294,23 @@ function onSuburbKey(ev) {
     const n = _subResults.length;
     if (ev.key === 'Escape') { hideSuburbResults(); return; }
     if (!n) return;
+    const box = document.getElementById('sub-results');
+    const open = !!(box && box.classList.contains('sub-open'));
     if (ev.key === 'ArrowDown') { ev.preventDefault(); subSetActive((_subActive + 1) % n); }
     else if (ev.key === 'ArrowUp') { ev.preventDefault(); subSetActive((_subActive - 1 + n) % n); }
+    else if (ev.key === 'Tab' && open) {
+        // Tab cycles the highlighted suburb (1st, 2nd, 3rd… wrapping) and previews it in the input; Shift+Tab
+        // steps back. First Tab commits to the currently-highlighted (top) option; Enter / Load then loads it.
+        ev.preventDefault();
+        let idx;
+        if (ev.shiftKey) idx = (_subActive - 1 + n) % n;
+        else if (_subTabStarted) idx = (_subActive + 1) % n;
+        else idx = (_subActive < 0 ? 0 : _subActive);
+        _subTabStarted = true;
+        subSetActive(idx);
+        const inp = document.getElementById('local-suburb-input');
+        if (inp && _subResults[idx]) inp.value = _subResults[idx].name;
+    }
     else if (ev.key === 'Enter') { ev.preventDefault(); if (_subActive >= 0) pickSuburb(_subActive); }
 }
 function onSuburbSubmit() {
@@ -310,21 +326,42 @@ function pickSuburb(i) {
     const inp = document.getElementById('local-suburb-input'); if (inp) { inp.value = s.name; inp.blur(); }
     progStart();
     setLocalXStatus('Finding ' + s.name + '…');
-    // An entry with an osmId (Sydney CBD) resolves to that exact OSM boundary via /lookup — a text search for
-    // "Sydney" returns the 100 km Greater Sydney region, not the CBD suburb, so we pin the id instead.
-    const url = s.osmId
-        ? 'https://nominatim.openstreetmap.org/lookup?format=jsonv2&polygon_geojson=1&osm_ids=' + encodeURIComponent(s.osmId)
-        : 'https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&limit=6&countrycodes=au&q=' +
-            encodeURIComponent(s.name + ', New South Wales ' + (s.postcode || '') + ', Australia');
-    fetch(url)
+    // Sydney CBD (osmId) resolves to that exact OSM boundary via /lookup — a text search for "Sydney" returns
+    // the 100 km Greater Sydney region, not the CBD suburb, so we pin the id instead.
+    if (s.osmId) {
+        fetch('https://nominatim.openstreetmap.org/lookup?format=jsonv2&polygon_geojson=1&osm_ids=' + encodeURIComponent(s.osmId))
+            .then(function (r) { return r.json(); })
+            .then(function (arr) {
+                arr = Array.isArray(arr) ? arr : [];
+                const g = arr.find(hasPolygon) || arr[0];
+                if (!g) { progFail(); setLocalXStatus('Could not locate ' + s.name); return; }
+                loadSuburbResult(g);
+            })
+            .catch(function () { progFail(); setLocalXStatus('Search failed — try again'); });
+        return;
+    }
+    // Only ever accept a suburb / locality result — NEVER a POI. Some bundled postcodes are PO-box codes that
+    // don't map to the suburb (e.g. North Sydney is listed under 2055, not 2060); a search with the wrong
+    // postcode then fuzzy-matches to random commercial/industrial polygons (Honda Rider Training…). So we keep
+    // only place results, and if the postcode query finds no suburb we retry name-only (which resolves cleanly).
+    const base = 'https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&limit=8&countrycodes=au&q=';
+    const pickSub = function (arr) {
+        arr = Array.isArray(arr) ? arr : [];
+        return arr.filter(isSuburbResult).find(hasPolygon) || arr.filter(isSuburbResult)[0] || null;
+    };
+    fetch(base + encodeURIComponent(s.name + ', New South Wales ' + (s.postcode || '') + ', Australia'))
         .then(function (r) { return r.json(); })
         .then(function (arr) {
-            arr = Array.isArray(arr) ? arr : [];
-            const g = s.osmId
-                ? (arr.find(hasPolygon) || arr[0])
-                : (arr.filter(isSuburbResult).find(hasPolygon) || arr.find(hasPolygon) || arr.filter(isSuburbResult)[0] || arr[0]);
-            if (!g) { progFail(); setLocalXStatus('Could not locate ' + s.name); return; }
-            loadSuburbResult(g);
+            const g = pickSub(arr);
+            if (g) { loadSuburbResult(g); return null; }
+            // No suburb match with the (possibly PO-box) postcode — retry without it.
+            return fetch(base + encodeURIComponent(s.name + ', New South Wales, Australia'))
+                .then(function (r) { return r.json(); })
+                .then(function (arr2) {
+                    const g2 = pickSub(arr2);
+                    if (g2) loadSuburbResult(g2);
+                    else { progFail(); setLocalXStatus('Could not locate ' + s.name); }
+                });
         })
         .catch(function () { progFail(); setLocalXStatus('Search failed — try again'); });
 }

@@ -7,6 +7,7 @@
 let ROAD_INDEX = [];     // [{key, num, name, ref, cls}]
 let _rsResults = [];     // result keys currently shown (for keyboard nav)
 let _rsActive = -1;      // active row index
+let _rsTabStarted = false; // Tab-cycle: has Tab advanced past the top result yet
 
 function initRoadSearch() {
     ROAD_INDEX = [];
@@ -65,6 +66,7 @@ function onRoadSearchInput(val) {
     }
     _rsResults = top.map(function (x) { return x[1].key; });
     _rsActive = top.length ? 0 : -1;
+    _rsTabStarted = false;   // new result list — Tab restarts from the top result
     box.classList.add('rs-open');
     if (!top.length) { box.innerHTML = '<div class="rs-empty">No matching road</div>'; return; }
     box.innerHTML = top.map(function (x, i) {
@@ -90,8 +92,26 @@ function onRoadSearchKey(ev) {
     if (ev.key === 'Escape') { clearRoadSearch(); return; }
     const n = _rsResults.length;
     if (!n) return;
+    const box = document.getElementById('rs-results');
+    const open = !!(box && box.classList.contains('rs-open'));
     if (ev.key === 'ArrowDown') { ev.preventDefault(); rsSetActive((_rsActive + 1) % n); _rsScrollActive(); }
     else if (ev.key === 'ArrowUp') { ev.preventDefault(); rsSetActive((_rsActive - 1 + n) % n); _rsScrollActive(); }
+    else if (ev.key === 'Tab' && open) {
+        // Tab cycles the highlighted road (1st, 2nd, 3rd… wrapping) and previews its name in the box; Shift+Tab
+        // steps back. First Tab commits to the top result; Enter loads the highlighted road.
+        ev.preventDefault();
+        let idx;
+        if (ev.shiftKey) idx = (_rsActive - 1 + n) % n;
+        else if (_rsTabStarted) idx = (_rsActive + 1) % n;
+        else idx = (_rsActive < 0 ? 0 : _rsActive);
+        _rsTabStarted = true;
+        rsSetActive(idx);
+        _rsScrollActive();
+        const inp = document.getElementById('rs-input');
+        const item = document.querySelectorAll('#rs-results .rs-item')[idx];
+        const nm = item && item.querySelector('.rs-name');
+        if (inp && nm) inp.value = nm.textContent;
+    }
     else if (ev.key === 'Enter') { ev.preventDefault(); if (_rsActive >= 0) selectRoadFromSearch(_rsResults[_rsActive]); }
 }
 function _rsScrollActive() {
