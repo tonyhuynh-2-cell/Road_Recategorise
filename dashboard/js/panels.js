@@ -161,7 +161,11 @@ function toggleBypassIsolate(on) {
 function toggleLegendItem(key) {
     legendToggles[key] = !legendToggles[key];
     if (key === 'clip') deselect();   // swapping the road layer — clear any stale selection/highlight
-    syncLegendVisuals();
+    // Only the clicked key's row changed state — update just its row(s) rather than re-sweeping every
+    // legend row (syncLegendVisuals, still used on full rebuilds + the multi-toggle bypass isolate).
+    document.querySelectorAll('.legend-item[data-legend-key="' + key + '"]').forEach(function (el) {
+        el.classList.toggle('legend-off', !legendToggles[key]);
+    });
     applyLegend();
 }
 
