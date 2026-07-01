@@ -381,7 +381,7 @@ const _lensCounts = {};   // non-cross per-lens counts are static after load —
 function nswViewCounts() {
     if (nswView === 'nsr') {
         const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };
-        return { green: n.green, orange: n.orange, red: 0, total: n.total };
+        return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total };   // carry red, don't force 0
     }
     // Cross-criteria toggle on: count each road by its verdict AGAINST the other category (asReg on the
     // State lens, asState on the Regional lens) so the stat cards match the recoloured map.
@@ -405,11 +405,15 @@ function nswViewCounts() {
 // Refresh the shared NSW panel (title, stats, legend, note) and restyle the map for the lens.
 function refreshNswView() {
     const m = NSW_VIEW_META[nswView]; if (!m) return;
+    const c = nswViewCounts();
+    // Nat. Significant is a 2-tier lens (green / "would meet") that hides the "does not meet" tier — but
+    // ONLY while the data genuinely has no red route. If the national grading ever produces a red, surface
+    // it instead of folding it into "would meet": verdicts are earned from the data, not forced.
+    const hideRed = m.hideRed && c.red === 0;
     const grid = document.querySelector('#tab-nsw .stat-grid');
-    if (grid) { grid.style.display = ''; grid.style.gridTemplateColumns = m.hideRed ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'; }
-    // Nat. Significant has no "does not meet" tier — everything on the network meets S-01 — so hide that card.
+    if (grid) { grid.style.display = ''; grid.style.gridTemplateColumns = hideRed ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'; }
     const redCard = document.getElementById('nsw-red').closest('.stat-card');
-    if (redCard) redCard.style.display = m.hideRed ? 'none' : '';
+    if (redCard) redCard.style.display = hideRed ? 'none' : '';
 
     // Cross-criteria toggle — only on the State / Regional lenses. When ON, the roads are re-graded
     // against the OTHER category (State→Regional, Regional→State) and the panel copy reflects that.
@@ -428,8 +432,6 @@ function refreshNswView() {
 
     document.getElementById('nsw-hero-title').textContent = cross ? (m.title + ' — tested as ' + other) : m.title;
     document.getElementById('nsw-total-sub').textContent = cross ? ('Re-graded against the ' + other + ' Road criteria — reclassification test') : m.sub;
-    // Every lens (incl. Nat. Significant) is graded green/orange/red from the criteria.
-    const c = nswViewCounts();
     document.getElementById('nsw-total').textContent = c.total.toLocaleString();
     const pct = n => c.total ? (n / c.total * 100).toFixed(0) + '% of these roads' : '';
     document.getElementById('nsw-green-label').textContent = cross ? ('Would meet ' + other) : m.gLabel;
@@ -438,7 +440,7 @@ function refreshNswView() {
     document.getElementById('nsw-orange-label').textContent = m.oLabel;
     document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();
     document.getElementById('nsw-orange-pct').textContent = pct(c.orange);
-    document.getElementById('nsw-red-label').textContent = cross ? ('Would not meet ' + other) : m.rLabel;
+    document.getElementById('nsw-red-label').textContent = cross ? ('Would not meet ' + other) : (hideRed ? m.rLabel : (m.rLabel || 'Does not meet'));
     document.getElementById('nsw-red').textContent = c.red.toLocaleString();
     document.getElementById('nsw-red-pct').textContent = pct(c.red);
     // Verdict distribution bar — the green/orange(/red) split for this lens, mirroring the Overview's
@@ -446,14 +448,14 @@ function refreshNswView() {
     // remainder); State/Regional are 3-tier (red fills the remainder). Local has no such panel.
     const distBar = document.getElementById('nsw-dist-bar');
     if (distBar) {
-        const { gp, op, rp } = barPercents(c.green, c.orange, c.total, m.hideRed);
+        const { gp, op, rp } = barPercents(c.green, c.orange, c.total, hideRed);
         const seg = (w, col) => w > 0 ? '<span style="width:' + w + '%; background:' + col + '"></span>' : '';
         distBar.innerHTML = seg(gp, '#16a34a') + seg(op, '#f59e0b') + seg(rp, '#dc2626');
         const gLbl = cross ? ('Would meet ' + other) : m.gLabel;
-        const rLbl = cross ? ('Would not meet ' + other) : m.rLabel;
+        const rLbl = cross ? ('Would not meet ' + other) : (m.rLabel || 'Does not meet');
         const dk = (col, label, n) => label ? '<span class="dk"><i style="background:' + col + '"></i>' + label + ' <b>' + n.toLocaleString() + '</b></span>' : '';
         document.getElementById('nsw-dist-key').innerHTML =
-            dk('#16a34a', gLbl, c.green) + dk('#f59e0b', m.oLabel, c.orange) + (m.hideRed ? '' : dk('#dc2626', rLbl, c.red));
+            dk('#16a34a', gLbl, c.green) + dk('#f59e0b', m.oLabel, c.orange) + (hideRed ? '' : dk('#dc2626', rLbl, c.red));
     }
     // The map legend itself is the floating panel (renderMapLegend), rebuilt by switchTab.
     const np = document.querySelector('#nsw-note p');
