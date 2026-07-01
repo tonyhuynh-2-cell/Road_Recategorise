@@ -41,8 +41,13 @@ function applyLegend(opts) {
     const restyleRoads = !(opts && opts.skipRoadRestyle);
     // CV tab + "Show only roads inside the LGA" → swap the full road overlay for the clipped copy.
     // Local tab → hide the State/Regional overlay entirely, so only the green local roads show.
+    // Nat. Significant lens → nswInView hides EVERY road there (its subject is the NLTN layer), so take
+    // the layer OFF the map instead of drawing 17.6k invisible paths: zoom/pan then skip re-projecting
+    // them entirely. Mirrors nswInView's precedence: CV/Sydney show roads even if nswView is stale 'nsr';
+    // the detail view keeps whatever lens it came from (nswView is unchanged there).
     const cvClip = currentTab === 'cv' && legendToggles.clip;
-    const hideNsw = cvClip || currentTab === 'local';
+    const nsrLens = currentTab !== 'cv' && currentTab !== 'sydney' && nswView === 'nsr';
+    const hideNsw = cvClip || currentTab === 'local' || nsrLens;
     if (nswLayer) {
         if (hideNsw) map.removeLayer(nswLayer);
         else { const wasOn = map.hasLayer(nswLayer); map.addLayer(nswLayer); if (restyleRoads || !wasOn) nswLayer.setStyle(nswStyle); }
@@ -194,9 +199,9 @@ function syncLegendVisuals() {
 
 function showNSW() {
     if (cvLayer) map.removeLayer(cvLayer);
-    // Every NSW lens (incl. Nat. Significant) shows the criteria-graded roads; the green NLTN
-    // network is only a faint reference underneath.
-    if (nswLayer) map.addLayer(nswLayer);
+    // The road overlay is owned by applyLegend(): it adds + styles it for the Overview/State/Regional
+    // lenses and removes it for Nat. Significant (all roads hidden there — see hideNsw). Adding it here
+    // first would project all ~17.6k paths only for applyLegend to tear them straight down on nsr.
     applyLegend();
     // Frame NSW only when arriving from a different context (or first load) — switching among the
     // NSW lens tabs preserves the user's current pan/zoom.
