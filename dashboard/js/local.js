@@ -46,15 +46,25 @@ function localRoadClickHandler(e) {
     if (currentTab !== 'local' || !localRoadsXLayer) return;
     const layers = localRoadsXLayer.getLayers(); if (!layers.length) return;
     const p = map.latLngToLayerPoint(e.latlng);
+    // Cull to roads whose (cached) bounds fall near the click before projecting their vertices — a dense
+    // suburb can hold thousands of segments, and projecting every vertex of every road on each click is the
+    // cost. The 40px margin is well beyond the 10px hit threshold below, so a road that could be selected
+    // (some point within 10px) always has bounds inside this box and is never culled — same result, less work.
+    const clickBox = L.latLngBounds(map.layerPointToLatLng(p.subtract([40, 40])), map.layerPointToLatLng(p.add([40, 40])));
     let bestFeat = null, bestD = Infinity;
     for (let n = 0; n < layers.length; n++) {
-        const lls0 = layers[n].getLatLngs(); if (!lls0 || !lls0.length) continue;
+        const lyr = layers[n];
+        if (lyr.getBounds && !clickBox.intersects(lyr.getBounds())) continue;   // whole road is far from the click
+        const lls0 = lyr.getLatLngs(); if (!lls0 || !lls0.length) continue;
         const segs = Array.isArray(lls0[0]) ? lls0 : [lls0];   // LineString → wrap; MultiLineString → as-is
         for (let s = 0; s < segs.length; s++) {
             const seg = segs[s];
+            let prev = seg.length ? map.latLngToLayerPoint(seg[0]) : null;   // project each vertex once, reuse
             for (let i = 1; i < seg.length; i++) {
-                const d = L.LineUtil.pointToSegmentDistance(p, map.latLngToLayerPoint(seg[i - 1]), map.latLngToLayerPoint(seg[i]));
-                if (d < bestD) { bestD = d; bestFeat = layers[n].feature; }
+                const cur = map.latLngToLayerPoint(seg[i]);
+                const d = L.LineUtil.pointToSegmentDistance(p, prev, cur);
+                if (d < bestD) { bestD = d; bestFeat = lyr.feature; }
+                prev = cur;
             }
         }
     }
