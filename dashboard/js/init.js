@@ -47,6 +47,9 @@ Promise.all([
     // Significant Urban Area boundary outlines (drawn as the "town perimeter" highlight on selection),
     // indexed by suaId — data/sua_outlines.json.
     window.SUA_OUTLINES = suaOutlines || [];
+    // Town/centre points [lon,lat] — used by the Cross-test tab's simplified "local road → Regional"
+    // proximity test (a Regional road connects ≥2 urban/town centres).
+    window.NSW_TOWN_PTS = ((nswTowns && nswTowns.features) || []).map(function (f) { return f.geometry && f.geometry.coordinates; }).filter(Boolean);
     NSW_SEG_TOTAL = (nswRoads.features || []).length;   // total road segments (e.g. 17,691)
     // Manual overrides (data/ref_overrides.json) win over the auto OSM join.
     // Key by road_number: "B76" forces a shield, "" removes it. By road_name (UPPER) as fallback.
@@ -98,7 +101,10 @@ Promise.all([
     Object.values(nswRoadAgg).forEach(a => {
         a.status = ['red', 'orange', 'green'].reduce((best, s) => (a._byStatus[s] > a._byStatus[best] ? s : best), 'red');
         a._urban = a._urbanLen > a._ruralLen;
-        a._nsr = a.admin_class === 'S' && a._nltnLen >= 0.5 * a._len;
+        // Nationally significant = State road predominantly (>=50% of length) on the National Land
+        // Transport Network. NSR_EXCLUDE lists roads the spatial join over-attributes but which are, per
+        // review, ordinary State roads NOT on the NLTN Determination 2020 — they belong on the State tab.
+        a._nsr = a.admin_class === 'S' && a._nltnLen >= 0.5 * a._len && !NSR_EXCLUDE[a.road_number];
     });
     NSW_AGG = nswRoadAgg;   // expose per-road aggregate for the lens stats/counts
     const recat = nswRecat || [];
@@ -145,6 +151,42 @@ Promise.all([
         });
         // Roll the flag up to the per-road aggregate so the CV tab stats can count roads in the LGA.
         nswRoads.features.forEach(f => { if (f.properties._inCV) { const k = roadKeyOf(f.properties); if (k && nswRoadAgg[k]) nswRoadAgg[k]._inCV = true; } });
+    })();
+    // Sydney Significant Urban Area (SUA_OUTLINES[30], name "Sydney") — the current Sydney outline. Tags
+    // roads inside it (_inSyd → Sydney tab stats) and provides the boundary outline. Same point-in-polygon
+    // ray-cast as the LGA above; each SUA ring is a separate island (not a hole), so test each independently.
+    (function buildSyd() {
+        const su = (window.SUA_OUTLINES || [])[30];
+        if (!su || !su.rings || !su.rings.length) return;
+        const sydPolys = su.rings.map(r => [r]);
+        let bx0 = 180, by0 = 90, bx1 = -180, by1 = -90;
+        su.rings.forEach(r => r.forEach(p => { if (p[0] < bx0) bx0 = p[0]; if (p[0] > bx1) bx1 = p[0]; if (p[1] < by0) by0 = p[1]; if (p[1] > by1) by1 = p[1]; }));
+        const sydInside = function (x, y) {
+            if (x < bx0 || x > bx1 || y < by0 || y > by1) return false;
+            for (const poly of sydPolys) {
+                let inP = false;
+                for (const ring of poly) {
+                    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                        const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+                        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-12) + xi)) inP = !inP;
+                    }
+                }
+                if (inP) return true;
+            }
+            return false;
+        };
+        const coords = g => g.type === 'LineString' ? g.coordinates : g.type === 'MultiLineString' ? [].concat.apply([], g.coordinates) : [];
+        nswRoads.features.forEach(f => {
+            f.properties._inSyd = false;
+            for (const pt of coords(f.geometry)) { if (sydInside(pt[0], pt[1])) { f.properties._inSyd = true; break; } }
+        });
+        nswRoads.features.forEach(f => { if (f.properties._inSyd) { const k = roadKeyOf(f.properties); if (k && nswRoadAgg[k]) nswRoadAgg[k]._inSyd = true; } });
+        // Boundary outline (multipart) — reuse the CV boundary pane/renderer/style; only one region shows at a time.
+        const sydGeo = { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: su.rings.map(r => [r]) } };
+        sydBoundaryLayer = L.geoJSON(sydGeo, {
+            interactive: false, pane: 'cvbPane', renderer: cvbRenderer, smoothFactor: 2,
+            style: { color: '#000000', weight: 2.5, fill: false, opacity: 0.9, lineJoin: 'round' }
+        });
     })();
     nswLayer = L.geoJSON(nswRoads, {
         style: nswStyle,
@@ -300,6 +342,10 @@ Promise.all([
             f.properties._natPortair = !!m.portair;
             f.properties._natPbs2b = m.pbs2b;      // S-06: true = NHVR PBS 2B Approved Route, false = not, null = unknown
         });
+        // Length (km) per determination route (_natGroup), summed over its segments — feeds the distance
+        // readout when a national road is selected on the Nat. Significant tab (these are the long routes).
+        window.NLTN_LEN = {};
+        nltn.features.forEach(f => { const g = f.properties._natGroup; window.NLTN_LEN[g] = (window.NLTN_LEN[g] || 0) + roadLenKm(f.geometry); });
         // Count whole national ROADS (determination routes), not segments → Nat. Significant stat cards.
         const _seenG = {};
         window.NLTN_CAT_COUNTS = nltn.features.reduce((c, f) => {

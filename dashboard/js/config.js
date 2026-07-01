@@ -28,7 +28,7 @@ const NSW_VIEW_META = {
         title: 'State Roads', sub: 'State roads not on the national network, graded against the State Road criteria',
         gLabel: 'Meets criteria', oLabel: 'Meets 1 of 2', rLabel: 'Does not meet',
         legend: [['#16a34a', 'Meets State criteria (≥2 optional)'], ['#f59e0b', 'Meets 1 of 2 — may pass with ADT'], ['#dc2626', 'Meets none — candidate to downgrade']],
-        note: 'State Roads must meet ≥2 optional criteria (connect centres; connect major hospitals / ports / airports / employment; long-distance rural route) plus the mandatory criteria. Nationally significant State roads (predominantly on the National Land Transport Network) are shown on the Nat. Significant tab, not here. Orange roads meet 1 of 2 and would qualify if ADT exceeds the threshold; ADT is not available statewide.'
+        note: 'State Roads must meet ≥2 optional criteria (connect centres; connect major hospitals / ports / airports / employment; long-distance rural route) plus the mandatory criteria. Nationally significant State roads (predominantly on the National Land Transport Network — M1, M4, M5, Hume, etc.) are shown on the Nat. Significant tab, not here. Orange roads meet 1 of 2 and would qualify if ADT exceeds the threshold; ADT is not available statewide.'
     },
     regional: {
         title: 'Regional Roads', sub: 'Graded against the Regional Road criteria',
@@ -37,6 +37,19 @@ const NSW_VIEW_META = {
         note: 'Regional Roads must meet ≥2 optional criteria (connect urban / town centres; connect hospitals / ports / airports / employment to centres) plus the mandatory 19m B-double access. Orange roads meet 1 of 2 and would qualify with sufficient ADT.'
     }
 };
+
+// State roads the NLTN spatial join (nsw_nltn.json) over-attributes as nationally significant but which
+// are, per review, ordinary State roads NOT on the National Land Transport Network Determination 2020.
+// Keyed by road_number → reason. These are forced off _nsr so they show on the State Roads tab instead.
+const NSR_EXCLUDE = {
+    '0000005': 'A44 — The Northern Rd (not on the NLTN Determination 2020)',
+};
+
+// Local roads: the authoritative TfNSW RoadSegment service is ~20-30s per viewport (verified) — far too
+// slow for live use — so local roads surface via the basemap instead: a CARTO street-label overlay
+// (see local.js) that switches on only at/after this zoom, naming the local roads already drawn on the
+// base map. Instant, no external queries.
+const LOCAL_ZOOM = 14;
 
 // Town markers turn into name text-boxes once zoomed in past this level
 const LABEL_ZOOM = 9;

@@ -18,7 +18,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/
     attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
 }).addTo(map);
 
-let nswLayer, nswTownsLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, nltnLayer, bypassLayer;
+let nswLayer, nswTownsLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, sydBoundaryLayer, nltnLayer, bypassLayer, localRoadsXLayer;
 
 
 // Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
@@ -35,6 +35,16 @@ const nltnRenderer = L.svg({ pane: 'nltnPane' });
 map.createPane('cvbPane');
 map.getPane('cvbPane').style.zIndex = 420;
 const cvbRenderer = L.svg({ pane: 'cvbPane' });
+
+// Local roads & street names come from the basemap: a CARTO street-label overlay added only at high
+// zoom (see local.js) — the authoritative TfNSW service is far too slow (~20-30s/request) for live use.
+// Its tile pane sits just above the base map, below the graded road overlay (z 260 < 400) so the
+// State/Regional grading always reads on top.
+map.createPane('localPane');
+map.getPane('localPane').style.zIndex = 260;
+// On the Cross-test tab, local roads are drawn as green vectors (fetched on demand) in the same pane —
+// a canvas renderer keeps hundreds of segments smooth. (Labels vs vectors never share a tab.)
+const localRenderer = L.canvas({ pane: 'localPane' });
 
 // HV bypass highlight — roads on an NHVR heavy-vehicle bypass route (data/nhvr_networks.json ->
 // bypass). Drawn as a translucent cyan halo in a pane BELOW the road overlay (z 390 < 400) so the
@@ -141,7 +151,16 @@ function fitToSua(suaId) {
 // verdict colours + dashed/towns/boundary, plus the "Highlights" group: c_centre/c_hosp/c_dest/
 // c_employ = the on-select connection rings. clip = CV tab only, hide roads outside the LGA outline.
 let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
-    bypass: false, c_centre: true, c_hosp: true, c_dest: true, c_employ: true };
+    bypass: false, local: true, c_centre: true, c_hosp: true, c_dest: true, c_employ: true };
+
+// Cross-criteria (reclassification) test — which test directions are shown on the Cross-test tab:
+// Regional roads re-graded as State, and/or State roads re-graded as Regional. Its own toggles (the
+// separate legend for that tab), independent of the main map legend.
+let xtestDir = { regional: true, state: true };
+
+// Cross-test → Local roads: `show` draws council Local roads (fetched live from TfNSW, zoom-gated) in
+// green; `test` grades them against a simplified Regional test (proximity to town centres) instead.
+let xtLocal = { show: false, test: false };
 
 let currentTab = 'overview';
 
@@ -153,7 +172,7 @@ let NSW_AGG = {};           // per-road rolled-up aggregate (set during load), u
 
 let NSW_SEG_TOTAL = 0;      // total assessed road segments (features) — shown alongside the road count
 
-let mapContext = null;      // 'nsw' | 'cv' — only refit the map when this changes, not on every tab switch
+let mapContext = null;      // 'nsw' | 'cv' | 'sydney' — only refit the map when this changes, not on every tab switch
 
 let selectedLayers = [];
 
@@ -178,11 +197,39 @@ function deselect() {
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = [];
     selectedSource = null;
+    hideRoadDistance();     // clear the selected-road distance readout
     const c = document.getElementById('detail-content'); if (c) c.style.display = 'none';
     const e = document.getElementById('detail-empty'); if (e) e.style.display = '';
 }
 
 map.on('click', deselect);  // clicking off any road clears the selection
+
+// --- Bottom-right map widgets: a scale bar + the selected-road distance readout ---
+// Scale bar: pick a "nice" round distance (1 / 2 / 5 × 10ⁿ) that fits in ~80 px at the map centre.
+function updateScale() {
+    const barEl = document.getElementById('mw-scale-bar');
+    const labelEl = document.getElementById('mw-scale-label');
+    if (!barEl || !labelEl) return;
+    const y = map.getSize().y / 2, target = 130;
+    const meters = map.distance(map.containerPointToLatLng([0, y]), map.containerPointToLatLng([target, y]));
+    if (!isFinite(meters) || meters <= 0) return;
+    const pow = Math.pow(10, Math.floor(Math.log10(meters)));
+    const nice = ((meters / pow) >= 5 ? 5 : (meters / pow) >= 2 ? 2 : 1) * pow;
+    barEl.style.width = Math.round(target * nice / meters) + 'px';
+    labelEl.textContent = nice >= 1000 ? (nice / 1000) + ' km' : Math.round(nice) + ' m';
+}
+map.on('moveend zoomend', updateScale);
+map.whenReady(function () { setTimeout(updateScale, 0); });
+
+// The selected road's length (km) in a pill above the scale; hidden when nothing is selected.
+function showRoadDistance(km) {
+    const el = document.getElementById('mw-distance');
+    if (!el) return;
+    if (typeof km !== 'number' || !isFinite(km) || km <= 0) { el.hidden = true; return; }
+    el.innerHTML = '<span class="mw-dist-cap">Length</span>' + (km >= 10 ? km.toFixed(0) : km.toFixed(1)) + ' km';
+    el.hidden = false;
+}
+function hideRoadDistance() { const el = document.getElementById('mw-distance'); if (el) el.hidden = true; }
 
 function updateTownLabels() {
     map.getContainer().classList.toggle('labels-on', map.getZoom() >= LABEL_ZOOM);

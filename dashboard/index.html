@@ -44,7 +44,9 @@
                 <button class="tab-btn" onclick="switchTab('state')">State Roads</button>
                 <button class="tab-btn" onclick="switchTab('regional')">Regional</button>
             </div>
+            <button class="tab-btn" onclick="switchTab('sydney')">Sydney</button>
             <button class="tab-btn" onclick="switchTab('cv')">Clarence Valley</button>
+            <button class="tab-btn tab-xtest" onclick="switchTab('xtest')">⇄ Cross-criteria test</button>
         </div>
 
         <!-- Overview Tab — whole NSW network, each road graded against its own category criteria -->
@@ -111,6 +113,40 @@
             </div>
         </div>
 
+        <!-- Sydney Tab — the Overview, zoomed into the Sydney Significant Urban Area with its outline -->
+        <div class="tab-content" id="tab-sydney">
+            <div class="stat-card hero">
+                <h3>Sydney</h3>
+                <div class="stat-value blue" id="syd-total">–</div>
+                <div class="stat-sub">State &amp; Regional roads in the Sydney urban area, graded against their criteria</div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <h3>Meets criteria</h3>
+                    <div class="stat-value green" id="syd-green">–</div>
+                    <div class="stat-sub" id="syd-green-pct"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Meets 1 of 2</h3>
+                    <div class="stat-value orange" id="syd-orange">–</div>
+                    <div class="stat-sub" id="syd-orange-pct"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Does not meet</h3>
+                    <div class="stat-value red" id="syd-red">–</div>
+                    <div class="stat-sub" id="syd-red-pct"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <h3>By road group</h3>
+                <div id="syd-group-breakdown"></div>
+            </div>
+            <div class="data-note">
+                <span class="note-label">Note</span>
+                <p>The Sydney tab is the Overview map zoomed into the Sydney Significant Urban Area, with the boundary drawn as an outline. Roads are graded against their own State / Regional criteria — the same as everywhere else. Click any road for its full assessment.</p>
+            </div>
+        </div>
+
         <!-- Clarence Valley Tab — the Overview, zoomed into the Clarence Valley LGA with its outline -->
         <div class="tab-content" id="tab-cv">
             <div class="stat-card hero">
@@ -142,6 +178,45 @@
             <div class="data-note">
                 <span class="note-label">Note</span>
                 <p>The Clarence Valley tab is the Overview map zoomed into the LGA, with the boundary drawn as an outline. Roads are graded against their own State / Regional criteria — the same as everywhere else. Click any road for its full assessment.</p>
+            </div>
+        </div>
+
+        <!-- Cross-criteria (reclassification) test — each road re-graded against the OTHER category's
+             criteria. Its own direction toggles are a separate legend. See refreshXtest() in js/panels.js. -->
+        <div class="tab-content" id="tab-xtest">
+            <div class="stat-card hero">
+                <h3>Cross-criteria test</h3>
+                <div class="stat-value blue" id="xt-total">–</div>
+                <div class="stat-sub">Roads that would meet the OTHER category's criteria — reclassification candidates</div>
+            </div>
+            <div class="stat-card">
+                <h3>Test direction</h3>
+                <div class="xt-legend">
+                    <label class="xt-toggle"><input type="checkbox" checked onchange="toggleXtestDir('regional', this.checked)"><span>Regional roads → tested as <strong>State</strong></span></label>
+                    <label class="xt-toggle"><input type="checkbox" checked onchange="toggleXtestDir('state', this.checked)"><span>State roads → tested as <strong>Regional</strong></span></label>
+                </div>
+                <div class="xt-key">
+                    <div><span class="xt-dot" style="background:#16a34a"></span> Meets that category (≥2 optional)</div>
+                    <div><span class="xt-dot" style="background:#f59e0b"></span> Meets 1 of 2 — may pass with ADT</div>
+                    <div><span class="xt-dot" style="background:#dc2626"></span> Fails that category</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <h3>Reclassification candidates</h3>
+                <div id="xt-breakdown"></div>
+            </div>
+            <div class="stat-card">
+                <h3>Local roads (council)</h3>
+                <div class="xt-legend">
+                    <label class="xt-toggle"><input type="checkbox" onchange="toggleXtLocalShow(this.checked)"><span>Show Local roads (green) <span style="color:var(--faint)">· zoom in</span></span></label>
+                    <label class="xt-toggle"><input type="checkbox" onchange="toggleXtLocalTest(this.checked)"><span>Test them as <strong>Regional</strong></span></label>
+                </div>
+                <div id="xt-local-status" class="xt-status"></div>
+                <p class="xt-fine">Live from TfNSW (~20s to load a view). The test is connectivity-only (≥2 town centres nearby) — B-double access isn't published for local roads.</p>
+            </div>
+            <div class="data-note">
+                <span class="note-label">Note</span>
+                <p>Each road is re-graded against the OTHER category's criteria: Regional roads tested as State (would they qualify to be upgraded?) and State roads tested as Regional. The optional connectivity criteria are shared; only the mandatory gate swaps — State needs PBS-1 access, Regional needs 19m B-double access. Verdicts are earned from the data, not forced.</p>
             </div>
         </div>
 
@@ -215,6 +290,31 @@
         </div>
         <!-- Floating map legend + highlight toggles (top-right of the map). Built by renderMapLegend(). -->
         <div id="map-legend" class="map-legend"></div>
+        <!-- HV bypass isolate (bottom-left): checking it hides all other legend layers + highlights,
+             leaving only the NHVR heavy-vehicle bypass network. See toggleBypassIsolate() in panels.js. -->
+        <label class="bypass-toggle" title="Show only the NHVR heavy-vehicle bypass network">
+            <input type="checkbox" onchange="toggleBypassIsolate(this.checked)">
+            <span class="bt-mark" aria-hidden="true"></span>
+            <span class="bt-label">HV bypass only</span>
+        </label>
+        <!-- Map widgets (bottom-right, above the HV bypass toggle): a scale bar + minimalist compass, plus
+             a selected-road distance readout that appears above the scale when a road is selected.
+             updateScale() / showRoadDistance() live in js/state.js. -->
+        <div class="map-widgets">
+            <div class="mw-distance" id="mw-distance" hidden></div>
+            <div class="mw-baseline">
+                <svg class="mw-compass" viewBox="0 0 34 34" aria-label="North is up">
+                    <circle cx="17" cy="18" r="12" fill="#ffffff" fill-opacity="0.92" stroke="#e7e5e4" stroke-width="1"></circle>
+                    <path d="M17 9 L21 22 L17 18.5 L13 22 Z" fill="#dc2626"></path>
+                    <path d="M17 27 L13 22 L17 18.5 L21 22 Z" fill="#d6d3d1"></path>
+                    <text x="17" y="7.8" text-anchor="middle" font-size="7" font-weight="800" fill="#57534e" font-family="sans-serif">N</text>
+                </svg>
+                <div class="mw-scale" id="mw-scale">
+                    <div class="mw-scale-bar" id="mw-scale-bar"></div>
+                    <span class="mw-scale-label" id="mw-scale-label"></span>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -224,7 +324,7 @@
 <script>
 (function () {
     var v = Date.now();
-    var files = ['config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'export', 'init'];
+    var files = ['config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'local', 'export', 'init'];
     for (var i = 0; i < files.length; i++) {
         document.write('<script src="js/' + files[i] + '.js?v=' + v + '"><\/script>');
     }
@@ -237,7 +337,7 @@
 <script>
 (function () {
     var WATCH = ['index.html', 'css/dashboard.css',
-        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/export.js', 'js/init.js',
+        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/local.js', 'js/export.js', 'js/init.js',
         'data/nsw_assessment.geojson', 'data/nsw_nltn.json', 'data/nsw_criteria.json', 'data/nsw_recat.json',
         'data/nsw_urbanity.json', 'data/nsw_refs.json', 'data/ref_overrides.json', 'data/summary_stats.json',
         'data/clarence_valley_assessment.geojson', 'data/towns_cv.geojson', 'data/cv_refs.json',

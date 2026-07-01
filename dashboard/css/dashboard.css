@@ -132,7 +132,7 @@
         .leaflet-bar { border: none !important; box-shadow: 0 1px 4px rgba(28,25,23,.12) !important; }
         .leaflet-bar a { background: var(--bg) !important; color: var(--ink-soft) !important; border-bottom: 1px solid var(--line) !important; width: 32px !important; height: 32px !important; line-height: 32px !important; font-size: 17px !important; }
         .leaflet-bar a:hover { background: var(--bg-soft) !important; }
-        .leaflet-control-attribution { background: rgba(255,255,255,.82) !important; color: var(--faint) !important; font: 400 10px var(--sans) !important; }
+        .leaflet-control-attribution { background: rgba(255,255,255,.7) !important; color: var(--faint) !important; font: 400 8px var(--sans) !important; padding: 0 4px !important; line-height: 1.45 !important; }
         .leaflet-control-attribution a { color: var(--muted) !important; }
 
         /* Detail tab */
@@ -245,3 +245,45 @@
         .rs-name { color: var(--ink); font: 500 13px/1.35 var(--sans); }
         .rs-meta { color: var(--muted); font: 400 11.5px var(--mono); margin-top: 1px; }
         .rs-empty { padding: 10px 12px; color: var(--muted); font: 400 12.5px var(--sans); }
+
+        /* --- HV bypass isolate toggle (bottom-right, sitting just above the small OSM/CARTO watermark) --- */
+        .bypass-toggle { position: absolute; right: 12px; bottom: 22px; z-index: 600; display: flex; align-items: center;
+            gap: 8px; background: rgba(255,255,255,.96); backdrop-filter: blur(3px); border: 1px solid var(--line);
+            border-radius: 9px; padding: 8px 11px; box-shadow: 0 4px 16px rgba(28,25,23,.12); cursor: pointer;
+            font: 500 12.5px var(--sans); color: var(--ink-soft); user-select: none; }
+        .bypass-toggle:hover { border-color: #93b4d8; }
+        .bypass-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .bt-mark { width: 15px; height: 15px; flex: 0 0 auto; border: 1.5px solid var(--faint); border-radius: 4px;
+            position: relative; transition: background .12s ease, border-color .12s ease; }
+        .bypass-toggle input:checked + .bt-mark { background: #0891b2; border-color: #0891b2; }
+        .bypass-toggle input:checked + .bt-mark::after { content: ''; position: absolute; left: 4px; top: 1px;
+            width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .bypass-toggle input:focus-visible + .bt-mark { outline: 2px solid #93b4d8; outline-offset: 1px; }
+        .bt-label { white-space: nowrap; }
+
+        /* --- Map widgets (bottom-right, above the HV bypass toggle): distance readout + compass + scale --- */
+        .map-widgets { position: absolute; right: 12px; bottom: 64px; z-index: 600; display: flex;
+            flex-direction: column; align-items: flex-end; gap: 7px; pointer-events: none; }
+        .mw-distance { background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: 8px;
+            padding: 4px 10px; box-shadow: 0 3px 12px rgba(28,25,23,.12); font: 600 12.5px var(--sans);
+            color: var(--ink-soft); white-space: nowrap; }
+        .mw-distance[hidden] { display: none; }
+        .mw-dist-cap { color: var(--muted); font-weight: 500; font-size: 10px; text-transform: uppercase;
+            letter-spacing: .05em; margin-right: 5px; }
+        .mw-baseline { display: flex; align-items: flex-end; gap: 8px; }
+        .mw-compass { width: 30px; height: 30px; filter: drop-shadow(0 2px 5px rgba(28,25,23,.18)); }
+        .mw-scale { background: rgba(255,255,255,.85); border-radius: 5px; padding: 5px 9px 4px; box-shadow: 0 2px 8px rgba(28,25,23,.1); }
+        .mw-scale-bar { height: 8px; border: 2px solid var(--ink-soft); border-top: 0; min-width: 44px; transition: width .15s ease; }
+        .mw-scale-label { display: block; text-align: center; font: 600 12px var(--mono); color: var(--ink-soft); margin-top: 3px; line-height: 1; }
+
+        /* --- Cross-criteria test: tab button (accent) + its own panel legend (direction toggles + key) --- */
+        .tab-xtest { border-color: #cdbcee !important; color: #6d28d9 !important; font-weight: 600; }
+        .tab-xtest.active { background: #6d28d9 !important; color: #fff !important; border-color: #6d28d9 !important; }
+        .xt-legend { display: flex; flex-direction: column; gap: 9px; margin-bottom: 11px; }
+        .xt-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font: 400 12.5px var(--sans); color: var(--ink-soft); }
+        .xt-toggle input { width: 15px; height: 15px; accent-color: #6d28d9; cursor: pointer; flex: 0 0 auto; }
+        .xt-key { display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--line); padding-top: 9px; font: 400 11.5px var(--sans); color: var(--muted); }
+        .xt-key > div { display: flex; align-items: center; gap: 7px; }
+        .xt-dot { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+        .xt-status { font: 600 11.5px var(--sans); color: #6d28d9; min-height: 14px; margin-top: 2px; }
+        .xt-fine { font-size: 11px; color: var(--muted); margin: 6px 0 0; line-height: 1.4; }

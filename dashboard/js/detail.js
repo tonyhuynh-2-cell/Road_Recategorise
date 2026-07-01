@@ -5,6 +5,8 @@ function showRoadDetail(p, source) {
     document.getElementById('detail-empty').style.display = 'none';
     document.getElementById('detail-content').style.display = 'block';
     detailLayout('road');
+    // Selected-road distance readout (bottom-right, above the scale). _len is the road length in km.
+    if (typeof showRoadDistance === 'function') showRoadDistance(typeof p._len === 'number' ? p._len : null);
 
     // Connectivity evidence for this road (named centres / hospitals / destinations it connects).
     // Centres mix town points and Significant Urban Areas (kind:'sua') — the urban area a road runs
@@ -206,6 +208,8 @@ function showNltnDetail(p) {
     document.getElementById('detail-empty').style.display = 'none';
     document.getElementById('detail-content').style.display = 'block';
     detailLayout('nltn');
+    // Distance readout — national routes are the long roads; length is summed per _natGroup (see init.js).
+    if (typeof showRoadDistance === 'function') showRoadDistance((window.NLTN_LEN || {})[p._natGroup]);
 
     document.getElementById('detail-road-name').innerHTML = nltnLabel(p);
     document.getElementById('detail-road-number').textContent = p._proposed ? 'Proposed corridor — not yet built' : 'National Land Transport Network — Road';
