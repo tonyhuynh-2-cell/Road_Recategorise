@@ -327,33 +327,24 @@ function scopeCounts(scope) {
     return (_scopeCounts[scope] = { g: g, o: o, r: r, grp: grp });
 }
 
-// CV tab stats = the Overview breakdown, filtered to roads that touch the Clarence Valley LGA (_inCV).
-function refreshCV() {
-    const { g, o, r, grp } = scopeCounts('cv');
+// CV / Sydney tab stats — the Overview breakdown filtered to one region (roads touching the Clarence
+// Valley LGA via _inCV, or inside the Sydney SUA via _inSyd). Same shape; only the key differs ('cv' /
+// 'syd'), which drives the scope, the region NLTN counts, and the DOM id prefix — so one function serves
+// both. refreshCV / refreshSydney remain as named entry points (switchTab + init.js call them).
+function refreshRegion(key) {
+    const { g, o, r, grp } = scopeCounts(key);
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    set('cv-total', total.toLocaleString());
-    set('cv-green', g.toLocaleString()); set('cv-green-pct', pct(g));
-    set('cv-orange', o.toLocaleString()); set('cv-orange-pct', pct(o));
-    set('cv-red', r.toLocaleString()); set('cv-red-pct', pct(r));
-    const grpRows = [natSigGroupRow(nltnRegionCounts('cv')), ...Object.entries(grp)].filter(Boolean);
-    const gb = document.getElementById('cv-group-breakdown'); if (gb) gb.innerHTML = groupBreakdownHTML(grpRows);
+    set(key + '-total', total.toLocaleString());
+    set(key + '-green', g.toLocaleString()); set(key + '-green-pct', pct(g));
+    set(key + '-orange', o.toLocaleString()); set(key + '-orange-pct', pct(o));
+    set(key + '-red', r.toLocaleString()); set(key + '-red-pct', pct(r));
+    const grpRows = [natSigGroupRow(nltnRegionCounts(key)), ...Object.entries(grp)].filter(Boolean);
+    const gb = document.getElementById(key + '-group-breakdown'); if (gb) gb.innerHTML = groupBreakdownHTML(grpRows);
 }
-
-// Sydney tab stats = the Overview breakdown, filtered to roads inside the Sydney SUA (_inSyd).
-function refreshSydney() {
-    const { g, o, r, grp } = scopeCounts('syd');
-    const total = g + o + r;
-    const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
-    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    set('syd-total', total.toLocaleString());
-    set('syd-green', g.toLocaleString()); set('syd-green-pct', pct(g));
-    set('syd-orange', o.toLocaleString()); set('syd-orange-pct', pct(o));
-    set('syd-red', r.toLocaleString()); set('syd-red-pct', pct(r));
-    const grpRows = [natSigGroupRow(nltnRegionCounts('syd')), ...Object.entries(grp)].filter(Boolean);
-    const gb = document.getElementById('syd-group-breakdown'); if (gb) gb.innerHTML = groupBreakdownHTML(grpRows);
-}
+function refreshCV() { refreshRegion('cv'); }
+function refreshSydney() { refreshRegion('syd'); }
 
 // --- Local tab: council roads (green) drawn over the State + Regional network (context) ---
 function showLocal() {
