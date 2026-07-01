@@ -302,8 +302,12 @@ function groupBreakdownHTML(rows) {
     return bh;
 }
 
-// CV tab stats = the Overview breakdown, filtered to roads that touch the Clarence Valley LGA (_inCV).
-function refreshCV() {
+// The per-road verdict is fixed once data loads (NSW_AGG / NSW_CRIT are never mutated afterwards), so
+// the whole-network / per-region count scans below are computed once per scope and cached. Tab switches
+// then read O(1) instead of re-scanning every road each time. scope: 'all' (Overview) | 'cv' | 'syd'.
+const _scopeCounts = {};
+function scopeCounts(scope) {
+    if (_scopeCounts[scope]) return _scopeCounts[scope];
     let g = 0, o = 0, r = 0;
     const grp = {
         'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
@@ -311,13 +315,21 @@ function refreshCV() {
     };
     for (const k in NSW_AGG) {
         const a = NSW_AGG[k];
-        if (!a._inCV || (a.admin_class !== 'S' && a.admin_class !== 'R')) continue;
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        if (scope === 'cv' && !a._inCV) continue;
+        if (scope === 'syd' && !a._inSyd) continue;
         const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
         const v = (cr && cr.verdict) || a.status;
         const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
         if (v === 'green') g++; else if (v === 'orange') o++; else r++;
         grp[group][v]++; grp[group].total++;
     }
+    return (_scopeCounts[scope] = { g: g, o: o, r: r, grp: grp });
+}
+
+// CV tab stats = the Overview breakdown, filtered to roads that touch the Clarence Valley LGA (_inCV).
+function refreshCV() {
+    const { g, o, r, grp } = scopeCounts('cv');
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -331,20 +343,7 @@ function refreshCV() {
 
 // Sydney tab stats = the Overview breakdown, filtered to roads inside the Sydney SUA (_inSyd).
 function refreshSydney() {
-    let g = 0, o = 0, r = 0;
-    const grp = {
-        'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
-        'Regional Roads': { green: 0, orange: 0, red: 0, total: 0 }
-    };
-    for (const k in NSW_AGG) {
-        const a = NSW_AGG[k];
-        if (!a._inSyd || (a.admin_class !== 'S' && a.admin_class !== 'R')) continue;
-        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
-        const v = (cr && cr.verdict) || a.status;
-        const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
-        if (v === 'green') g++; else if (v === 'orange') o++; else r++;
-        grp[group][v]++; grp[group].total++;
-    }
+    const { g, o, r, grp } = scopeCounts('syd');
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -376,10 +375,14 @@ function toggleCrossLens(on) {
     if (nswView === 'state') xLens.state = !!on;
     else if (nswView === 'regional') xLens.regional = !!on;
     refreshNswView();
+    // refreshNswView no longer restyles the map; the cross toggle has no showNSW/applyLegend follow-up,
+    // so recolour the roads here to reflect the reclassification grade (nswStyle reads xLens).
+    if (nswLayer) nswLayer.setStyle(nswStyle);
 }
 
 // Counts for the active lens. Nat. Significant counts the NLTN network's national-criteria grades;
 // the other lenses count roads by their category verdict (rolled-up aggregate + criteria).
+const _lensCounts = {};   // non-cross per-lens counts are static after load — cache them (cf. scopeCounts)
 function nswViewCounts() {
     if (nswView === 'nsr') {
         const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };
@@ -388,6 +391,7 @@ function nswViewCounts() {
     // Cross-criteria toggle on: count each road by its verdict AGAINST the other category (asReg on the
     // State lens, asState on the Regional lens) so the stat cards match the recoloured map.
     const cross = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional);
+    if (!cross && _lensCounts[nswView]) return _lensCounts[nswView];   // static verdict counts — O(1)
     const X = cross ? buildXtest() : null;
     const c = { green: 0, orange: 0, red: 0, total: 0 };
     for (const k in NSW_AGG) {
@@ -399,6 +403,7 @@ function nswViewCounts() {
         if (c[v] !== undefined) c[v]++;
         c.total++;
     }
+    if (!cross) _lensCounts[nswView] = c;
     return c;
 }
 
@@ -460,28 +465,16 @@ function refreshNswView() {
     if (np) np.textContent = cross
         ? ('Reclassification test — each road re-graded against the ' + other + ' Road criteria. The optional connectivity criteria are shared; only the mandatory gate swaps (State needs PBS-1 access, Regional needs 19m B-double access). Green = would meet ≥2 optional. Verdicts are earned from the data, not forced.')
         : m.note;
-    if (nswLayer) nswLayer.setStyle(nswStyle);
-    if (nltnLayer && nswView === 'nsr') nltnLayer.setStyle(nltnFeatureStyle);
+    // Map restyle is owned by switchTab's follow-up showNSW()->applyLegend() (which styles nswLayer and,
+    // on the nsr lens, nltnLayer). toggleCrossLens is the only caller without that follow-up, so it
+    // restyles explicitly. This removes the second full-layer setStyle per NSW tab switch.
 }
 
 // Overview panel: whole network graded by own-category criteria, plus a per-group breakdown.
 function refreshOverview() {
-    let g = 0, o = 0, r = 0;
-    const grp = {
-        'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
-        'Regional Roads': { green: 0, orange: 0, red: 0, total: 0 }
-    };
-    for (const k in NSW_AGG) {
-        const a = NSW_AGG[k];
-        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
-        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
-        // Two mutually exclusive groups (sum to the network total), each by its own category grade.
-        // National significance lives on its own lens (the NLTN network), not as a split of these roads.
-        const v = (cr && cr.verdict) || a.status;
-        const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
-        if (v === 'green') g++; else if (v === 'orange') o++; else r++;
-        grp[group][v]++; grp[group].total++;
-    }
+    // Two mutually exclusive groups (State / Regional) that sum to the network total, each graded by its
+    // own category criteria. National significance lives on its own lens (the NLTN network), not here.
+    const { g, o, r, grp } = scopeCounts('all');
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     document.getElementById('ov-total').textContent = total.toLocaleString();
@@ -492,5 +485,6 @@ function refreshOverview() {
     // Prepend the Nat. Significant national network (statewide) above the two road groups.
     const grpRows = [natSigGroupRow(window.NLTN_CAT_COUNTS), ...Object.entries(grp)].filter(Boolean);
     document.getElementById('ov-group-breakdown').innerHTML = groupBreakdownHTML(grpRows);
-    if (nswLayer) nswLayer.setStyle(nswStyle);
+    // Map restyle is owned by the follow-up showNSW()->applyLegend() in switchTab/init (avoids styling
+    // all ~17k paths twice per tab switch); this panel refresher only updates the stats.
 }
