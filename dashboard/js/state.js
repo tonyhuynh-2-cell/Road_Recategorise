@@ -238,50 +238,157 @@ function updateTownLabels() {
 
 map.on('zoomend', updateTownLabels);
 
-// --- Radial map reveal (UI revamp): the network "generates" outward from Sydney -----------------
-// An expanding circular clip-path over every vector/marker pane (never the basemap tiles), anchored
-// at Sydney in LAYER coordinates so the wave stays geographically pinned even while panning.
-// Compositor-only: no canvas repaint, no setStyle — and the clip is removed when the wave ends, so
-// the final frame is the untouched map. Runs on boot (hideLoader) and on every map-tab switch
-// except Local (see switchTab). Skipped under prefers-reduced-motion; a zoom mid-reveal snaps
-// straight to the final state (layer coordinates rescale on zoom, so the clip must not linger).
+// --- Network reveal (UI revamp): roads DRAW THEMSELVES outward from Sydney ----------------------
+// Not a geometric wipe: every road strand draws along its own length on a temporary overlay canvas.
+// A strand starts once the spread-front (straight-line distance from Sydney at REVEAL_SPREAD_KMPS)
+// reaches its Sydney-nearest end, then grows toward its far end at REVEAL_DRAW_KMPS — so a 200 km
+// highway visibly streams for seconds while a 2 km street pops, and the front is network-shaped,
+// never a circle. Drawing is INCREMENTAL (each frame strokes only the new kilometres; the canvas
+// accumulates), so per-frame cost stays tiny. The real Leaflet vector/marker panes are hidden via
+// opacity (hit-testing still works) and restored when the growth completes — the final frame is the
+// untouched map, byte-identical. Any pan/zoom mid-growth snaps straight to the finished map.
+// Runs on boot (hideLoader) and on every map-tab switch except Local (see switchTab); skipped under
+// prefers-reduced-motion. Note: speeds are cinematic km-per-SECOND (a literal 300 km/h would take
+// ~4 hours to cross NSW); dashed route-numbered roads draw solid while growing.
 const REVEAL_ORIGIN = L.latLng(-33.8688, 151.2093);   // Sydney CBD
-const REVEAL_MS = 5250;   // slow, cinematic sweep (5× the original 1050ms)
-let _revealTimer = null, _revealPanes = null, _revealPending = null, _revealGen = 0;
+// Phased by class, in strict order: Nationally Significant first, then State, then Regional — each
+// phase starts when the previous one finishes, with its own speeds (km per SECOND of animation).
+const REVEAL_CLASSES = ['nsr', 'state', 'regional'];
+const REVEAL_SPEED = {
+    nsr:      { spread: 1280, draw: 640 },   // motorway streams: fast and sweeping
+    state:    { spread: 640,  draw: 280 },
+    regional: { spread: 480,  draw: 200 }    // the detailed fill-in
+};
+const REVEAL_MAX_MS = 40000;      // hard safety cap on the whole animation
+let _revealPanes = null, _revealPending = null, _revealGen = 0;
+let _revealRaf = null, _revealCanvas = null;
 
 function _revealCleanup() {
-    clearTimeout(_revealTimer); _revealTimer = null;
+    if (_revealRaf) { cancelAnimationFrame(_revealRaf); _revealRaf = null; }
+    map.off('movestart', _revealCleanup);
     map.off('zoomstart', _revealCleanup);
-    if (_revealPanes) { _revealPanes.forEach(function (el) { el.style.transition = ''; el.style.clipPath = ''; }); _revealPanes = null; }
+    if (_revealCanvas) { if (_revealCanvas.parentNode) _revealCanvas.parentNode.removeChild(_revealCanvas); _revealCanvas = null; }
+    if (_revealPanes) { _revealPanes.forEach(function (el) { el.style.opacity = ''; }); _revealPanes = null; }
+}
+
+// Straight-line km between two LatLngs (equirectangular — plenty for animation timing).
+function _kmBetween(a, b) {
+    const dLat = (b.lat - a.lat) * 111.32;
+    const dLon = (b.lng - a.lng) * 111.32 * Math.cos((a.lat + b.lat) * Math.PI / 360);
+    return Math.sqrt(dLat * dLat + dLon * dLon);
+}
+
+// Collect drawable strands from a vector layer: one strand per polyline part, oriented so index 0
+// is the Sydney-nearest end, with container-pixel points, cumulative km, and per-class timing.
+// `clsOf(layer)` names the strand's phase ('nsr' | 'state' | 'regional'); rawDelay/dur use that
+// class's own speeds. Phase offsets are added later in _revealStart (strict class sequencing).
+function _revealStrands(group, clsOf, out) {
+    if (!group || !map.hasLayer(group)) return;
+    group.eachLayer(function (l) {
+        if (!l.getLatLngs || !l.options) return;
+        const o = l.options;
+        if (o.stroke === false || !o.weight || o.opacity === 0) return;   // hidden in this lens
+        const cls = clsOf(l);
+        const speed = REVEAL_SPEED[cls] || REVEAL_SPEED.regional;
+        const parts = [];
+        (function flat(lls) {
+            if (!lls || !lls.length) return;
+            if (lls[0] instanceof L.LatLng) parts.push(lls); else lls.forEach(flat);
+        })(l.getLatLngs());
+        parts.forEach(function (ll) {
+            if (ll.length < 2) return;
+            if (_kmBetween(ll[ll.length - 1], REVEAL_ORIGIN) < _kmBetween(ll[0], REVEAL_ORIGIN)) ll = ll.slice().reverse();
+            const pts = new Array(ll.length), cum = new Array(ll.length);
+            let km = 0;
+            for (let i = 0; i < ll.length; i++) {
+                const cp = map.latLngToContainerPoint(ll[i]);
+                pts[i] = cp;
+                if (i) km += _kmBetween(ll[i - 1], ll[i]);
+                cum[i] = km;
+            }
+            if (km < 0.01) return;
+            out.push({
+                pts: pts, cum: cum, len: km, idx: 0, drawn: 0, done: false, cls: cls,
+                rawDelay: (_kmBetween(ll[0], REVEAL_ORIGIN) / speed.spread) * 1000,
+                dur: (km / speed.draw) * 1000, delay: 0,
+                color: o.color || '#888', weight: o.weight, alpha: (o.opacity == null ? 1 : o.opacity)
+            });
+        });
+    });
+}
+
+// Interpolated container point at `km` along a strand (idx already positioned at/before km).
+function _ptAtKm(s, km) {
+    let i = s.idx;
+    while (i < s.cum.length - 1 && s.cum[i + 1] < km) i++;
+    s.idx = i;
+    if (i >= s.pts.length - 1) return s.pts[s.pts.length - 1];
+    const a = s.pts[i], b = s.pts[i + 1];
+    const span = s.cum[i + 1] - s.cum[i];
+    const f = span > 0 ? (km - s.cum[i]) / span : 0;
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
 }
 
 function _revealStart() {
-    _revealCleanup();   // cancel any in-flight wave first
+    _revealCleanup();   // cancel any in-flight growth first
+    const container = map.getContainer();
     const mapPane = map.getPane('mapPane'); if (!mapPane) return;
-    const panes = Array.prototype.filter.call(mapPane.children, function (el) {
+    const strands = [];
+    const roadCls = function (l) { return (l.feature && l.feature.properties && l.feature.properties.admin_class === 'S') ? 'state' : 'regional'; };
+    const nsrCls = function () { return 'nsr'; };
+    _revealStrands(typeof nswLayer !== 'undefined' ? nswLayer : null, roadCls, strands);
+    _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, strands);
+    _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, strands);
+    if (!strands.length) return;
+    // Strict class sequencing: State begins only when the last Nat.Sig strand finishes; Regional
+    // begins only when the last State strand finishes. Classes absent from this lens cost nothing.
+    let phaseOffset = 0;
+    REVEAL_CLASSES.forEach(function (cls) {
+        let clsEnd = 0;
+        strands.forEach(function (s) { if (s.cls === cls) { s.delay = phaseOffset + s.rawDelay; clsEnd = Math.max(clsEnd, s.rawDelay + s.dur); } });
+        phaseOffset += clsEnd;
+    });
+    // Hide the real vector/marker panes (opacity keeps hit-testing alive) and draw over the tiles.
+    _revealPanes = Array.prototype.filter.call(mapPane.children, function (el) {
         return el.classList.contains('leaflet-pane') && !el.classList.contains('leaflet-tile-pane');
     });
-    if (!panes.length) return;
-    const o = map.latLngToLayerPoint(REVEAL_ORIGIN);
-    const size = map.getSize();
-    const tl = map.containerPointToLayerPoint([0, 0]), br = map.containerPointToLayerPoint([size.x, size.y]);
-    // End radius = farthest viewport corner from Sydney; start radius = just short of the nearest
-    // visible point, so when Sydney is OFF-screen (Clarence Valley) the sweep enters immediately
-    // instead of spending most of the duration expanding through empty space.
-    const dx = Math.max(o.x - tl.x, br.x - o.x), dy = Math.max(o.y - tl.y, br.y - o.y);
-    const rEnd = Math.ceil(Math.sqrt(dx * dx + dy * dy)) + 40;
-    const cx = Math.min(Math.max(o.x, tl.x), br.x), cy = Math.min(Math.max(o.y, tl.y), br.y);
-    const rStart = Math.max(0, Math.floor(Math.sqrt((o.x - cx) * (o.x - cx) + (o.y - cy) * (o.y - cy))) - 40);
-    const at = ' at ' + Math.round(o.x) + 'px ' + Math.round(o.y) + 'px';
-    _revealPanes = panes;
-    panes.forEach(function (el) { el.style.transition = 'none'; el.style.clipPath = 'circle(' + rStart + 'px' + at + ')'; });
-    void mapPane.offsetWidth;   // commit the collapsed state before enabling the transition
-    panes.forEach(function (el) {
-        el.style.transition = 'clip-path ' + REVEAL_MS + 'ms cubic-bezier(.22, .9, .32, 1)';
-        el.style.clipPath = 'circle(' + rEnd + 'px' + at + ')';
-    });
+    _revealPanes.forEach(function (el) { el.style.opacity = '0'; });
+    const size = map.getSize(), dpr = window.devicePixelRatio || 1;
+    const cv = document.createElement('canvas');
+    cv.className = 'reveal-canvas';
+    cv.width = Math.round(size.x * dpr); cv.height = Math.round(size.y * dpr);
+    cv.style.cssText = 'position:absolute;inset:0;z-index:450;pointer-events:none;width:' + size.x + 'px;height:' + size.y + 'px;';
+    container.appendChild(cv);
+    _revealCanvas = cv;
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const t0 = performance.now();
+    let live = strands.length;
+    function frame(now) {
+        const t = now - t0;
+        for (let i = 0; i < strands.length; i++) {
+            const s = strands[i];
+            if (s.done || t <= s.delay) continue;
+            const target = Math.min(s.len, ((t - s.delay) / s.dur) * s.len);
+            if (target <= s.drawn) continue;
+            const from = _ptAtKm(s, s.drawn);
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            let i2 = s.idx + 1;
+            while (i2 < s.pts.length && s.cum[i2] <= target) { ctx.lineTo(s.pts[i2].x, s.pts[i2].y); i2++; }
+            if (i2 < s.pts.length) { const end = _ptAtKm(s, target); ctx.lineTo(end.x, end.y); }
+            ctx.strokeStyle = s.color; ctx.lineWidth = s.weight; ctx.globalAlpha = s.alpha;
+            ctx.stroke();
+            s.drawn = target;
+            if (target >= s.len) { s.done = true; live--; }
+        }
+        if (live > 0 && t < REVEAL_MAX_MS) _revealRaf = requestAnimationFrame(frame);
+        else _revealCleanup();   // growth complete (or capped) — restore the real, untouched map
+    }
+    _revealRaf = requestAnimationFrame(frame);
+    map.on('movestart', _revealCleanup);
     map.on('zoomstart', _revealCleanup);
-    _revealTimer = setTimeout(_revealCleanup, REVEAL_MS + 100);
 }
 
 function revealFromSydney() {
