@@ -1,8 +1,17 @@
 // init.js — data load (Promise.all), per-road aggregation, layer construction, and boot. LOADS LAST.
 
 // Load all data. Cache-bust so edits to data/ always load fresh (no stale browser cache).
+// Each resolved file advances the loading screen's progress bar — REAL progress, not simulated.
 const _bust = '?v=' + Date.now();
-const _f = u => fetch(u + _bust).then(r => r.json());
+const _loadTotal = 23; let _loadDone = 0;
+const _loadTick = () => {
+    _loadDone++;
+    const bf = document.getElementById('loader-bar-fill');
+    if (bf) bf.style.width = Math.round(_loadDone / _loadTotal * 88) + '%';   // last 12% = layer build
+    const st = document.getElementById('loader-status');
+    if (st) st.textContent = _loadDone < _loadTotal ? ('Loading network data · ' + _loadDone + '/' + _loadTotal) : 'Indexing road segments';
+};
+const _f = u => fetch(u + _bust).then(r => r.json()).then(j => { _loadTick(); return j; });
 Promise.all([
     _f('data/nsw_assessment.geojson'),
     _f('data/nsw_towns.geojson'),
@@ -28,6 +37,9 @@ Promise.all([
     _f('data/nsw_adt.json').catch(() => ({})),
     _f('data/nsw_zone.json').catch(() => ({}))
 ]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt, adt, zone]) => {
+    // Data fetched — the remaining boot time is aggregation + layer construction (the "draw" phase).
+    const _lst = document.getElementById('loader-status'); if (_lst) _lst.textContent = 'Drawing road vectors';
+    const _lbf = document.getElementById('loader-bar-fill'); if (_lbf) _lbf.style.width = '94%';
     // Real heavy-vehicle network membership per road (NHVR spatial intersect): road train (R-03),
     // 19m B-double (R-04) and HV bypass — data/nhvr_networks.json. Plus geometry-derived topology
     // (connects two State Roads; parallels a State Road within 20km) — data/nsw_road_ext.json.

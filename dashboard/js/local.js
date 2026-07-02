@@ -209,8 +209,8 @@ function progStart() {
     const tick = 120, step = 92 / (PROG_EST_MS / tick);   // steady, constant-speed fill toward ~92%
     _progTimer = setInterval(function () { progSet(_progVal < 92 ? _progVal + step : 92); }, tick);
 }
-function progDone() { clearInterval(_progTimer); progSet(100); setTimeout(function () { const el = document.getElementById('local-progress'); if (el) el.hidden = true; progSet(0); }, 400); }
-function progFail() { clearInterval(_progTimer); const el = document.getElementById('local-progress'); if (el) el.hidden = true; progSet(0); }
+function progDone() { clearInterval(_progTimer); progSet(100); if (typeof hideMapRefresh === 'function') hideMapRefresh(); setTimeout(function () { const el = document.getElementById('local-progress'); if (el) el.hidden = true; progSet(0); }, 400); }
+function progFail() { clearInterval(_progTimer); const el = document.getElementById('local-progress'); if (el) el.hidden = true; progSet(0); if (typeof hideMapRefresh === 'function') hideMapRefresh(); }
 
 // --- Suburb search with a typeahead dropdown (Nominatim). Autocomplete is kept LIGHT (no geometry); the
 // boundary polygon is fetched only when a suggestion is picked (one lookup), then used to clip the roads. ---
@@ -335,6 +335,8 @@ function pickSuburb(i) {
     hideSuburbResults();
     const inp = document.getElementById('local-suburb-input'); if (inp) { inp.value = s.name; inp.blur(); }
     progStart();
+    // Revamp: top-centre pill for the whole geocode + Overpass load; progDone/progFail clear it.
+    if (typeof showMapRefresh === 'function') showMapRefresh('Loading local roads — ' + s.name + '…');
     setLocalXStatus('Finding ' + s.name + '…');
     // Sydney CBD (osmId) resolves to that exact OSM boundary via /lookup — a text search for "Sydney" returns
     // the 100 km Greater Sydney region, not the CBD suburb, so we pin the id instead.

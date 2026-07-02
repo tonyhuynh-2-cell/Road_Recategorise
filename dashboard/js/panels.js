@@ -171,6 +171,8 @@ function toggleBypassIsolate(on) {
     syncLegendVisuals();
     renderMapLegend();
     applyLegend();
+    // Revamp: brief top-centre pill while the network restyles (informative only).
+    if (typeof showMapRefresh === 'function') showMapRefresh(on ? 'Isolating HV bypass network…' : 'Restoring full network…', 1100);
 }
 
 // Legend keys that are INPUTS to the road style (nswStyle/cvStyle): the verdict colours, the dashed

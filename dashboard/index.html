@@ -13,13 +13,22 @@
     <script>document.write('<link rel="stylesheet" href="css/dashboard.css?v=' + Date.now() + '">');</script>
 </head>
 <body>
-<div id="loader">
-    <svg class="loader-mark" viewBox="33 8 119 119" xmlns="http://www.w3.org/2000/svg">
-        <path fill="#a52b32" d="M92.735 125.963c32.657 0 58.966-25.932 58.966-58.125S125.392 9.712 92.735 9.712c-32.659 0-58.967 25.933-58.967 58.126s26.309 58.125 58.967 58.125z"/>
-        <path fill="#fff" d="M92.282 11.054l-45.359 90.765s24.041-20.567 45.359-20.567c21.773 0 45.812 20.567 45.812 20.567L92.282 11.054z"/>
-    </svg>
-    <div class="loader-name">IPWEA</div>
-    <div class="loader-bar"><div class="loader-fill"></div></div>
+<div id="loader" role="status" aria-label="Loading network data">
+    <div class="loader-inner">
+        <svg class="loader-mark" viewBox="33 8 119 119" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path fill="#a52b32" d="M92.735 125.963c32.657 0 58.966-25.932 58.966-58.125S125.392 9.712 92.735 9.712c-32.659 0-58.967 25.933-58.967 58.126s26.309 58.125 58.967 58.125z"/>
+            <path fill="#fff" d="M92.282 11.054l-45.359 90.765s24.041-20.567 45.359-20.567c21.773 0 45.812 20.567 45.812 20.567L92.282 11.054z"/>
+        </svg>
+        <div class="loader-eyebrow">TfNSW · Network Assessment</div>
+        <div class="loader-title">Road Recategorisation Assessment</div>
+        <svg class="loader-map" width="220" height="104" viewBox="0 0 220 104" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M8 92 C52 68 76 40 116 34 C152 29 180 20 212 12" stroke="#16a34a" stroke-width="3.5" pathLength="1"/>
+            <path d="M12 20 C58 32 96 58 138 62 C166 65 190 78 210 88" stroke="#f59e0b" stroke-width="3" pathLength="1" style="animation-delay:.28s"/>
+            <path d="M6 56 C50 54 98 82 146 84 C170 85 188 76 214 64" stroke="#dc2626" stroke-width="2.6" pathLength="1" style="animation-delay:.56s"/>
+        </svg>
+        <div class="loader-bar"><div class="loader-bar-fill" id="loader-bar-fill"></div></div>
+        <div id="loader-status">Loading network data</div>
+    </div>
 </div>
 <div class="container">
     <div class="sidebar">
@@ -286,6 +295,8 @@
 
     <div class="map-container">
         <div id="map"></div>
+        <!-- Data-refresh pill (top-centre): shown while road vectors reload — showMapRefresh() in state.js -->
+        <div class="map-refresh" id="map-refresh" role="status"><span class="mr-spin" aria-hidden="true"></span><span id="map-refresh-text">Refreshing network…</span></div>
         <!-- Road search (top-left). Find a road by name or ID and jump to it — see js/search.js. -->
         <div id="road-search" class="road-search">
             <div class="rs-box">

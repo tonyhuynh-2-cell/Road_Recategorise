@@ -238,13 +238,63 @@ function updateTownLabels() {
 
 map.on('zoomend', updateTownLabels);
 
-// Hide the loading screen once the constant-speed bar has reached 100%
+// Data-refresh pill (top-centre of the map): shown while road vectors reload — the suburb
+// local-roads fetch and the HV bypass isolate. Pass holdMs to auto-hide after that long;
+// otherwise call hideMapRefresh() when the work completes.
+let _mrTimer = null;
+function showMapRefresh(msg, holdMs) {
+    const el = document.getElementById('map-refresh');
+    if (!el) return;
+    const t = document.getElementById('map-refresh-text');
+    if (t && msg) t.textContent = msg;
+    el.classList.add('mr-on');
+    clearTimeout(_mrTimer);
+    if (holdMs) _mrTimer = setTimeout(hideMapRefresh, holdMs);
+}
+function hideMapRefresh() {
+    clearTimeout(_mrTimer);
+    const el = document.getElementById('map-refresh');
+    if (el) el.classList.remove('mr-on');
+}
+
+// Count the visible tab's stat values up from 0 on first reveal (skipped under reduced motion).
+// Final frame lands on the exact original number — display-only, the data is never touched.
+function _countUpStats() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll('.tab-content.active .stat-value').forEach(function (el) {
+        const raw = el.textContent.trim();
+        if (!/^[\d,]+$/.test(raw)) return;   // skip placeholders ('–') and anything non-numeric
+        const target = parseInt(raw.replace(/,/g, ''), 10);
+        const useComma = raw.indexOf(',') !== -1;
+        const t0 = performance.now(), dur = 700;
+        let raf = 0;
+        (function frame(t) {
+            const p = Math.min(1, (t - t0) / dur);
+            const eased = 1 - Math.pow(1 - p, 3);
+            const v = Math.round(target * eased);
+            el.textContent = useComma ? v.toLocaleString() : String(v);
+            if (p < 1) raf = requestAnimationFrame(frame);
+        })(t0);
+        // Guarantee the EXACT original string lands even if the rAF chain is throttled or
+        // killed (background tab, headless) — the displayed count must never stay wrong.
+        setTimeout(function () { if (raf) cancelAnimationFrame(raf); el.textContent = raw; }, dur + 100);
+    });
+}
+
+// Hide the loading screen once boot completes: finish the progress bar, fade the overlay, then
+// release the entrance choreography (body.is-ready — see the revamp CSS) and count the stats up.
 function hideLoader() {
     const l = document.getElementById('loader');
     if (!l) return;
     const minShow = 1200;
     const elapsed = performance.now() - loadStart;
-    const fade = () => l.classList.add('loaded');
+    const fade = () => {
+        const bf = document.getElementById('loader-bar-fill'); if (bf) bf.style.width = '100%';
+        const st = document.getElementById('loader-status'); if (st) st.textContent = 'Ready';
+        l.classList.add('loaded');
+        document.body.classList.add('is-ready');
+        _countUpStats();
+    };
     if (elapsed < minShow) setTimeout(fade, minShow - elapsed);
     else fade();
 }
