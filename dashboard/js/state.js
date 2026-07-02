@@ -246,7 +246,7 @@ map.on('zoomend', updateTownLabels);
 // except Local (see switchTab). Skipped under prefers-reduced-motion; a zoom mid-reveal snaps
 // straight to the final state (layer coordinates rescale on zoom, so the clip must not linger).
 const REVEAL_ORIGIN = L.latLng(-33.8688, 151.2093);   // Sydney CBD
-const REVEAL_MS = 1050;
+const REVEAL_MS = 5250;   // slow, cinematic sweep (5× the original 1050ms)
 let _revealTimer = null, _revealPanes = null, _revealPending = null, _revealGen = 0;
 
 function _revealCleanup() {
