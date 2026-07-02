@@ -238,6 +238,73 @@ function updateTownLabels() {
 
 map.on('zoomend', updateTownLabels);
 
+// --- Radial map reveal (UI revamp): the network "generates" outward from Sydney -----------------
+// An expanding circular clip-path over every vector/marker pane (never the basemap tiles), anchored
+// at Sydney in LAYER coordinates so the wave stays geographically pinned even while panning.
+// Compositor-only: no canvas repaint, no setStyle — and the clip is removed when the wave ends, so
+// the final frame is the untouched map. Runs on boot (hideLoader) and on every map-tab switch
+// except Local (see switchTab). Skipped under prefers-reduced-motion; a zoom mid-reveal snaps
+// straight to the final state (layer coordinates rescale on zoom, so the clip must not linger).
+const REVEAL_ORIGIN = L.latLng(-33.8688, 151.2093);   // Sydney CBD
+const REVEAL_MS = 1050;
+let _revealTimer = null, _revealPanes = null, _revealPending = null, _revealGen = 0;
+
+function _revealCleanup() {
+    clearTimeout(_revealTimer); _revealTimer = null;
+    map.off('zoomstart', _revealCleanup);
+    if (_revealPanes) { _revealPanes.forEach(function (el) { el.style.transition = ''; el.style.clipPath = ''; }); _revealPanes = null; }
+}
+
+function _revealStart() {
+    _revealCleanup();   // cancel any in-flight wave first
+    const mapPane = map.getPane('mapPane'); if (!mapPane) return;
+    const panes = Array.prototype.filter.call(mapPane.children, function (el) {
+        return el.classList.contains('leaflet-pane') && !el.classList.contains('leaflet-tile-pane');
+    });
+    if (!panes.length) return;
+    const o = map.latLngToLayerPoint(REVEAL_ORIGIN);
+    const size = map.getSize();
+    const tl = map.containerPointToLayerPoint([0, 0]), br = map.containerPointToLayerPoint([size.x, size.y]);
+    // End radius = farthest viewport corner from Sydney; start radius = just short of the nearest
+    // visible point, so when Sydney is OFF-screen (Clarence Valley) the sweep enters immediately
+    // instead of spending most of the duration expanding through empty space.
+    const dx = Math.max(o.x - tl.x, br.x - o.x), dy = Math.max(o.y - tl.y, br.y - o.y);
+    const rEnd = Math.ceil(Math.sqrt(dx * dx + dy * dy)) + 40;
+    const cx = Math.min(Math.max(o.x, tl.x), br.x), cy = Math.min(Math.max(o.y, tl.y), br.y);
+    const rStart = Math.max(0, Math.floor(Math.sqrt((o.x - cx) * (o.x - cx) + (o.y - cy) * (o.y - cy))) - 40);
+    const at = ' at ' + Math.round(o.x) + 'px ' + Math.round(o.y) + 'px';
+    _revealPanes = panes;
+    panes.forEach(function (el) { el.style.transition = 'none'; el.style.clipPath = 'circle(' + rStart + 'px' + at + ')'; });
+    void mapPane.offsetWidth;   // commit the collapsed state before enabling the transition
+    panes.forEach(function (el) {
+        el.style.transition = 'clip-path ' + REVEAL_MS + 'ms cubic-bezier(.22, .9, .32, 1)';
+        el.style.clipPath = 'circle(' + rEnd + 'px' + at + ')';
+    });
+    map.on('zoomstart', _revealCleanup);
+    _revealTimer = setTimeout(_revealCleanup, REVEAL_MS + 100);
+}
+
+function revealFromSydney() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const gen = ++_revealGen;   // a newer call supersedes any pending start from an older one
+    let started = false;
+    const start = function () { if (started || gen !== _revealGen) return; started = true; _revealStart(); };
+    // A context switch may have kicked off an animated refit (fitBounds) — wait for the view to
+    // settle so the wave is computed against the final geometry; otherwise begin on the next frame.
+    const busy = function () {
+        return map.getContainer().classList.contains('leaflet-zoom-anim') ||
+            mapPaneHasClass('leaflet-pan-anim');
+    };
+    function mapPaneHasClass(c) { const mp = map.getPane('mapPane'); return !!(mp && mp.classList.contains(c)); }
+    const deferToSettle = function () {
+        map.once('moveend', function () { setTimeout(start, 30); });
+        clearTimeout(_revealPending);
+        _revealPending = setTimeout(start, 1600);   // safety: never wait forever for a moveend
+    };
+    if (busy()) deferToSettle();
+    else requestAnimationFrame(function () { if (busy()) deferToSettle(); else start(); });
+}
+
 // Data-refresh pill (top-centre of the map): shown while road vectors reload — the suburb
 // local-roads fetch and the HV bypass isolate. Pass holdMs to auto-hide after that long;
 // otherwise call hideMapRefresh() when the work completes.
@@ -294,6 +361,8 @@ function hideLoader() {
         l.classList.add('loaded');
         document.body.classList.add('is-ready');
         _countUpStats();
+        // Revamp: as the loader fades, the network blooms outward from Sydney.
+        if (typeof revealFromSydney === 'function') revealFromSydney();
     };
     if (elapsed < minShow) setTimeout(fade, minShow - elapsed);
     else fade();

@@ -19,6 +19,9 @@ function switchTab(tab) {
     else if (tab === 'sydney') { refreshSydney(); showSydney(); }
     else if (tab === 'local') { refreshLocal(); showLocal(); }
     renderMapLegend();   // rebuild the floating legend for this view (also re-syncs the toggle dimming)
+    // Revamp: the road network "generates" outward from Sydney on every map tab. Local is excluded
+    // (its roads arrive from the live Overpass fetch); Detail keeps the map exactly as it was.
+    if (tab !== 'local' && tab !== 'detail' && typeof revealFromSydney === 'function') revealFromSydney();
 }
 
 // Road Detail is shown on a road click (it's not a tab) — return to the view that was open.
