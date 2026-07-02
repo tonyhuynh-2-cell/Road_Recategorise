@@ -263,6 +263,13 @@ const REVEAL_SPEED = {
 // orange (meets 1 of 2) 20% faster, red (does not meet) at base speed — within each phase the
 // passing roads visibly race ahead. Unknown colours run at base.
 const REVEAL_COLOR_BOOST = { '#16a34a': 1.35, '#f59e0b': 1.2, '#dc2626': 1 };
+// The REGIONAL lens gets its own pacing: green 50% faster, orange at base speed, and red 15%
+// slower than base — the downgrade candidates crawl in last, sharpening the contrast.
+const REVEAL_COLOR_BOOST_REGIONAL = { '#16a34a': 1.5, '#f59e0b': 1, '#dc2626': 0.85 };
+// Phase overlap: the next class begins when the previous one is this fraction complete —
+// 0.5 = State starts once Nat.Sig is halfway done, Regional once State is halfway done
+// (1 would be strictly sequential).
+const REVEAL_PHASE_START = 0.5;
 const REVEAL_MAX_MS = 40000;      // hard safety cap on the whole animation
 let _revealPanes = null, _revealPending = null, _revealGen = 0;
 let _revealRaf = null, _revealCanvas = null;
@@ -286,7 +293,7 @@ function _kmBetween(a, b) {
 // is the Sydney-nearest end, with container-pixel points, cumulative km, and per-class timing.
 // `clsOf(layer)` names the strand's phase ('nsr' | 'state' | 'regional'); rawDelay/dur use that
 // class's own speeds. Phase offsets are added later in _revealStart (strict class sequencing).
-function _revealStrands(group, clsOf, out) {
+function _revealStrands(group, clsOf, boostTable, out) {
     if (!group || !map.hasLayer(group)) return;
     group.eachLayer(function (l) {
         if (!l.getLatLngs || !l.options) return;
@@ -311,7 +318,7 @@ function _revealStrands(group, clsOf, out) {
                 cum[i] = km;
             }
             if (km < 0.01) return;
-            const boost = REVEAL_COLOR_BOOST[String(o.color || '').toLowerCase()] || 1;
+            const boost = boostTable[String(o.color || '').toLowerCase()] || 1;
             out.push({
                 pts: pts, cum: cum, len: km, idx: 0, drawn: 0, done: false, cls: cls,
                 rawDelay: (_kmBetween(ll[0], REVEAL_ORIGIN) / (speed.spread * boost)) * 1000,
@@ -341,17 +348,20 @@ function _revealStart() {
     const strands = [];
     const roadCls = function (l) { return (l.feature && l.feature.properties && l.feature.properties.admin_class === 'S') ? 'state' : 'regional'; };
     const nsrCls = function () { return 'nsr'; };
-    _revealStrands(typeof nswLayer !== 'undefined' ? nswLayer : null, roadCls, strands);
-    _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, strands);
-    _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, strands);
+    // The Regional lens uses its own verdict-colour pacing; every other view uses the global table.
+    const boostTable = (typeof currentTab !== 'undefined' && currentTab === 'regional') ? REVEAL_COLOR_BOOST_REGIONAL : REVEAL_COLOR_BOOST;
+    _revealStrands(typeof nswLayer !== 'undefined' ? nswLayer : null, roadCls, boostTable, strands);
+    _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, boostTable, strands);
+    _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, boostTable, strands);
     if (!strands.length) return;
-    // Strict class sequencing: State begins only when the last Nat.Sig strand finishes; Regional
-    // begins only when the last State strand finishes. Classes absent from this lens cost nothing.
+    // Overlapped class sequencing: each class starts once the previous one is REVEAL_PHASE_START
+    // complete (Nat.Sig halfway → State begins; State halfway → Regional begins). Classes absent
+    // from this lens cost nothing.
     let phaseOffset = 0;
     REVEAL_CLASSES.forEach(function (cls) {
         let clsEnd = 0;
         strands.forEach(function (s) { if (s.cls === cls) { s.delay = phaseOffset + s.rawDelay; clsEnd = Math.max(clsEnd, s.rawDelay + s.dur); } });
-        phaseOffset += clsEnd;
+        phaseOffset += clsEnd * REVEAL_PHASE_START;
     });
     // Hide the real vector/marker panes (opacity keeps hit-testing alive) and draw over the tiles.
     _revealPanes = Array.prototype.filter.call(mapPane.children, function (el) {
