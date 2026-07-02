@@ -256,9 +256,9 @@ const REVEAL_ORIGIN = L.latLng(-33.8688, 151.2093);   // Sydney CBD
 // phase starts when the previous one finishes, with its own speeds (km per SECOND of animation).
 const REVEAL_CLASSES = ['nsr', 'state', 'regional'];
 const REVEAL_SPEED = {
-    nsr:      { spread: 800, draw: 400 },   // motorway streams: fast and sweeping
-    state:    { spread: 400, draw: 175 },
-    regional: { spread: 300, draw: 125 }    // the detailed fill-in
+    nsr:      { spread: 1000, draw: 500 },   // motorway streams: fast and sweeping
+    state:    { spread: 500,  draw: 220 },
+    regional: { spread: 375,  draw: 155 }    // the detailed fill-in
 };
 // Verdict-colour pacing on top of the class speeds: green (meets criteria) loads 35% faster,
 // orange (meets 1 of 2) 20% faster, red (does not meet) at base speed — within each phase the

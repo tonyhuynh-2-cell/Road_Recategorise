@@ -19,9 +19,8 @@ function switchTab(tab) {
     else if (tab === 'sydney') { refreshSydney(); showSydney(); }
     else if (tab === 'local') { refreshLocal(); showLocal(); }
     renderMapLegend();   // rebuild the floating legend for this view (also re-syncs the toggle dimming)
-    // Revamp: the network-growth reveal plays ONLY on the Overview (and at boot, which lands on the
-    // Overview) — every other tab switches instantly with no animation.
-    if (tab === 'overview' && typeof revealFromSydney === 'function') revealFromSydney();
+    // The network-growth reveal plays ONCE per page load, at boot (hideLoader → revealFromSydney,
+    // landing on the Overview). Tab switches — including back to Overview — are always instant.
 }
 
 // Road Detail is shown on a road click (it's not a tab) — return to the view that was open.
