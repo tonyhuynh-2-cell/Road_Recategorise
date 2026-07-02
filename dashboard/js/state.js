@@ -238,12 +238,13 @@ function updateTownLabels() {
 
 map.on('zoomend', updateTownLabels);
 
-// --- Network reveal (UI revamp): roads DRAW THEMSELVES outward from Sydney ----------------------
+// --- Network reveal (UI revamp): the road WEB grows outward from Sydney -------------------------
 // Not a geometric wipe: every road strand draws along its own length on a temporary overlay canvas.
-// A strand starts once the spread-front (straight-line distance from Sydney at REVEAL_SPREAD_KMPS)
-// reaches its Sydney-nearest end, then grows toward its far end at REVEAL_DRAW_KMPS — so a 200 km
-// highway visibly streams for seconds while a 2 km street pops, and the front is network-shaped,
-// never a circle. Drawing is INCREMENTAL (each frame strokes only the new kilometres; the canvas
+// A strand starts once the growth has crawled to it THROUGH THE NETWORK (Dijkstra network distance
+// from Sydney over the strand graph — see the web block in _revealStart), then grows away from
+// Sydney along the web at its class draw speed — so a 200 km highway visibly streams for seconds
+// while a 2 km street pops, tendrils branch at junctions, and the front is web-shaped, never a
+// circle. Drawing is INCREMENTAL (each frame strokes only the new kilometres; the canvas
 // accumulates), so per-frame cost stays tiny. The real Leaflet vector/marker panes are hidden via
 // opacity (hit-testing still works) and restored when the growth completes — the final frame is the
 // untouched map, byte-identical. Any pan/zoom mid-growth snaps straight to the finished map.
@@ -255,9 +256,9 @@ const REVEAL_ORIGIN = L.latLng(-33.8688, 151.2093);   // Sydney CBD
 // phase starts when the previous one finishes, with its own speeds (km per SECOND of animation).
 const REVEAL_CLASSES = ['nsr', 'state', 'regional'];
 const REVEAL_SPEED = {
-    nsr:      { spread: 1280, draw: 640 },   // motorway streams: fast and sweeping
-    state:    { spread: 640,  draw: 280 },
-    regional: { spread: 480,  draw: 200 }    // the detailed fill-in
+    nsr:      { spread: 640, draw: 320 },   // motorway streams: fast and sweeping
+    state:    { spread: 320, draw: 140 },
+    regional: { spread: 240, draw: 100 }    // the detailed fill-in
 };
 // Verdict-colour pacing on top of the class speeds: green (meets criteria) loads 35% faster,
 // orange (meets 1 of 2) 20% faster, red (does not meet) at base speed — within each phase the
@@ -308,7 +309,6 @@ function _revealStrands(group, clsOf, boostTable, out) {
         })(l.getLatLngs());
         parts.forEach(function (ll) {
             if (ll.length < 2) return;
-            if (_kmBetween(ll[ll.length - 1], REVEAL_ORIGIN) < _kmBetween(ll[0], REVEAL_ORIGIN)) ll = ll.slice().reverse();
             const pts = new Array(ll.length), cum = new Array(ll.length);
             let km = 0;
             for (let i = 0; i < ll.length; i++) {
@@ -319,9 +319,12 @@ function _revealStrands(group, clsOf, boostTable, out) {
             }
             if (km < 0.01) return;
             const boost = boostTable[String(o.color || '').toLowerCase()] || 1;
+            // Orientation + rawDelay are assigned in _revealStart once NETWORK distances are known
+            // (Dijkstra over the strand graph) — the web grows along connections, not as a disc.
             out.push({
                 pts: pts, cum: cum, len: km, idx: 0, drawn: 0, done: false, cls: cls,
-                rawDelay: (_kmBetween(ll[0], REVEAL_ORIGIN) / (speed.spread * boost)) * 1000,
+                la: ll[0], lb: ll[ll.length - 1],
+                spreadV: speed.spread * boost, rawDelay: 0,
                 dur: (km / (speed.draw * boost)) * 1000, delay: 0,
                 color: o.color || '#888', weight: o.weight, alpha: (o.opacity == null ? 1 : o.opacity)
             });
@@ -354,6 +357,60 @@ function _revealStart() {
     _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, boostTable, strands);
     _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, boostTable, strands);
     if (!strands.length) return;
+    // --- WEB propagation: growth travels ALONG the network, not as an expanding disc. -----------
+    // Build a graph from strand endpoints (snapped to ~220m so touching roads connect), then run
+    // Dijkstra from Sydney: a strand's start time uses its NETWORK distance — it can only begin
+    // once the web has crawled to it through connected roads, and it grows away from Sydney along
+    // that web. Disconnected islands fall back to penalised straight-line distance so they still
+    // appear (slightly late) rather than never.
+    const nodeKey = function (ll) { return Math.round(ll.lat * 500) + ',' + Math.round(ll.lng * 500); };
+    const adj = new Map();
+    const addEdge = function (a, b, w) { let e = adj.get(a); if (!e) { e = []; adj.set(a, e); } e.push([b, w]); };
+    strands.forEach(function (s) {
+        s.na = nodeKey(s.la); s.nb = nodeKey(s.lb);
+        addEdge(s.na, s.nb, s.len); addEdge(s.nb, s.na, s.len);
+    });
+    const dist = new Map(), heap = [];
+    const hPush = function (d, k) {
+        heap.push([d, k]); let i = heap.length - 1;
+        while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; const t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; }
+    };
+    const hPop = function () {
+        const top = heap[0], last = heap.pop();
+        if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; const t = heap[m]; heap[m] = heap[i]; heap[i] = t; i = m; } }
+        return top;
+    };
+    const seeded = new Set();
+    strands.forEach(function (s) {
+        [[s.na, s.la], [s.nb, s.lb]].forEach(function (nk) {
+            if (seeded.has(nk[0])) return; seeded.add(nk[0]);
+            const d0 = _kmBetween(nk[1], REVEAL_ORIGIN);
+            if (d0 <= 30) { dist.set(nk[0], d0); hPush(d0, nk[0]); }   // web entry points around Sydney
+        });
+    });
+    while (heap.length) {
+        const top = hPop(), d = top[0], k = top[1];
+        if (d > dist.get(k)) continue;
+        const es = adj.get(k); if (!es) continue;
+        for (let i = 0; i < es.length; i++) {
+            const k2 = es[i][0], nd = d + es[i][1];
+            if (nd < (dist.has(k2) ? dist.get(k2) : Infinity)) { dist.set(k2, nd); hPush(nd, k2); }
+        }
+    }
+    strands.forEach(function (s) {
+        let dA = dist.has(s.na) ? dist.get(s.na) : Infinity;
+        let dB = dist.has(s.nb) ? dist.get(s.nb) : Infinity;
+        if (dA === Infinity && dB === Infinity) {   // island: penalised straight-line fallback
+            dA = _kmBetween(s.la, REVEAL_ORIGIN) * 1.3; dB = _kmBetween(s.lb, REVEAL_ORIGIN) * 1.3;
+        }
+        if (dB < dA) {   // flip so index 0 is the web-nearer end — the strand grows away from Sydney
+            s.pts.reverse();
+            const n = s.cum.length, L = s.len, c = new Array(n);
+            for (let i = 0; i < n; i++) c[i] = L - s.cum[n - 1 - i];
+            s.cum = c; const t = dA; dA = dB; dB = t;
+        }
+        s.rawDelay = (dA / s.spreadV) * 1000;
+    });
     // Overlapped class sequencing: each class starts once the previous one is REVEAL_PHASE_START
     // complete (Nat.Sig halfway → State begins; State halfway → Regional begins). Classes absent
     // from this lens cost nothing.
