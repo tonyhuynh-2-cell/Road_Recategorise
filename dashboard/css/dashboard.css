@@ -409,14 +409,17 @@
 
         /* Cross-criteria toggles ("Grade these roads as …"): the whole row is the label, so give it
            a big, forgiving press target — comfortable padding, ≥44px hit height, a larger checkbox,
-           and clear hover/press feedback. Negative margins keep the card rhythm unchanged. */
+           and clear hover/press feedback. Visibly a CONTROL at rest: tinted in the cross-test's
+           purple accent so it reads as pressable, not as body text. Negative margins keep the card
+           rhythm unchanged. */
         .xt-toggle { padding: 11px 12px; margin: -4px -8px; min-height: 44px; user-select: none;
-            border: 1px solid transparent; border-radius: 10px;
-            transition: background .12s ease, border-color .12s ease, transform .1s ease; }
-        .xt-toggle:hover { background: var(--bg-soft); border-color: var(--line); }
+            background: #f8f5fe; border: 1px solid #e2d6f8; border-radius: 10px;
+            color: var(--ink); font-weight: 500;
+            transition: background .12s ease, border-color .12s ease, transform .1s ease, box-shadow .12s ease; }
+        .xt-toggle:hover { background: #f1e9fd; border-color: #c4b5fd; box-shadow: 0 1px 6px rgba(109,40,217,.14); }
         .xt-toggle:active { transform: scale(.99); }
         .xt-toggle input { width: 18px; height: 18px; }
-        .xt-toggle input:focus-visible { outline: 2px solid #93b4d8; outline-offset: 2px; }
+        .xt-toggle input:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
 
         /* Reduced motion: everything in THIS layer appears instantly. Scoped to the revamp's own
            selectors (not *) so Leaflet's map behaviour is untouched. state.js checks the same
