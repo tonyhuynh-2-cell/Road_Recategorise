@@ -259,6 +259,10 @@ const REVEAL_SPEED = {
     state:    { spread: 640,  draw: 280 },
     regional: { spread: 480,  draw: 200 }    // the detailed fill-in
 };
+// Verdict-colour pacing on top of the class speeds: green (meets criteria) loads 35% faster,
+// orange (meets 1 of 2) 20% faster, red (does not meet) at base speed — within each phase the
+// passing roads visibly race ahead. Unknown colours run at base.
+const REVEAL_COLOR_BOOST = { '#16a34a': 1.35, '#f59e0b': 1.2, '#dc2626': 1 };
 const REVEAL_MAX_MS = 40000;      // hard safety cap on the whole animation
 let _revealPanes = null, _revealPending = null, _revealGen = 0;
 let _revealRaf = null, _revealCanvas = null;
@@ -307,10 +311,11 @@ function _revealStrands(group, clsOf, out) {
                 cum[i] = km;
             }
             if (km < 0.01) return;
+            const boost = REVEAL_COLOR_BOOST[String(o.color || '').toLowerCase()] || 1;
             out.push({
                 pts: pts, cum: cum, len: km, idx: 0, drawn: 0, done: false, cls: cls,
-                rawDelay: (_kmBetween(ll[0], REVEAL_ORIGIN) / speed.spread) * 1000,
-                dur: (km / speed.draw) * 1000, delay: 0,
+                rawDelay: (_kmBetween(ll[0], REVEAL_ORIGIN) / (speed.spread * boost)) * 1000,
+                dur: (km / (speed.draw * boost)) * 1000, delay: 0,
                 color: o.color || '#888', weight: o.weight, alpha: (o.opacity == null ? 1 : o.opacity)
             });
         });
