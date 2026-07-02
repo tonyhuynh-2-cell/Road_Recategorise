@@ -248,12 +248,13 @@ map.on('zoomend', updateTownLabels);
 // accumulates), so per-frame cost stays tiny. The real Leaflet vector/marker panes are hidden via
 // opacity (hit-testing still works) and restored when the growth completes — the final frame is the
 // untouched map, byte-identical. Any pan/zoom mid-growth snaps straight to the finished map.
-// Runs on boot (hideLoader) and on every map-tab switch except Local (see switchTab); skipped under
-// prefers-reduced-motion. Note: speeds are cinematic km-per-SECOND (a literal 300 km/h would take
-// ~4 hours to cross NSW); dashed route-numbered roads draw solid while growing.
+// Plays ONCE per page load, at boot (hideLoader → revealFromSydney, landing on the Overview) — tab
+// switches never animate. Skipped under prefers-reduced-motion. Note: speeds are cinematic
+// km-per-SECOND (a literal 300 km/h would take ~4 hours to cross NSW); dashed route-numbered roads
+// draw solid while growing.
 const REVEAL_ORIGIN = L.latLng(-33.8688, 151.2093);   // Sydney CBD
-// Phased by class, in strict order: Nationally Significant first, then State, then Regional — each
-// phase starts when the previous one finishes, with its own speeds (km per SECOND of animation).
+// Phased by class: Nationally Significant first, then State, then Regional — each phase starts
+// when the previous one is REVEAL_PHASE_START complete, with its own speeds (km/s of animation).
 const REVEAL_CLASSES = ['nsr', 'state', 'regional'];
 const REVEAL_SPEED = {
     nsr:      { spread: 1000, draw: 500 },   // motorway streams: fast and sweeping
@@ -265,7 +266,8 @@ const REVEAL_SPEED = {
 // passing roads visibly race ahead. Unknown colours run at base.
 const REVEAL_COLOR_BOOST = { '#16a34a': 1.35, '#f59e0b': 1.2, '#dc2626': 1 };
 // The REGIONAL lens gets its own pacing: green 50% faster, orange at base speed, and red 15%
-// slower than base — the downgrade candidates crawl in last, sharpening the contrast.
+// slower than base — the downgrade candidates crawl in last. DORMANT while the reveal is
+// boot-only (boot lands on the Overview); it kicks back in if per-tab reveals ever return.
 const REVEAL_COLOR_BOOST_REGIONAL = { '#16a34a': 1.5, '#f59e0b': 1, '#dc2626': 0.85 };
 // Phase overlap: the next class begins when the previous one is this fraction complete —
 // 0.5 = State starts once Nat.Sig is halfway done, Regional once State is halfway done
@@ -290,10 +292,10 @@ function _kmBetween(a, b) {
     return Math.sqrt(dLat * dLat + dLon * dLon);
 }
 
-// Collect drawable strands from a vector layer: one strand per polyline part, oriented so index 0
-// is the Sydney-nearest end, with container-pixel points, cumulative km, and per-class timing.
-// `clsOf(layer)` names the strand's phase ('nsr' | 'state' | 'regional'); rawDelay/dur use that
-// class's own speeds. Phase offsets are added later in _revealStart (strict class sequencing).
+// Collect drawable strands from a vector layer: one strand per polyline part, with container-pixel
+// points, cumulative km, and per-class draw duration. `clsOf(layer)` names the strand's phase
+// ('nsr' | 'state' | 'regional'). Orientation and start delay are assigned afterwards by
+// _revealNetworkDelays (Dijkstra), then class phase offsets in _revealStart.
 function _revealStrands(group, clsOf, boostTable, out) {
     if (!group || !map.hasLayer(group)) return;
     group.eachLayer(function (l) {
@@ -344,25 +346,13 @@ function _ptAtKm(s, km) {
     return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
 }
 
-function _revealStart() {
-    _revealCleanup();   // cancel any in-flight growth first
-    const container = map.getContainer();
-    const mapPane = map.getPane('mapPane'); if (!mapPane) return;
-    const strands = [];
-    const roadCls = function (l) { return (l.feature && l.feature.properties && l.feature.properties.admin_class === 'S') ? 'state' : 'regional'; };
-    const nsrCls = function () { return 'nsr'; };
-    // The Regional lens uses its own verdict-colour pacing; every other view uses the global table.
-    const boostTable = (typeof currentTab !== 'undefined' && currentTab === 'regional') ? REVEAL_COLOR_BOOST_REGIONAL : REVEAL_COLOR_BOOST;
-    _revealStrands(typeof nswLayer !== 'undefined' ? nswLayer : null, roadCls, boostTable, strands);
-    _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, boostTable, strands);
-    _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, boostTable, strands);
-    if (!strands.length) return;
-    // --- WEB propagation: growth travels ALONG the network, not as an expanding disc. -----------
-    // Build a graph from strand endpoints (snapped to ~220m so touching roads connect), then run
-    // Dijkstra from Sydney: a strand's start time uses its NETWORK distance — it can only begin
-    // once the web has crawled to it through connected roads, and it grows away from Sydney along
-    // that web. Disconnected islands fall back to penalised straight-line distance so they still
-    // appear (slightly late) rather than never.
+// WEB propagation: growth travels ALONG the network, not as an expanding disc. Build a graph from
+// strand endpoints (snapped to ~220m so touching roads connect), run Dijkstra from Sydney-area
+// entry nodes, and give every strand its NETWORK distance — it can only begin once the web has
+// crawled to it through connected roads, and it is oriented to grow away from Sydney along that
+// web. Disconnected islands fall back to penalised straight-line distance so they still appear
+// (slightly late) rather than never. Sets s.rawDelay and flips s.pts/s.cum in place.
+function _revealNetworkDelays(strands) {
     const nodeKey = function (ll) { return Math.round(ll.lat * 500) + ',' + Math.round(ll.lng * 500); };
     const adj = new Map();
     const addEdge = function (a, b, w) { let e = adj.get(a); if (!e) { e = []; adj.set(a, e); } e.push([b, w]); };
@@ -370,7 +360,7 @@ function _revealStart() {
         s.na = nodeKey(s.la); s.nb = nodeKey(s.lb);
         addEdge(s.na, s.nb, s.len); addEdge(s.nb, s.na, s.len);
     });
-    const dist = new Map(), heap = [];
+    const dist = new Map(), heap = [];   // binary min-heap of [distanceKm, nodeKey]
     const hPush = function (d, k) {
         heap.push([d, k]); let i = heap.length - 1;
         while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; const t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; }
@@ -411,6 +401,22 @@ function _revealStart() {
         }
         s.rawDelay = (dA / s.spreadV) * 1000;
     });
+}
+
+function _revealStart() {
+    _revealCleanup();   // cancel any in-flight growth first
+    const container = map.getContainer();
+    const mapPane = map.getPane('mapPane'); if (!mapPane) return;
+    const strands = [];
+    const roadCls = function (l) { return (l.feature && l.feature.properties && l.feature.properties.admin_class === 'S') ? 'state' : 'regional'; };
+    const nsrCls = function () { return 'nsr'; };
+    // The Regional lens uses its own verdict-colour pacing; every other view uses the global table.
+    const boostTable = (typeof currentTab !== 'undefined' && currentTab === 'regional') ? REVEAL_COLOR_BOOST_REGIONAL : REVEAL_COLOR_BOOST;
+    _revealStrands(typeof nswLayer !== 'undefined' ? nswLayer : null, roadCls, boostTable, strands);
+    _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, boostTable, strands);
+    _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, boostTable, strands);
+    if (!strands.length) return;
+    _revealNetworkDelays(strands);   // Dijkstra: web-shaped start delays + away-from-Sydney orientation
     // Overlapped class sequencing: each class starts once the previous one is REVEAL_PHASE_START
     // complete (Nat.Sig halfway → State begins; State halfway → Regional begins). Classes absent
     // from this lens cost nothing.
@@ -468,8 +474,9 @@ function revealFromSydney() {
     const gen = ++_revealGen;   // a newer call supersedes any pending start from an older one
     let started = false;
     const start = function () { if (started || gen !== _revealGen) return; started = true; _revealStart(); };
-    // A context switch may have kicked off an animated refit (fitBounds) — wait for the view to
-    // settle so the wave is computed against the final geometry; otherwise begin on the next frame.
+    // Boot's initial fitBounds (showNSW) can still be animating when the loader fades — wait for
+    // the view to settle so the web is computed against the final geometry; otherwise begin on the
+    // next frame.
     const busy = function () {
         return map.getContainer().classList.contains('leaflet-zoom-anim') ||
             mapPaneHasClass('leaflet-pan-anim');
