@@ -407,6 +407,17 @@
         .legend-item[data-legend-key]:active { transform: scale(.98); }
         .mw-distance { transition: opacity .3s ease; }
 
+        /* Cross-criteria toggles ("Grade these roads as …"): the whole row is the label, so give it
+           a big, forgiving press target — comfortable padding, ≥44px hit height, a larger checkbox,
+           and clear hover/press feedback. Negative margins keep the card rhythm unchanged. */
+        .xt-toggle { padding: 11px 12px; margin: -4px -8px; min-height: 44px; user-select: none;
+            border: 1px solid transparent; border-radius: 10px;
+            transition: background .12s ease, border-color .12s ease, transform .1s ease; }
+        .xt-toggle:hover { background: var(--bg-soft); border-color: var(--line); }
+        .xt-toggle:active { transform: scale(.99); }
+        .xt-toggle input { width: 18px; height: 18px; }
+        .xt-toggle input:focus-visible { outline: 2px solid #93b4d8; outline-offset: 2px; }
+
         /* Reduced motion: everything in THIS layer appears instantly. Scoped to the revamp's own
            selectors (not *) so Leaflet's map behaviour is untouched. state.js checks the same
            media query before running the stat count-up. */
@@ -419,5 +430,6 @@
             body:not(.is-ready) .bar-fill, body:not(.is-ready) .dist-track > span { width: auto !important; }
             #loader .loader-map path { animation: none; stroke-dashoffset: 0; opacity: 1; }
             .map-refresh { transition: none; }
-            .tab-btn:active, .local-search-btn:active, .legend-item[data-legend-key]:active { transform: none; }
+            .tab-btn:active, .local-search-btn:active, .legend-item[data-legend-key]:active,
+            .xt-toggle:active { transform: none; }
         }
