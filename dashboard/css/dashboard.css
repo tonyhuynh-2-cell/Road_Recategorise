@@ -285,7 +285,9 @@
             flex-direction: column; align-items: flex-end; gap: 7px; pointer-events: none; }
         .mw-distance { background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: 8px;
             padding: 4px 10px; box-shadow: 0 3px 12px rgba(28,25,23,.12); font: 600 12.5px var(--sans);
-            color: var(--ink-soft); white-space: nowrap; }
+            color: var(--ink-soft); white-space: nowrap;
+            /* clear the fixed #page-reload button that sits in this band: 36px button + 8px gap */
+            margin-right: 44px; }
         .mw-distance[hidden] { display: none; }
         .mw-dist-cap { color: var(--muted); font-weight: 500; font-size: 10px; text-transform: uppercase;
             letter-spacing: .05em; margin-right: 5px; }
@@ -413,15 +415,19 @@
            Exactly 5 clicks in 3 seconds flips the dark theme (see the Dark mode section below). */
         .brand-mark { cursor: pointer; user-select: none; will-change: transform; }
 
-        /* Page-reload button — a small fixed utility pinned to the viewport's bottom-left corner
-           (the only corner free of chrome: search top-left, legend top-right, zoom bottom-left of
-           the MAP, bypass/widgets/attribution bottom-right). It tucks inside the sidebar's 40px
-           bottom padding, so even fully scrolled it never covers the export link. location.reload()
-           is wired in state.js next to the brand-mark spinner. */
-        #page-reload { position: fixed; left: 10px; bottom: 3px; z-index: 1000; width: 36px; height: 36px;
+        /* Page-reload button — a small fixed utility in the viewport's bottom-right, sitting 8px
+           ABOVE the map-widgets scale bar and right-aligned with the bypass/widgets/attribution
+           column (right: 12px). bottom: 104px = widgets bottom inset (64) + baseline row height
+           (32, compass/scale) + 8px gap; the map's bottom edge is the viewport's, so fixed px
+           offsets track the absolutely-positioned stack. Stays at body level + position:fixed so
+           no transformed ancestor can capture it. The selected-road length pill (.mw-distance)
+           pops into this band — it carries a margin-right to sit BESIDE the button, not under it.
+           Rounded-square (app-icon) silhouette. location.reload() is wired in state.js next to
+           the brand-mark spinner. */
+        #page-reload { position: fixed; right: 12px; bottom: 104px; z-index: 1000; width: 36px; height: 36px;
             display: inline-flex; align-items: center; justify-content: center; padding: 0;
             background: rgba(255,255,255,.96); color: var(--muted); border: 1px solid var(--line);
-            border-radius: 50%; box-shadow: 0 2px 10px rgba(28,25,23,.14); cursor: pointer;
+            border-radius: 10px; box-shadow: 0 2px 10px rgba(28,25,23,.14); cursor: pointer;
             transition: color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .25s var(--ease-out); }
         #page-reload:hover { color: var(--ink); border-color: var(--faint);
             box-shadow: 0 3px 12px rgba(28,25,23,.2); transform: rotate(180deg); }
