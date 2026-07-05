@@ -240,12 +240,13 @@ map.on('zoomend', updateTownLabels);
 
 // --- Network reveal (UI revamp): the road WEB grows outward from Sydney -------------------------
 // Not a geometric wipe: every road strand draws along its own length on a temporary overlay canvas.
-// A strand starts once the growth has crawled to it THROUGH THE NETWORK (Dijkstra network distance
-// from Sydney over the strand graph — see the web block in _revealStart), then grows away from
-// Sydney along the web at its class draw speed — so a 200 km highway visibly streams for seconds
-// while a 2 km street pops, tendrils branch at junctions, and the front is web-shaped, never a
-// circle. Drawing is INCREMENTAL (each frame strokes only the new kilometres; the canvas
-// accumulates), so per-frame cost stays tiny. The real Leaflet vector/marker panes are hidden via
+// A road starts once the growth has crawled to it THROUGH THE NETWORK (Dijkstra network distance
+// from Sydney over the strand graph — _revealNetworkDelays), and then draws as ONE continuous
+// front sweeping end-to-end from its earliest-reached side (_revealChainRoads strings a road's
+// strands nose-to-tail — never two fronts converging mid-road) at its class draw speed — so a
+// 200 km highway visibly streams for seconds while a 2 km street pops, tendrils branch at
+// junctions, and the front is web-shaped, never a circle. Drawing is INCREMENTAL (each frame
+// strokes only the new kilometres; the canvas accumulates), so per-frame cost stays tiny. The real Leaflet vector/marker panes are hidden via
 // opacity (hit-testing still works) and restored when the growth completes — the final frame is the
 // untouched map, byte-identical. Any pan/zoom mid-growth snaps straight to the finished map.
 // Plays ONCE per page load, at boot (hideLoader → revealFromSydney, landing on the Overview) — tab
@@ -294,15 +295,18 @@ function _kmBetween(a, b) {
 
 // Collect drawable strands from a vector layer: one strand per polyline part, with container-pixel
 // points, cumulative km, and per-class draw duration. `clsOf(layer)` names the strand's phase
-// ('nsr' | 'state' | 'regional'). Orientation and start delay are assigned afterwards by
-// _revealNetworkDelays (Dijkstra), then class phase offsets in _revealStart.
-function _revealStrands(group, clsOf, boostTable, out) {
+// ('nsr' | 'state' | 'regional'); `keyOf(layer)` names its parent ROAD (one road is many layers),
+// tagged as s.roadKey. Start delay and orientation are assigned afterwards by _revealNetworkDelays
+// (Dijkstra arrivals) + _revealChainRoads (one front per road), then class phase offsets in
+// _revealStart.
+function _revealStrands(group, clsOf, keyOf, boostTable, out) {
     if (!group || !map.hasLayer(group)) return;
     group.eachLayer(function (l) {
         if (!l.getLatLngs || !l.options) return;
         const o = l.options;
         if (o.stroke === false || !o.weight || o.opacity === 0) return;   // hidden in this lens
         const cls = clsOf(l);
+        const roadKey = keyOf(l);
         const speed = REVEAL_SPEED[cls] || REVEAL_SPEED.regional;
         const parts = [];
         (function flat(lls) {
@@ -321,10 +325,10 @@ function _revealStrands(group, clsOf, boostTable, out) {
             }
             if (km < 0.01) return;
             const boost = boostTable[String(o.color || '').toLowerCase()] || 1;
-            // Orientation + rawDelay are assigned in _revealStart once NETWORK distances are known
-            // (Dijkstra over the strand graph) — the web grows along connections, not as a disc.
+            // Orientation + rawDelay are assigned later (network arrivals, then per-road chaining)
+            // — the web grows along connections, not as a disc, one front per road.
             out.push({
-                pts: pts, cum: cum, len: km, idx: 0, drawn: 0, done: false, cls: cls,
+                pts: pts, cum: cum, len: km, idx: 0, drawn: 0, done: false, cls: cls, roadKey: roadKey,
                 la: ll[0], lb: ll[ll.length - 1],
                 spreadV: speed.spread * boost, rawDelay: 0,
                 dur: (km / (speed.draw * boost)) * 1000, delay: 0,
@@ -349,9 +353,11 @@ function _ptAtKm(s, km) {
 // WEB propagation: growth travels ALONG the network, not as an expanding disc. Build a graph from
 // strand endpoints (snapped to ~220m so touching roads connect), run Dijkstra from Sydney-area
 // entry nodes, and give every strand its NETWORK distance — it can only begin once the web has
-// crawled to it through connected roads, and it is oriented to grow away from Sydney along that
-// web. Disconnected islands fall back to penalised straight-line distance so they still appear
-// (slightly late) rather than never. Sets s.rawDelay and flips s.pts/s.cum in place.
+// crawled to it through connected roads. Disconnected islands fall back to penalised straight-line
+// distance so they still appear (slightly late) rather than never. Sets the per-endpoint arrivals
+// s._dA/s._dB (km of web growth to reach the la/lb ends) plus a provisional strand-alone rawDelay;
+// _revealChainRoads then re-times every strand from these arrivals and owns orientation (the old
+// per-strand away-from-Sydney flip is superseded by chain orientation).
 function _revealNetworkDelays(strands) {
     const nodeKey = function (ll) { return Math.round(ll.lat * 500) + ',' + Math.round(ll.lng * 500); };
     const adj = new Map();
@@ -393,13 +399,102 @@ function _revealNetworkDelays(strands) {
         if (dA === Infinity && dB === Infinity) {   // island: penalised straight-line fallback
             dA = _kmBetween(s.la, REVEAL_ORIGIN) * 1.3; dB = _kmBetween(s.lb, REVEAL_ORIGIN) * 1.3;
         }
-        if (dB < dA) {   // flip so index 0 is the web-nearer end — the strand grows away from Sydney
-            s.pts.reverse();
-            const n = s.cum.length, L = s.len, c = new Array(n);
-            for (let i = 0; i < n; i++) c[i] = L - s.cum[n - 1 - i];
-            s.cum = c; const t = dA; dA = dB; dB = t;
+        s._dA = dA; s._dB = dB;   // arrival (km) at each end — _revealChainRoads picks the entry side
+        s.rawDelay = (Math.min(dA, dB) / s.spreadV) * 1000;   // provisional; re-timed by the chaining pass
+    });
+}
+
+// Reverse a strand in place so it draws from what was its far end: pts/cum flip, and the endpoint
+// bookkeeping (la/lb latlngs, na/nb node keys, _dA/_dB arrivals) swaps to stay oriented with them.
+function _revealFlipStrand(s) {
+    s.pts.reverse();
+    const n = s.cum.length, len = s.len, c = new Array(n);
+    for (let i = 0; i < n; i++) c[i] = len - s.cum[n - 1 - i];
+    s.cum = c;
+    let t = s.la; s.la = s.lb; s.lb = t;
+    t = s.na; s.na = s.nb; s.nb = t;
+    t = s._dA; s._dA = s._dB; s._dB = t;
+}
+
+// ONE FRONT PER ROAD (runs AFTER _revealNetworkDelays): arrivals are computed per STRAND, so the
+// parts of one road that the web reaches at similar times used to draw from BOTH ends at once —
+// two fronts converging mid-road. This pass serializes each road: strands are grouped by parent
+// road (s.roadKey, split per reveal class so the class phase offsets added later in _revealStart
+// stay uniform across a chain), split into connected components by endpoint proximity (the
+// strands' na/nb node keys — the same ~220m snap as the web graph), and each component is re-timed
+// as a single chain. The wave ENTERS a component at the strand endpoint with the earliest network
+// arrival (s._dA/_dB); the entry strand draws away from that end, and each further strand is
+// picked greedily — nearest unvisited endpoint to the current tip, hard-preferring endpoints that
+// touch the already-drawn part — and oriented to draw onward from its attach side. A Y-branch
+// therefore draws after its stem, growing out of the junction; never two simultaneous fronts
+// within a component. rawDelay becomes chainStart + sum of earlier strand durations (chainStart =
+// entry arrival → ms by the same formula as before), so draw intervals within a component are
+// strictly sequential. Disconnected pieces of one road chain independently from their own
+// earliest-reached ends. Speeds and durations are untouched — a road's parts simply draw one
+// after another. Tags s._chain (component id) + s._chainOrder (position) for the data probes.
+function _revealChainRoads(strands) {
+    const groups = new Map();   // 'cls|roadKey' -> that road's strands in this class
+    strands.forEach(function (s) {
+        const k = s.cls + '|' + s.roadKey;
+        let a = groups.get(k); if (!a) { a = []; groups.set(k, a); }
+        a.push(s);
+    });
+    groups.forEach(function (group, gk) {
+        // Connected components over shared endpoint nodes (flood fill via a node -> strands index).
+        const byNode = new Map();
+        group.forEach(function (s, i) {
+            [s.na, s.nb].forEach(function (nk) { let a = byNode.get(nk); if (!a) { a = []; byNode.set(nk, a); } a.push(i); });
+        });
+        const compOf = new Array(group.length);
+        let nComp = 0;
+        for (let i = 0; i < group.length; i++) {
+            if (compOf[i] !== undefined) continue;
+            compOf[i] = nComp;
+            const stack = [i];
+            while (stack.length) {
+                const s = group[stack.pop()];
+                [s.na, s.nb].forEach(function (nk) {
+                    byNode.get(nk).forEach(function (m) { if (compOf[m] === undefined) { compOf[m] = nComp; stack.push(m); } });
+                });
+            }
+            nComp++;
         }
-        s.rawDelay = (dA / s.spreadV) * 1000;
+        const comps = new Array(nComp);
+        group.forEach(function (s, i) { (comps[compOf[i]] || (comps[compOf[i]] = [])).push(s); });
+        comps.forEach(function (comp, ci) {
+            // Entry: the endpoint the web reaches FIRST — the single side this piece draws from.
+            let eS = comp[0], eB = false, eD = Infinity;
+            comp.forEach(function (s) {
+                if (s._dA < eD) { eS = s; eB = false; eD = s._dA; }
+                if (s._dB < eD) { eS = s; eB = true; eD = s._dB; }
+            });
+            if (eB) _revealFlipStrand(eS);   // index 0 = the entry end
+            let t = (eD / eS.spreadV) * 1000;   // chain start: entry arrival → ms (same formula as before)
+            const nodes = new Set([eS.na, eS.nb]);   // node keys the drawn chain has reached
+            const seen = new Set([eS]);
+            eS.rawDelay = t; t += eS.dur;
+            eS._chain = gk + '#' + ci; eS._chainOrder = 0;
+            let tip = eS.lb;   // latlng of the current front tip
+            for (let done = 1; done < comp.length; done++) {
+                // Greedy next strand: nearest unvisited endpoint to the tip; an endpoint that does
+                // not touch the drawn part is +1e9 km, so it can only win if the component were
+                // ever split (belt-and-braces — components are node-connected by construction).
+                let best = null, bB = false, bD = Infinity;
+                comp.forEach(function (s) {
+                    if (seen.has(s)) return;
+                    const da = _kmBetween(tip, s.la) + (nodes.has(s.na) ? 0 : 1e9);
+                    const db = _kmBetween(tip, s.lb) + (nodes.has(s.nb) ? 0 : 1e9);
+                    if (da < bD) { best = s; bB = false; bD = da; }
+                    if (db < bD) { best = s; bB = true; bD = db; }
+                });
+                if (bB) _revealFlipStrand(best);   // index 0 = the attach side
+                seen.add(best);
+                best.rawDelay = t; t += best.dur;
+                best._chain = eS._chain; best._chainOrder = done;
+                nodes.add(best.na); nodes.add(best.nb);
+                tip = best.lb;
+            }
+        });
     });
 }
 
@@ -410,16 +505,30 @@ function _revealStart() {
     const strands = [];
     const roadCls = function (l) { return (l.feature && l.feature.properties && l.feature.properties.admin_class === 'S') ? 'state' : 'regional'; };
     const nsrCls = function () { return 'nsr'; };
+    // Parent-road identity for the one-front-per-road chaining: one road is MANY polyline layers.
+    // Graded roads group by road number / name (roadKeyOf — the same key that groups click/hover),
+    // NLTN lines by determination route (_natGroup); unkeyed segments stay solo (per-layer stamp).
+    // Namespaced per layer group so the NSW and CV-clipped copies of a road never chain together.
+    const keyer = function (ns) {
+        return function (l) {
+            const p = l.feature && l.feature.properties;
+            const k = p ? (ns === 'nltn' ? p._natGroup : roadKeyOf(p)) : '';
+            return k ? ns + '|' + k : 'lyr|' + L.stamp(l);
+        };
+    };
     // The Regional lens uses its own verdict-colour pacing; every other view uses the global table.
     const boostTable = (typeof currentTab !== 'undefined' && currentTab === 'regional') ? REVEAL_COLOR_BOOST_REGIONAL : REVEAL_COLOR_BOOST;
-    _revealStrands(typeof nswLayer !== 'undefined' ? nswLayer : null, roadCls, boostTable, strands);
-    _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, boostTable, strands);
-    _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, boostTable, strands);
+    _revealStrands(typeof nswLayer !== 'undefined' ? nswLayer : null, roadCls, keyer('nsw'), boostTable, strands);
+    _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, keyer('cv'), boostTable, strands);
+    _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, keyer('nltn'), boostTable, strands);
     if (!strands.length) return;
-    _revealNetworkDelays(strands);   // Dijkstra: web-shaped start delays + away-from-Sydney orientation
+    _revealNetworkDelays(strands);   // Dijkstra: web-shaped per-endpoint arrivals (s._dA/_dB)
+    _revealChainRoads(strands);      // serialize each road: ONE front, entering at its earliest-reached end
     // Overlapped class sequencing: each class starts once the previous one is REVEAL_PHASE_START
     // complete (Nat.Sig halfway → State begins; State halfway → Regional begins). Classes absent
-    // from this lens cost nothing.
+    // from this lens cost nothing. rawDelay is now the chain-assigned start (chain start + earlier
+    // strands' durations), so clsEnd = when the class's last-finishing CHAIN completes — and since
+    // a chain is class-pure, adding one phase offset to all its strands keeps it sequential.
     let phaseOffset = 0;
     REVEAL_CLASSES.forEach(function (cls) {
         let clsEnd = 0;
@@ -601,8 +710,8 @@ function hideLoader() {
     });
 })();
 
-// Page-reload button (fixed, bottom-left corner of the viewport — #page-reload in index.html):
-// a plain full refresh, nothing clever.
+// Page-reload button (fixed, bottom-right of the viewport, 8px above the #mw-scale widget —
+// #page-reload in index.html): a plain full refresh, nothing clever.
 (function () {
     const btn = document.getElementById('page-reload');
     if (!btn) return;
