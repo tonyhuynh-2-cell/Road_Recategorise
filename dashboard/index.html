@@ -337,6 +337,13 @@
     </div>
 </div>
 
+<!-- Page reload — a small fixed utility button in the viewport's bottom-left corner (the only
+     corner free of map chrome; it tucks into the sidebar's bottom padding so it never covers the
+     export link). Plain location.reload(), wired in state.js next to the brand-mark spinner. -->
+<button id="page-reload" title="Refresh page" aria-label="Refresh page">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>
+</button>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <!-- Load app scripts fresh on every page load (document.write keeps dependency order and runs
      synchronously during parse) so edits show up on a normal reload — no hard refresh required. -->

@@ -553,3 +553,58 @@ function hideLoader() {
     if (elapsed < minShow) setTimeout(fade, minShow - elapsed);
     else fade();
 }
+
+// IPWEA brand mark (sidebar top-left): a physics spinner easter egg. Each click flicks the logo
+// with an angular impulse (+1080°/s, capped at 7200°/s), so rapid clicks wind it up. The spin
+// HOLDS its current speed for 1 second after every click; only once a full second passes with no
+// clicks does exponential friction (it keeps 25% of its speed per second) kick in, coasting it
+// down until it's imperceptibly slow (<6°/s), where the loop stops and the inline transform is
+// left EXACTLY as it is — the logo rests wherever momentum dies, a different orientation every
+// time. `angle` is cumulative and never reset: there is deliberately no snap-back-to-upright code
+// path. dt is clamped at 50ms so a background-tab refocus can't teleport-spin it.
+// Dark mode: EXACTLY 5 clicks inside a 3-second window (anchored at the burst's first click)
+// toggles body.dark-mode (see the Dark mode section of the CSS) when the window closes — 4 or
+// fewer do nothing, and 6+ deliberately cancels the toggle, so the ~3s wait is what makes
+// over-clicking detectable. Spin momentum is counted for every click regardless of the burst; under
+// prefers-reduced-motion clicks still count toward the burst, the mark just doesn't rotate.
+(function () {
+    const mark = document.querySelector('.brand-mark');
+    if (!mark) return;
+    let angle = 0;                            // cumulative rotation, deg — mod 360 is the rest pose
+    let vel = 0;                              // angular velocity, deg/s
+    let rafId = null, lastT = null, lastClick = -Infinity, burstTimer = null, burstCount = 0;
+    function loop(t) {
+        if (lastT === null) { lastT = t; rafId = requestAnimationFrame(loop); return; }   // no first-frame dt spike
+        const dt = Math.min((t - lastT) / 1000, 0.05);
+        lastT = t;
+        angle += vel * dt;
+        if (t - lastClick > 1000) vel *= Math.pow(0.25, dt);   // 1s clickless hold, then a silky coast
+        mark.style.transform = 'rotate(' + angle + 'deg)';
+        if (vel < 6) { cancelAnimationFrame(rafId); rafId = null; return; }   // settled: rest right here
+        rafId = requestAnimationFrame(loop);
+    }
+    mark.addEventListener('click', function () {
+        if (burstTimer === null) {            // first click of a burst: open a single 3s window
+            burstCount = 1;
+            burstTimer = setTimeout(function () {
+                if (burstCount === 5) {       // exactly 5 — never 4, never 6+
+                    const dark = document.body.classList.toggle('dark-mode');
+                    if (typeof showMapRefresh === 'function') showMapRefresh(dark ? 'Dark mode on' : 'Light mode', 1400);
+                }
+                burstTimer = null; burstCount = 0;   // next click starts a fresh window
+            }, 3000);
+        } else burstCount++;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        lastClick = performance.now();        // same timebase as the rAF timestamp
+        vel = Math.min(vel + 1080, 7200);
+        if (rafId === null) { lastT = null; rafId = requestAnimationFrame(loop); }
+    });
+})();
+
+// Page-reload button (fixed, bottom-left corner of the viewport — #page-reload in index.html):
+// a plain full refresh, nothing clever.
+(function () {
+    const btn = document.getElementById('page-reload');
+    if (!btn) return;
+    btn.addEventListener('click', function () { location.reload(); });
+})();

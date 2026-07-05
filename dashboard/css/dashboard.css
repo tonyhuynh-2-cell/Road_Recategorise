@@ -406,6 +406,28 @@
         .legend-item { transition: opacity .18s ease, transform .18s var(--ease-out); }
         .legend-item[data-legend-key]:active { transform: scale(.98); }
         .mw-distance { transition: opacity .3s ease; }
+        /* Clicking the IPWEA brand mark flicks it into a spin — a JS physics loop in state.js
+           (impulse per click, a 1s speed hold, then exponential friction) drives
+           el.style.transform directly, so repeat clicks stack and accelerate it, and it rests
+           wherever momentum leaves it. Compositor-friendly: transform only, no transition.
+           Exactly 5 clicks in 3 seconds flips the dark theme (see the Dark mode section below). */
+        .brand-mark { cursor: pointer; user-select: none; will-change: transform; }
+
+        /* Page-reload button — a small fixed utility pinned to the viewport's bottom-left corner
+           (the only corner free of chrome: search top-left, legend top-right, zoom bottom-left of
+           the MAP, bypass/widgets/attribution bottom-right). It tucks inside the sidebar's 40px
+           bottom padding, so even fully scrolled it never covers the export link. location.reload()
+           is wired in state.js next to the brand-mark spinner. */
+        #page-reload { position: fixed; left: 10px; bottom: 3px; z-index: 1000; width: 36px; height: 36px;
+            display: inline-flex; align-items: center; justify-content: center; padding: 0;
+            background: rgba(255,255,255,.96); color: var(--muted); border: 1px solid var(--line);
+            border-radius: 50%; box-shadow: 0 2px 10px rgba(28,25,23,.14); cursor: pointer;
+            transition: color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .25s var(--ease-out); }
+        #page-reload:hover { color: var(--ink); border-color: var(--faint);
+            box-shadow: 0 3px 12px rgba(28,25,23,.2); transform: rotate(180deg); }
+        #page-reload:active { transform: rotate(180deg) scale(.94); }
+        #page-reload:focus-visible { outline: 2px solid #93b4d8; outline-offset: 2px; }
+        #page-reload svg { display: block; }
 
         /* Cross-criteria toggles ("Grade these roads as …"): the whole row is the label, so give it
            a big, forgiving press target — comfortable padding, ≥44px hit height, a larger checkbox,
@@ -433,6 +455,81 @@
             body:not(.is-ready) .bar-fill, body:not(.is-ready) .dist-track > span { width: auto !important; }
             #loader .loader-map path { animation: none; stroke-dashoffset: 0; opacity: 1; }
             .map-refresh { transition: none; }
+            #page-reload { transition: none; }
+            #page-reload:hover, #page-reload:active { transform: none; }
             .tab-btn:active, .local-search-btn:active, .legend-item[data-legend-key]:active,
             .xt-toggle:active { transform: none; }
         }
+
+        /* ═══════════ Dark mode — brand-mark easter egg, 5 clicks in 3s (state.js) ═══════════
+           Session-only (nothing persisted): body.dark-mode re-skins the CHROME. The :root palette
+           custom properties flip to a warm dark stone scale — everything var()-driven follows for
+           free — then the handful of literal-colour surfaces (floating map cards, tooltips/popups,
+           inputs, the xt purple control, tab-group tints) get targeted overrides.
+           DATA INTEGRITY: only the basemap tile pane is filtered (see the last rule). The shared
+           road canvas (overlay pane), every SVG overlay pane (NLTN, boundaries, bypass, rings) and
+           the localPane canvas are NEVER filtered — green/orange/red verdict colours are data and
+           must render pixel-identical in both themes. */
+        body.dark-mode {
+            --ink: #ece9e6;
+            --ink-soft: #d6d3d1;
+            --muted: #a8a29e;
+            --faint: #78716c;
+            --line: #3b3835;
+            --line-soft: #2d2a27;
+            --bg: #1c1917;
+            --bg-soft: #211e1b;
+            --pass: #4ade80;
+            --warn: #fbbf24;
+            --fail: #f87171;
+        }
+        body.dark-mode .sidebar::-webkit-scrollbar-thumb,
+        body.dark-mode .map-legend::-webkit-scrollbar-thumb { background: #44403c; }
+        body.dark-mode .stat-card { box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+        body.dark-mode .bar-bg, body.dark-mode .dist-track,
+        body.dark-mode .local-progress { background: #3a3733; }
+        body.dark-mode .legend-color.legend-dash { border-top-color: #a8a29e; }
+        body.dark-mode .detail-placeholder svg { stroke: #57534e; }
+        body.dark-mode .ev-dot.ev-sua { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px #1d4ed8; }
+        /* Tab colour groups: same hue coding, lifted for contrast on the dark ground
+           (:not(.active) — active tabs keep their solid colour + white text from the light theme) */
+        body.dark-mode .tab-btn.tab-g1:not(.active) { color: #7ea8f8; border-color: #2c3d63; }
+        body.dark-mode .tab-btn.tab-g2:not(.active) { color: #f38b8b; border-color: #5c2727; }
+        body.dark-mode .tab-btn.tab-g3:not(.active) { color: #45c8bc; border-color: #1d4b46; }
+        body.dark-mode .tab-btn.tab-g1:hover:not(.active) { border-color: #2563eb; color: #a5c3fb; }
+        body.dark-mode .tab-btn.tab-g2:hover:not(.active) { border-color: #dc2626; color: #f7b1b1; }
+        body.dark-mode .tab-btn.tab-g3:hover:not(.active) { border-color: #0d9488; color: #7fdcd3; }
+        /* Floating map chrome: the white glass cards go dark glass */
+        body.dark-mode .map-legend, body.dark-mode .rs-box, body.dark-mode .rs-results,
+        body.dark-mode .bypass-toggle, body.dark-mode .mw-distance,
+        body.dark-mode .map-refresh { background: rgba(26,23,21,.94); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+        body.dark-mode .mw-scale { background: rgba(26,23,21,.85); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
+        body.dark-mode #page-reload { background: rgba(26,23,21,.94); box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+        body.dark-mode .mw-compass circle { fill: #211e1b; fill-opacity: .94; stroke: #3b3835; }
+        body.dark-mode .mw-compass text { fill: #d6d3d1; }
+        body.dark-mode .map-container, body.dark-mode #map { background: #10151c; }
+        /* Map tooltips, popups and entity pins */
+        body.dark-mode .leaflet-tooltip.town-label, body.dark-mode .leaflet-tooltip.road-label,
+        body.dark-mode .conn-pin { background: #26221f; box-shadow: 0 2px 9px rgba(0,0,0,.5); }
+        body.dark-mode .leaflet-popup-content-wrapper,
+        body.dark-mode .leaflet-popup-tip { background: #26221f; color: var(--ink); box-shadow: 0 3px 14px rgba(0,0,0,.5); }
+        body.dark-mode .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+        body.dark-mode .leaflet-control-attribution { background: rgba(26,23,21,.72) !important; }
+        /* Entity accent text lifts a step so it stays readable on the dark pins/panels */
+        body.dark-mode .conn-town .conn-name, body.dark-mode .conn-sua .conn-name { color: #7ea8f8; }
+        body.dark-mode .conn-hosp .conn-name { color: #f38b8b; }
+        body.dark-mode .conn-dest .conn-name { color: #b79df7; }
+        body.dark-mode .conn-employ .conn-name { color: #45c8bc; }
+        /* Inputs (suburb search) */
+        body.dark-mode .local-search input { background: #26221f; color: var(--ink); }
+        body.dark-mode .sub-results { background: #26221f; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+        /* Cross-criteria purple control: same accent family, dark ground */
+        body.dark-mode .xt-toggle { background: #282136; border-color: #463763; }
+        body.dark-mode .xt-toggle:hover { background: #312949; border-color: #6d5aa8; box-shadow: 0 1px 6px rgba(0,0,0,.45); }
+        body.dark-mode .xt-toggle input { accent-color: #8b5cf6; }
+        body.dark-mode .xt-status { color: #a78bfa; }
+        /* Basemap ONLY: invert the tile pane to a dark carto look. Never filter #map,
+           .leaflet-pane or any overlay/canvas pane — road verdict colours are data-meaningful
+           and must stay pixel-identical (the localPane street-label tiles also stay unfiltered,
+           because that pane carries the verdict-green local-roads canvas). */
+        body.dark-mode .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9); }
