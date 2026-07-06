@@ -87,14 +87,15 @@ function toggleRoadFlag(k) {
     // list/counter and restyle the map immediately — the same one-pass setStyle every tab switch
     // performs (nswStyle hides/shows by pin membership), so an unpinned road disappears at once.
     if (inFlaggedScope()) {
-        refreshFlagged();
+        // The hint fades ONLY the newly pinned row in (unflag re-renders with no animation).
+        refreshFlagged({ added: flaggedRoads.has(k) ? k : null });
         if (typeof nswLayer !== 'undefined' && nswLayer) nswLayer.setStyle(nswStyle);
     }
 }
 
 // Clicking a pinned-roads list ROW selects that road — the exact effect of clicking its geometry on
 // the map: highlight, frame it sensibly, open Road Detail. Mirrors selectRoadFromSearch (search.js);
-// the row's unflag ✕ stops propagation so unpinning never triggers a selection.
+// the row's unflag control (the right-hand ⚑) stops propagation so unpinning never triggers a selection.
 function selectFlaggedRoad(k) {
     const a = (typeof NSW_AGG !== 'undefined' && NSW_AGG[k]) || null;
     if (!a) return;
@@ -128,8 +129,12 @@ function flagVerdict(k) {
 }
 
 // Fill the Flagged tab panel: the "Flagged roads (n/10)" header + the pinned-roads list. Each row:
-// name/number (with route shield), class, verdict chip, and an unflag ✕ that updates list + map.
-function refreshFlagged() {
+// name/number (with route shield), class, verdict chip, and an unflag ⚑ that updates list + map.
+// Rows FADE IN (.flag-in, the riseIn idiom) rather than popping: `changed` is the optional hint
+// from toggleRoadFlag — { added: key } animates just that new row; with no hint (tab entry /
+// first render after reload — the panels.js call site) the whole list cascades in, 40ms apart.
+// Unflag removal stays instant. prefers-reduced-motion disables it all in the CSS.
+function refreshFlagged(changed) {
     // Prune pins that no longer resolve to a drawn road (stale keys from an older dataset).
     if (window.NSW_ROAD_LAYERS) {
         let dropped = false;
@@ -149,14 +154,20 @@ function refreshFlagged() {
     }
     const CHIP = { green: 'Meets', orange: 'Meets 1 of 2', red: 'Does not meet' };
     let h = '';
+    let i = 0;
     flaggedRoads.forEach(function (k) {
         const a = NSW_AGG[k] || {};
         const v = flagVerdict(k);
         const cls = a.admin_class === 'S' ? 'State Road' : a.admin_class === 'R' ? 'Regional Road' : 'Road';
         const num = (a.road_number != null && String(a.road_number).trim() !== '') ? String(a.road_number).trim() : '';
         // The whole row is a click target that SELECTS the road (selectFlaggedRoad — same as clicking
-        // it on the map); the ✕ stops propagation so unpinning never also selects.
-        h += '<div class="flag-row" data-key="' + escFlagAttr(k) + '" role="button" tabindex="0"' +
+        // it on the map); the remove control — a solid red ⚑ on the row's right, matching the
+        // detail-panel pin's flagged state — stops propagation so unpinning never also selects
+        // (on hover the CSS greys the flag and strikes it through, signalling removal).
+        const anim = changed ? (changed.added === k ? ' flag-in' : '') : ' flag-in';
+        const delay = (!changed && i > 0) ? ' style="animation-delay:' + (i * 40) + 'ms"' : '';
+        i++;
+        h += '<div class="flag-row' + anim + '"' + delay + ' data-key="' + escFlagAttr(k) + '" role="button" tabindex="0"' +
             ' aria-label="Show ' + escFlagAttr(roadName(a)) + ' on the map"' +
             ' onclick="selectFlaggedRoad(this.dataset.key)"' +
             ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();selectFlaggedRoad(this.dataset.key)}">' +
@@ -167,7 +178,7 @@ function refreshFlagged() {
             '<span class="flag-chip fc-' + v + '">' + (CHIP[v] || v) + '</span>' +
             '<button class="flag-x" data-key="' + escFlagAttr(k) + '"' +
             ' onclick="event.stopPropagation(); toggleRoadFlag(this.dataset.key)"' +
-            ' title="Unflag" aria-label="Unflag this road">&times;</button></div>';
+            ' title="Unflag this road" aria-label="Unflag this road">' + flagIconSVG(true) + '</button></div>';
     });
     list.innerHTML = h;
 }
