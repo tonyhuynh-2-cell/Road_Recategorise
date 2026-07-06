@@ -5,7 +5,8 @@
 // data, never forced. The tab reuses the normal scope machinery end to end: nswInView() (grading.js)
 // hides every unpinned road while the flagged view is on screen, applyLegend() (panels.js) adds +
 // restyles the SAME shared road overlay (nswLayer), and the pins draw in their normal verdict
-// colours, one weight bolder for focus (nswStyle). Pins persist across reloads in localStorage
+// colours, one weight bolder for focus (nswStyle), fading in from transparent when they appear
+// (fadeInPinnedRoads) rather than popping. Pins persist across reloads in localStorage
 // ('flaggedRoads', a JSON array of road keys — the same roadKeyOf() grouping as NSW_ROAD_LAYERS
 // and click selection, so a pin always means the WHOLE road).
 
@@ -89,7 +90,14 @@ function toggleRoadFlag(k) {
     if (inFlaggedScope()) {
         // The hint fades ONLY the newly pinned row in (unflag re-renders with no animation).
         refreshFlagged({ added: flaggedRoads.has(k) ? k : null });
+        // Any geometry fade still in flight is superseded — kill it BEFORE the sweep below (a
+        // stale tick must never write over it). snap=false because the sweep IS the snap: it
+        // rewrites every pin at its exact target style, so nothing is left half-transparent.
+        cancelPinFade(false);
         if (typeof nswLayer !== 'undefined' && nswLayer) nswLayer.setStyle(nswStyle);
+        // A NEW pin's geometry fades in from transparent rather than popping; unflag removal
+        // stays instant (the sweep above already hid the lifted pin).
+        if (flaggedRoads.has(k)) fadeInPinnedRoads([k]);
     }
 }
 
@@ -130,7 +138,8 @@ function flagVerdict(k) {
 
 // Fill the Flagged tab panel: the "Flagged roads (n/10)" header + the pinned-roads list. Each row:
 // name/number (with route shield), class, verdict chip, and an unflag ⚑ that updates list + map.
-// Rows FADE IN (.flag-in, the riseIn idiom) rather than popping: `changed` is the optional hint
+// Rows FADE IN (.flag-in, an opacity-led dissolve — see flagFadeIn in the CSS) rather than
+// popping: `changed` is the optional hint
 // from toggleRoadFlag — { added: key } animates just that new row; with no hint (tab entry /
 // first render after reload — the panels.js call site) the whole list cascades in, 40ms apart.
 // Unflag removal stays instant. prefers-reduced-motion disables it all in the CSS.
@@ -191,6 +200,66 @@ function showFlagged() {
     const b = flaggedBounds();
     if (b) map.fitBounds(b.pad(0.12), { maxZoom: 14 });   // frame the pins on entry; skip when empty
     mapContext = 'flagged';
+    fadeInPinnedRoads(Array.from(flaggedRoads));   // the pins' geometry fades in rather than popping
+}
+
+// --- Pin geometry fade-in ---
+// When pinned roads APPEAR in the flagged scope — entering the tab, reloading into it, or pinning
+// a road while the flagged view is up — their geometry FADES in: path opacity ramps 0 → each
+// segment's normal nswStyle value (red verdict 0.85, everything else 1) over ~600ms, rAF-driven,
+// ease-out. setStyle is applied ONLY to the pinned roads' own layers (≤10 roads ≈ a few hundred
+// paths — cheap; NEVER a full nswLayer.setStyle sweep, that's the 17.6k-segment hot path).
+// Opacity only: verdict colours and the +1 focus weight are untouched, and the ramp's last frame
+// writes each target VERBATIM, so a settled pin is byte-identical to the plain nswStyle output.
+let _pinFadeGen = 0;      // generation token — bumping it invalidates any in-flight ramp
+let _pinFadeRaf = null;
+let _pinFadeItems = [];   // the ramp in flight: [{ l: segment layer, target: its styled opacity }]
+
+// Stop the current ramp. snap=true settles every tracked segment at its exact target opacity
+// (interrupt safety — a road must never be left half-transparent); pass false ONLY when a full
+// restyle pass follows in the same task (the sweep is the snap) or another view owns the styles.
+function cancelPinFade(snap) {
+    _pinFadeGen++;
+    if (_pinFadeRaf !== null) { cancelAnimationFrame(_pinFadeRaf); _pinFadeRaf = null; }
+    if (snap) _pinFadeItems.forEach(function (it) { it.l.setStyle({ opacity: it.target }); });
+    _pinFadeItems = [];
+}
+
+// Ramp the given roads' geometry in. Call AFTER the standard restyle pass has drawn them at full
+// strength: the opacity:0 first frame is written synchronously here, in the same task, so the
+// full-strength styles never reach the screen. Under prefers-reduced-motion the ramp is skipped
+// entirely — the pins simply appear at target (the restyle pass already put them there).
+function fadeInPinnedRoads(keys) {
+    cancelPinFade(true);   // a new ramp supersedes (and settles) any old one
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const items = [];
+    keys.forEach(function (k) {
+        ((window.NSW_ROAD_LAYERS || {})[k] || []).forEach(function (l) {
+            const st = nswStyle(l.feature);
+            if (!st.stroke) return;   // hidden (legend toggle) — stays hidden, nothing to fade
+            items.push({ l: l, target: st.opacity });
+            l.setStyle({ opacity: 0 });
+        });
+    });
+    if (!items.length) return;
+    _pinFadeItems = items;
+    const gen = _pinFadeGen;
+    const t0 = performance.now(), DUR = 600;
+    function tick(now) {
+        if (gen !== _pinFadeGen) return;   // superseded — the canceller settled the styles
+        // Left the flagged scope mid-ramp: every tab switch runs its own full restyle pass
+        // (applyLegend), which has already rewritten these paths — do not write over it.
+        if (!inFlaggedScope()) { _pinFadeItems = []; _pinFadeRaf = null; return; }
+        // A segment grabbed by the blue selection highlight mid-ramp leaves the ramp as-is:
+        // highlightRoad owns it now, and deselect's resetStyle restores its exact verdict style.
+        if (typeof isSelected === 'function') _pinFadeItems = _pinFadeItems.filter(function (it) { return !isSelected(it.l); });
+        const t = Math.min((now - t0) / DUR, 1);
+        const e = 1 - Math.pow(1 - t, 3);   // ease-out cubic: quick reveal, gentle settle
+        _pinFadeItems.forEach(function (it) { it.l.setStyle({ opacity: t < 1 ? it.target * e : it.target }); });
+        if (t < 1) _pinFadeRaf = requestAnimationFrame(tick);
+        else { _pinFadeItems = []; _pinFadeRaf = null; }
+    }
+    _pinFadeRaf = requestAnimationFrame(tick);
 }
 
 // Combined bounds of every pinned road's layers. The first layer's bounds are CLONED — L.Polyline

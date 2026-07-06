@@ -79,10 +79,12 @@
            recolour. */
         /* The VERDICT cards pop harder — one treatment, three colourways: a brighter/more
            saturated border, a soft same-hue surface wash and a tinted label; the big numbers keep
-           their existing --pass/--warn/--fail colours and the geometry (border width, padding,
-           radius) is untouched. "Does not meet" is scoped to .stat-grid so the Flagged tab's
-           acc-red PIN boxes (the ⚑ motif, incl. its hero) keep the original deep-red border on
-           the plain ground. */
+           their existing --pass/--warn/--fail colours. The trio's frame is also 50% HEAVIER
+           (1.5px -> 2.25px, same width in both themes) with the grid padding trimmed 0.75px per
+           side so the border+padding sums stay 15px/14px and neither the cards' outer geometry
+           nor the numbers shift. "Does not meet" (and the width bump) is scoped to .stat-grid so
+           the Flagged tab's acc-red PIN boxes (the ⚑ motif, incl. its hero) keep the original
+           deep-red border at its original weight on the plain ground. */
         .stat-card.acc-green { border-color: #22c55e; background: #f0fdf4; }
         .stat-card.acc-green h3 { color: #15803d; }
         .stat-card.acc-orange { border-color: #f59e0b; background: #fffbeb; }
@@ -90,6 +92,9 @@
         .stat-grid .stat-card.acc-red { border-color: #ef4444; background: #fef2f2; }
         .stat-grid .stat-card.acc-red h3 { color: #b91c1c; }
         .stat-card.acc-red { border-color: #dc2626; }
+        .stat-grid .stat-card.acc-green,
+        .stat-grid .stat-card.acc-orange,
+        .stat-grid .stat-card.acc-red { border-width: 2.25px; padding: 12.75px 11.75px; }
         /* HERO cards (all six — Overview 892 / NSW lens / Sydney / CV / Local / Flagged) carry a
            DOUBLE-weight frame: 1.5px -> 3px, colour unchanged (ink; the Flagged hero's acc-red
            still recolours it). Padding drops 1.5px per side so the border+padding sums stay
@@ -621,11 +626,14 @@
         .flag-x:active { transform: scale(.94); }
         .flag-x:focus-visible { outline: 2px solid #93b4d8; outline-offset: 1px; }
         .flag-empty { font: 400 12.5px/1.5 var(--sans); color: var(--muted); padding: 2px 0; }
-        /* Pinned rows FADE IN (riseIn: fade + slight rise) instead of popping. .flag-in is applied
-           on row creation (refreshFlagged): a fresh list render staggers rows 40ms apart via
-           inline animation-delay; a newly pinned road's row animates alone. Compositor-only
+        /* Pinned rows FADE IN — an OPACITY-led dissolve (0 → 1 over .48s; its own keyframe, not
+           riseIn, whose 10px translate reads as a slide) with only a whisper of rise (3px), so
+           new rows materialise from transparent instead of popping. .flag-in is applied on row
+           creation (refreshFlagged): a fresh list render staggers rows 40ms apart via inline
+           animation-delay; a newly pinned road's row animates alone. Compositor-only
            (opacity/transform) — no layout thrash; unflag removal is instant. */
-        .flag-row.flag-in { animation: riseIn .26s var(--ease-out) backwards; }
+        @keyframes flagFadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+        .flag-row.flag-in { animation: flagFadeIn .48s var(--ease-out) backwards; }
         /* The little red flag icon — ICON-ONLY red (never road geometry or verdict chips).
            Outline = unflagged, solid = flagged (flagIconSVG draws with currentColor). */
         .flag-ico { display: inline-block; flex: none; color: var(--red); }
