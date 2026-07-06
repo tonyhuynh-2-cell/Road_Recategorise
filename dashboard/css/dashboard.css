@@ -112,6 +112,40 @@
         .map-legend .legend-item { margin-bottom: 8px; font-size: 12px; }
         .map-legend .legend-item:last-child { margin-bottom: 0; }
         @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
+        /* Live code trace — learning overlay that prints the JavaScript path behind interactions. */
+        .code-trace { position: absolute; top: 72px; left: 14px; z-index: 620; width: 430px; max-width: calc(100% - 28px);
+            max-height: min(46vh, 430px); display: flex; flex-direction: column; background: rgba(255,255,255,.97);
+            backdrop-filter: blur(4px); border: 1px solid var(--line); border-radius: 11px;
+            box-shadow: 0 5px 18px rgba(28,25,23,.16); overflow: hidden; }
+        .ct-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 10px 11px 9px 13px; border-bottom: 1px solid var(--line-soft); }
+        .ct-head h3 { font: 700 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em;
+            color: #2563eb; margin-bottom: 2px; }
+        .ct-head span { font: 500 11px var(--mono); color: var(--faint); }
+        .ct-actions { display: inline-flex; align-items: center; gap: 5px; }
+        .ct-actions button { border: 1px solid var(--line); background: var(--bg-soft); color: var(--ink-soft);
+            border-radius: 7px; padding: 4px 7px; font: 600 10.5px var(--sans); cursor: pointer; }
+        .ct-actions button:hover { border-color: #93b4d8; color: var(--ink); }
+        .ct-feed { overflow-y: auto; padding: 10px; }
+        .ct-feed:empty::before { content: 'Use the app to see the matching code path here.';
+            display: block; padding: 3px 2px 5px; color: var(--muted); font: 400 12px/1.45 var(--sans); }
+        .ct-feed::-webkit-scrollbar { width: 7px; }
+        .ct-feed::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
+        .ct-entry { border: 1px solid var(--line-soft); border-radius: 9px; background: var(--bg);
+            padding: 9px 10px; margin-bottom: 9px; }
+        .ct-entry:last-child { margin-bottom: 0; }
+        .ct-entry-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+        .ct-entry-head span { color: var(--ink); font: 700 12.5px/1.3 var(--sans); }
+        .ct-entry-head time { color: var(--faint); font: 500 10px var(--mono); white-space: nowrap; }
+        .ct-entry p { margin: 0 0 7px; color: var(--muted); font: 400 11.5px/1.45 var(--sans); }
+        .ct-meta { margin: -2px 0 7px; color: var(--faint); font: 500 10.5px/1.4 var(--mono); }
+        .ct-entry pre { margin: 0; padding: 8px 9px; overflow-x: auto; background: #1c1917; border-radius: 7px; }
+        .ct-entry code { color: #f5f5f4; font: 500 11px/1.45 var(--mono); white-space: pre; letter-spacing: 0; }
+        .code-trace.ct-collapsed { max-height: 43px; }
+        .code-trace.ct-collapsed .ct-feed { display: none; }
+        @media (max-width: 920px) {
+            .code-trace { left: 8px; top: 60px; width: calc(100% - 16px); max-height: 38vh; }
+        }
         /* "Highlights" sub-heading + the round connection swatches (kept in a 22px box so labels align) */
         .legend-sub { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 11px; }
         .legend-swatch { width: 22px; display: inline-flex; justify-content: center; flex-shrink: 0; }
@@ -355,17 +389,19 @@
 
         /* Entrance: sidebar slides in from the left; each piece of map chrome enters from its
            own edge, staggered. body.is-ready is added by hideLoader() once data has loaded. */
-        .sidebar, .road-search, .map-legend, .bypass-toggle, .map-widgets {
+        .sidebar, .road-search, .map-legend, .code-trace, .bypass-toggle, .map-widgets {
             transition-property: opacity, transform;
             transition-duration: .55s;
             transition-timing-function: var(--ease-out); }
         body:not(.is-ready) .sidebar       { opacity: 0; transform: translateX(-28px); }
         body:not(.is-ready) .road-search   { opacity: 0; transform: translateX(-18px); }
         body:not(.is-ready) .map-legend    { opacity: 0; transform: translateX(18px); }
+        body:not(.is-ready) .code-trace    { opacity: 0; transform: translateX(-18px); }
         body:not(.is-ready) .bypass-toggle { opacity: 0; transform: translateY(14px); }
         body:not(.is-ready) .map-widgets   { opacity: 0; transform: translateY(14px); }
         body.is-ready .road-search   { transition-delay: .16s; }
         body.is-ready .map-legend    { transition-delay: .24s; }
+        body.is-ready .code-trace    { transition-delay: .28s; }
         body.is-ready .bypass-toggle { transition-delay: .34s; }
         body.is-ready .map-widgets   { transition-delay: .42s; }
 
@@ -454,9 +490,9 @@
            media query before running the stat count-up. */
         @media (prefers-reduced-motion: reduce) {
             .tab-content.active > *, #detail-content > * { animation: none; }
-            .sidebar, .road-search, .map-legend, .bypass-toggle, .map-widgets { transition: none; }
+            .sidebar, .road-search, .map-legend, .code-trace, .bypass-toggle, .map-widgets { transition: none; }
             body:not(.is-ready) .sidebar, body:not(.is-ready) .road-search,
-            body:not(.is-ready) .map-legend, body:not(.is-ready) .bypass-toggle,
+            body:not(.is-ready) .map-legend, body:not(.is-ready) .code-trace, body:not(.is-ready) .bypass-toggle,
             body:not(.is-ready) .map-widgets { opacity: 1; transform: none; }
             body:not(.is-ready) .bar-fill, body:not(.is-ready) .dist-track > span { width: auto !important; }
             #loader .loader-map path { animation: none; stroke-dashoffset: 0; opacity: 1; }
@@ -506,9 +542,12 @@
         body.dark-mode .tab-btn.tab-g2:hover:not(.active) { border-color: #dc2626; color: #f7b1b1; }
         body.dark-mode .tab-btn.tab-g3:hover:not(.active) { border-color: #0d9488; color: #7fdcd3; }
         /* Floating map chrome: the white glass cards go dark glass */
-        body.dark-mode .map-legend, body.dark-mode .rs-box, body.dark-mode .rs-results,
+        body.dark-mode .map-legend, body.dark-mode .code-trace, body.dark-mode .rs-box, body.dark-mode .rs-results,
         body.dark-mode .bypass-toggle, body.dark-mode .mw-distance,
         body.dark-mode .map-refresh { background: rgba(26,23,21,.94); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+        body.dark-mode .ct-feed::-webkit-scrollbar-thumb { background: #44403c; }
+        body.dark-mode .ct-entry { background: #211e1b; border-color: #2d2a27; }
+        body.dark-mode .ct-actions button { background: #26221f; border-color: #3b3835; }
         body.dark-mode .mw-scale { background: rgba(26,23,21,.85); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
         body.dark-mode #page-reload { background: rgba(26,23,21,.94); box-shadow: 0 2px 10px rgba(0,0,0,.5); }
         body.dark-mode .mw-compass circle { fill: #211e1b; fill-opacity: .94; stroke: #3b3835; }

@@ -37,6 +37,12 @@ Promise.all([
     _f('data/nsw_adt.json').catch(() => ({})),
     _f('data/nsw_zone.json').catch(() => ({}))
 ]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt, adt, zone]) => {
+    if (typeof traceCode === 'function') traceCode(
+        'Dashboard data loaded',
+        'The dashboard has fetched its prepared assessment files. From here, the browser builds map layers and panels from these already-processed results.',
+        "Promise.all([\n  _f('data/nsw_assessment.geojson'),\n  _f('data/nsw_criteria.json'),\n  _f('data/nsw_evidence.json'),\n  _f('data/nhvr_networks.json'),\n  _f('data/nsw_adt.json')\n]).then(([nswRoads, nswCrit, nswEvid, nhvr, adt]) => {\n  // build map layers and UI from prepared files\n});",
+        (nswRoads.features || []).length.toLocaleString() + ' road segments loaded'
+    );
     // Data fetched — the remaining boot time is aggregation + layer construction (the "draw" phase).
     const _lst = document.getElementById('loader-status'); if (_lst) _lst.textContent = 'Drawing road vectors';
     const _lbf = document.getElementById('loader-bar-fill'); if (_lbf) _lbf.style.width = '94%';
@@ -235,6 +241,12 @@ Promise.all([
                 L.DomEvent.stopPropagation(e);
                 highlightRoad(group(), nswLayer);
                 const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
+                if (typeof traceCode === 'function') traceCode(
+                    'Road clicked: ' + roadName(agg),
+                    'The Leaflet road layer receives the click, selects every segment in the same road group, then sends the grouped road record to showRoadDetail().',
+                    "layer.on('click', function(e) {\n  const group = nswRoadLayers[k];\n  highlightRoad(group, nswLayer);\n  const agg = nswRoadAgg[k];\n  showRoadDetail(agg, 'nsw');\n});",
+                    'road key=' + k + ', grouped segments=' + group().length
+                );
                 showRoadDetail(agg, 'nsw');
             });
             layer.on('mouseover', function() { if (!nswInView(feature.properties)) return; if (!isSelected(layer)) group().forEach(l => l.setStyle({ weight: 5, opacity: 1 })); });
@@ -327,6 +339,12 @@ Promise.all([
                     L.DomEvent.stopPropagation(e);
                     highlightRoad(group(), cvClipLayer);
                     const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
+                    if (typeof traceCode === 'function') traceCode(
+                        'Clipped CV road clicked: ' + roadName(agg),
+                        'The clipped Clarence Valley layer uses the same statewide road verdict, but its geometry is trimmed to the LGA boundary for display.',
+                        "layer.on('click', function(e) {\n  highlightRoad(group(), cvClipLayer);\n  const agg = nswRoadAgg[k];\n  showRoadDetail(agg, 'nsw');\n});",
+                        'road key=' + k + ', clipped segment group=' + group().length
+                    );
                     showRoadDetail(agg, 'nsw');
                 });
                 layer.on('mouseover', function () { if (!isSelected(layer)) group().forEach(l => l.setStyle({ weight: 5, opacity: 1 })); });
@@ -405,6 +423,12 @@ Promise.all([
                 layer.on('click', function(e) {
                     L.DomEvent.stopPropagation(e);
                     highlightRoad(group(), nltnLayer);
+                    if (typeof traceCode === 'function') traceCode(
+                        'NLTN route clicked',
+                        'The Nationally Significant layer selects all NLTN segments in the same route group, then opens the national-criteria detail panel.',
+                        "layer.on('click', function(e) {\n  highlightRoad(group(), nltnLayer);\n  showNltnDetail(p);\n});",
+                        'NLTN group=' + (p._natGroup || 'unknown') + ', segments=' + group().length
+                    );
                     showNltnDetail(p);
                 });
                 layer.on('mouseover', function() {
@@ -444,6 +468,12 @@ Promise.all([
             layer.on('click', function(e) {
                 L.DomEvent.stopPropagation(e);
                 highlightRoad(group(), cvLayer);
+                if (typeof traceCode === 'function') traceCode(
+                    'Legacy CV road clicked: ' + roadName(feature.properties),
+                    'This older Clarence Valley assessment layer can still open road detail if shown, using the CV-specific properties on the feature.',
+                    "layer.on('click', function(e) {\n  highlightRoad(group(), cvLayer);\n  showRoadDetail(feature.properties, 'cv');\n});",
+                    'road key=' + k
+                );
                 showRoadDetail(feature.properties, 'cv');
             });
             layer.on('mouseover', function() { if (!isSelected(layer)) group().forEach(l => l.setStyle({ weight: 5, opacity: 1 })); });

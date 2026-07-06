@@ -2,6 +2,12 @@
 
 function switchTab(tab) {
     if (tab === 'detail' && currentTab !== 'detail') lastViewTab = currentTab;   // remember where to return
+    if (typeof traceCode === 'function') traceCode(
+        'Tab switch: ' + tab,
+        'The tab button calls switchTab(). This updates the active sidebar panel, chooses the matching map lens, then calls the view function for that tab.',
+        "function switchTab(tab) {\n  currentTab = tab;\n  const contentId = tab === 'overview' ? 'overview'\n    : NSW_LENSES.includes(tab) ? 'nsw' : tab;\n\n  if (NSW_MAP_TABS.includes(tab)) {\n    nswView = tab === 'overview' ? 'all' : tab;\n    tab === 'overview' ? refreshOverview() : refreshNswView();\n    showNSW();\n  } else if (tab === 'cv') {\n    refreshCV();\n    showCV();\n  } else if (tab === 'sydney') {\n    refreshSydney();\n    showSydney();\n  }\n}",
+        'previous tab: ' + currentTab + ' -> next tab: ' + tab
+    );
     currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -36,6 +42,12 @@ function tabGroup(tab) {
 
 // Apply the legend on/off toggles + per-lens NLTN style to the map for the CURRENT view.
 function applyLegend(opts) {
+    if (typeof traceCode === 'function') traceCode(
+        'Apply map layers',
+        'After a tab or legend change, applyLegend() decides which layers should be on the map and whether the roads need to be recoloured.',
+        "function applyLegend(opts) {\n  const cvClip = currentTab === 'cv' && legendToggles.clip;\n  const nsrLens = currentTab !== 'cv' && currentTab !== 'sydney' && nswView === 'nsr';\n  const hideNsw = cvClip || currentTab === 'local' || nsrLens;\n\n  hideNsw ? map.removeLayer(nswLayer) : map.addLayer(nswLayer);\n  if (nltnLayer && (currentTab === 'nsr' || currentTab === 'overview' || currentTab === 'sydney')) {\n    map.addLayer(nltnLayer);\n  }\n}",
+        'currentTab=' + currentTab + ', nswView=' + nswView + ', clip=' + legendToggles.clip
+    );
     // opts.skipRoadRestyle (set by toggleLegendItem for keys that cannot change nswStyle's output —
     // towns / boundaries / bypass / NLTN / highlight rings): skip re-styling the ~17.6k road paths, the
     // most expensive thing this function does. The canvas styles stay correct because those keys are not
@@ -162,6 +174,12 @@ function renderMapLegend() {
 // ONLY the NHVR heavy-vehicle bypass overlay; OFF restores the exact previous toggle state.
 let _bypassSaved = null;
 function toggleBypassIsolate(on) {
+    if (typeof traceCode === 'function') traceCode(
+        'HV bypass isolate: ' + (on ? 'on' : 'off'),
+        'This checkbox temporarily changes the legend toggles so only the heavy-vehicle bypass overlay is visible, then redraws the map layers.',
+        "function toggleBypassIsolate(on) {\n  if (on) {\n    _bypassSaved = Object.assign({}, legendToggles);\n    Object.keys(legendToggles).forEach(k => legendToggles[k] = false);\n    legendToggles.bypass = true;\n  } else {\n    legendToggles = _bypassSaved;\n  }\n  renderMapLegend();\n  applyLegend();\n}",
+        'bypass overlay is drawn from nhvr_networks.json flags'
+    );
     if (on) {
         _bypassSaved = Object.assign({}, legendToggles);
         Object.keys(legendToggles).forEach(function (k) { if (k !== 'clip') legendToggles[k] = false; });
@@ -184,6 +202,12 @@ const ROADSTYLE_KEYS = { green: 1, orange: 1, red: 1, dashed: 1, clip: 1 };
 
 // Clicking a legend swatch toggles that category on/off across the map.
 function toggleLegendItem(key) {
+    if (typeof traceCode === 'function') traceCode(
+        'Legend toggle: ' + key,
+        'Legend rows flip a visibility flag. applyLegend() then redraws the relevant layer or restyles road colours.',
+        "function toggleLegendItem(key) {\n  legendToggles[key] = !legendToggles[key];\n  applyLegend({ skipRoadRestyle: ROADSTYLE_KEYS[key] !== 1 });\n}",
+        key + ' will become ' + (legendToggles[key] ? 'off' : 'on')
+    );
     legendToggles[key] = !legendToggles[key];
     if (key === 'clip') deselect();   // swapping the road layer — clear any stale selection/highlight
     // Only the clicked key's row changed state — update just its row(s) rather than re-sweeping every
@@ -202,6 +226,12 @@ function syncLegendVisuals() {
 }
 
 function showNSW() {
+    if (typeof traceCode === 'function') traceCode(
+        'Show NSW view',
+        'The Overview, State and Regional tabs all use the same NSW road layer. nswView decides whether it shows all roads, State roads, Regional roads or hides them for Nat. Sig.',
+        "function showNSW() {\n  applyLegend();\n  if (mapContext !== 'nsw' && nswLayer) {\n    map.fitBounds(nswLayer.getBounds().pad(0.05));\n  }\n  mapContext = 'nsw';\n}",
+        'nswView=' + nswView
+    );
     if (cvLayer) map.removeLayer(cvLayer);
     // The road overlay is owned by applyLegend(): it adds + styles it for the Overview/State/Regional
     // lenses and removes it for Nat. Significant (all roads hidden there — see hideNsw). Adding it here
@@ -214,6 +244,12 @@ function showNSW() {
 }
 
 function showCV() {
+    if (typeof traceCode === 'function') traceCode(
+        'Show Clarence Valley',
+        'The Clarence Valley tab reuses the statewide assessment, draws the LGA outline, filters the stats to roads touching the LGA, and frames the map to the boundary.',
+        "function showCV() {\n  applyLegend();\n  if (mapContext !== 'cv' && cvBoundaryLayer) {\n    map.fitBounds(cvBoundaryLayer.getBounds().pad(0.12));\n  }\n  mapContext = 'cv';\n}",
+        'stats source: scopeCounts(\"cv\"), boundary: clarence_valley_boundary.geojson'
+    );
     // The CV tab IS the Overview, zoomed into the Clarence Valley LGA with its outline drawn. The
     // council assessment layer (cvLayer) is retired; applyLegend adds the road overlay (full nswLayer,
     // or the clipped cvClipLayer when "inside only" is on).
@@ -225,6 +261,12 @@ function showCV() {
 }
 
 function showSydney() {
+    if (typeof traceCode === 'function') traceCode(
+        'Show Sydney',
+        'The Sydney tab uses the same statewide assessment as Overview, but it tags roads inside the Sydney Significant Urban Area and frames the map to that outline.',
+        "function showSydney() {\n  applyLegend();\n  if (mapContext !== 'sydney' && sydBoundaryLayer) {\n    map.fitBounds(sydBoundaryLayer.getBounds().pad(0.08));\n  }\n  mapContext = 'sydney';\n}",
+        'stats source: scopeCounts(\"syd\"), boundary: SUA_OUTLINES[30]'
+    );
     // The Sydney tab IS the Overview, zoomed into the Sydney Significant Urban Area with its outline drawn.
     // Uses the full road overlay (nswLayer) — same as the Overview, just framed on Sydney.
     if (cvLayer) map.removeLayer(cvLayer);
@@ -361,6 +403,12 @@ function scopeCounts(scope) {
 // 'syd'), which drives the scope, the region NLTN counts, and the DOM id prefix — so one function serves
 // both. refreshCV / refreshSydney remain as named entry points (switchTab + init.js call them).
 function refreshRegion(key) {
+    if (typeof traceCode === 'function') traceCode(
+        'Refresh region stats: ' + key,
+        'Region tabs do not create a new assessment. They reuse the statewide road verdicts and count only roads tagged inside the selected boundary.',
+        "function refreshRegion(key) {\n  const { g, o, r, grp } = scopeCounts(key);\n  set(key + '-green', g.toLocaleString());\n  set(key + '-orange', o.toLocaleString());\n  set(key + '-red', r.toLocaleString());\n}",
+        key === 'cv' ? 'Clarence Valley roads tagged with _inCV' : 'Sydney roads tagged with _inSyd'
+    );
     const { g, o, r, grp } = scopeCounts(key);
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
@@ -377,6 +425,12 @@ function refreshSydney() { refreshRegion('syd'); }
 
 // --- Local tab: council roads (green) drawn over the State + Regional network (context) ---
 function showLocal() {
+    if (typeof traceCode === 'function') traceCode(
+        'Show Local roads',
+        'The Local tab removes the State/Regional overlay and shows suburb-loaded council roads from OpenStreetMap/Overpass when available.',
+        "function showLocal() {\n  applyLegend();\n  mapContext = 'local';\n}",
+        'local roads are handled in local.js, not nsw_assessment.geojson'
+    );
     if (cvLayer) map.removeLayer(cvLayer);
     applyLegend();   // removes the S/R overlay (Local shows only local roads) + kicks off updateLocalX
     // No refit — keep the current pan/zoom; local roads load once zoomed in past LOCALX_ZOOM.
@@ -392,6 +446,12 @@ function refreshLocal() {
 // Cross-criteria toggle for the State / Regional lenses (folded in from the old Cross-test tab): re-grade
 // the shown roads against the OTHER category. refreshNswView recolours the map and re-counts the cards.
 function toggleCrossLens(on) {
+    if (typeof traceCode === 'function') traceCode(
+        'Cross-classification test: ' + (on ? 'on' : 'off'),
+        'This regrades the currently visible State or Regional roads against the other category. It is a scenario test, not a new official classification.',
+        "function toggleCrossLens(on) {\n  if (nswView === 'state') xLens.state = !!on;\n  else if (nswView === 'regional') xLens.regional = !!on;\n  refreshNswView();\n  nswLayer.setStyle(nswStyle);\n}",
+        'active lens=' + nswView
+    );
     if (nswView === 'state') xLens.state = !!on;
     else if (nswView === 'regional') xLens.regional = !!on;
     refreshNswView();
@@ -429,6 +489,12 @@ function nswViewCounts() {
 
 // Refresh the shared NSW panel (title, stats, legend, note) and restyle the map for the lens.
 function refreshNswView() {
+    if (typeof traceCode === 'function') traceCode(
+        'Refresh NSW lens: ' + nswView,
+        'This updates the left-panel cards for the active NSW lens. The map colours still come from each road verdict.',
+        "function refreshNswView() {\n  const c = nswViewCounts();\n  document.getElementById('nsw-total').textContent = c.total.toLocaleString();\n  document.getElementById('nsw-green').textContent = c.green.toLocaleString();\n  document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();\n  document.getElementById('nsw-red').textContent = c.red.toLocaleString();\n}",
+        'lens=' + nswView
+    );
     const m = NSW_VIEW_META[nswView]; if (!m) return;
     const c = nswViewCounts();
     // Nat. Significant is a 2-tier lens (green / "would meet") that hides the "does not meet" tier — but
@@ -494,6 +560,12 @@ function refreshNswView() {
 
 // Overview panel: whole network graded by own-category criteria, plus a per-group breakdown.
 function refreshOverview() {
+    if (typeof traceCode === 'function') traceCode(
+        'Refresh Overview stats',
+        'The Overview counts every assessed State and Regional road by its prepared criteria verdict.',
+        "function refreshOverview() {\n  const { g, o, r, grp } = scopeCounts('all');\n  document.getElementById('ov-total').textContent = (g + o + r).toLocaleString();\n  document.getElementById('ov-green').textContent = g.toLocaleString();\n  document.getElementById('ov-orange').textContent = o.toLocaleString();\n  document.getElementById('ov-red').textContent = r.toLocaleString();\n}",
+        'source: NSW_AGG + NSW_CRIT'
+    );
     // Two mutually exclusive groups (State / Regional) that sum to the network total, each graded by its
     // own category criteria. National significance lives on its own lens (the NLTN network), not here.
     const { g, o, r, grp } = scopeCounts('all');

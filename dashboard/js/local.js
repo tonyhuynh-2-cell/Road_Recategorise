@@ -70,6 +70,12 @@ function localRoadClickHandler(e) {
     }
     if (!bestFeat || bestD > 10) return;   // clicked empty space — leave it for the map's deselect
     const nm = (bestFeat.properties && bestFeat.properties.name) || 'Local road';
+    if (typeof traceCode === 'function') traceCode(
+        'Local road clicked: ' + nm,
+        'Local road lines use a custom nearest-road click test. The app finds the closest loaded local road to the click and opens a popup.',
+        "function localRoadClickHandler(e) {\n  const p = map.latLngToLayerPoint(e.latlng);\n  // scan loaded local-road segments near the click\n  if (bestFeat && bestD <= 10) {\n    L.popup().setContent('Local road').openOn(map);\n  }\n}",
+        'nearest distance=' + bestD.toFixed(1) + 'px'
+    );
     L.popup().setLatLng(e.latlng).setContent('<strong>' + nm + '</strong><br><span style="color:#78716c; font-size:11px">Local road · council-managed</span>').openOn(map);
 }
 map.on('click', localRoadClickHandler);
@@ -332,6 +338,12 @@ function onSuburbSubmit() {
 // Pick a suburb → geocode it (Nominatim, exact name + postcode) for the boundary polygon → load + clip roads.
 function pickSuburb(i) {
     const s = _subResults[i]; if (!s) return;
+    if (typeof traceCode === 'function') traceCode(
+        'Suburb selected: ' + s.name,
+        'The Local tab first resolves the suburb boundary, then loads OpenStreetMap local roads inside that boundary.',
+        "function pickSuburb(i) {\n  const s = _subResults[i];\n  fetch(Nominatim boundary for s.name)\n    .then(loadSuburbResult);\n}",
+        'postcode=' + (s.postcode || 'n/a')
+    );
     hideSuburbResults();
     const inp = document.getElementById('local-suburb-input'); if (inp) { inp.value = s.name; inp.blur(); }
     progStart();
@@ -381,6 +393,12 @@ function hasPolygon(g) { return g && g.geojson && (g.geojson.type === 'Polygon' 
 
 // Load a suburb: frame it (zoom IN), outline its perimeter, fetch its local roads, clip to the polygon, draw.
 function loadSuburbResult(g) {
+    if (typeof traceCode === 'function') traceCode(
+        'Load local roads: ' + suburbLabel(g),
+        'After the suburb boundary is found, the app builds an Overpass query, fetches local-road ways, clips them to the suburb polygon, then draws them.',
+        "function loadSuburbResult(g) {\n  const rings = geojsonRings(g.geojson);\n  const q = '[out:json];way[\"highway\"~LOCAL_HW](bbox);out geom;';\n  overpassFetch(q).then(data => {\n    const res = overpassToClippedGeojson(data, rings);\n    localRoadsXLayer.clearLayers();\n    localRoadsXLayer.addData(res.fc);\n  });\n}",
+        'boundary source: Nominatim, road source: Overpass/OpenStreetMap'
+    );
     const bb = g.boundingbox;   // [south, north, west, east] (strings)
     if (!bb) { progFail(); setLocalXStatus('That place has no area — try another'); return; }
     const rings = geojsonRings(g.geojson);
@@ -426,6 +444,12 @@ function drawSuburbOutline(gj) {
 
 // Local tab cross-test toggle: grade the loaded council roads by the Regional connectivity test.
 function toggleLocalTest(on) {
+    if (typeof traceCode === 'function') traceCode(
+        'Local cross-test: ' + (on ? 'on' : 'off'),
+        'This recolours loaded local roads with a simplified Regional-style connectivity test. It is indicative because B-double access is not available for local roads.',
+        "function toggleLocalTest(on) {\n  xLens.local = !!on;\n  localRoadsXLayer.setStyle(styleLocalX);\n}\n\nfunction regionalTestOfLocal(f) {\n  // >=2 nearby centres -> green, 1 -> orange, 0 -> red\n}",
+        'loaded local features=' + (localRoadsXLayer ? localRoadsXLayer.getLayers().length : 0)
+    );
     xLens.local = !!on;
     if (localRoadsXLayer) localRoadsXLayer.setStyle(styleLocalX);
     const nn = localRoadsXLayer ? localRoadsXLayer.getLayers().length : 0;

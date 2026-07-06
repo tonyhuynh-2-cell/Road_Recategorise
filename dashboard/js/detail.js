@@ -1,6 +1,12 @@
 // detail.js — the Road Detail panel (showRoadDetail).
 
 function showRoadDetail(p, source) {
+    if (typeof traceCode === 'function') traceCode(
+        'Open road detail: ' + roadName(p),
+        'The clicked road opens a detail view. The app looks up the prepared criteria result, evidence, NHVR access, geometry tests and traffic data for this road key.',
+        "function showRoadDetail(p, source) {\n  const key = roadKeyOf(p);\n  const evd = window.NSW_EVID[key] || {};\n  const c = window.NSW_CRIT[key];\n  const nh = window.NHVR[key] || {};\n  const ad = window.ADT[key];\n  // Render traffic, mandatory criteria, optional criteria,\n  // vehicle access and connectivity into the detail panel.\n}",
+        'road key=' + roadKeyOf(p) + ', source=' + source + ', status=' + (p.status || p._roadStatus || p.meets_criteria)
+    );
     switchTab('detail');
     document.getElementById('detail-empty').style.display = 'none';
     document.getElementById('detail-content').style.display = 'block';
@@ -204,6 +210,12 @@ function detailLayout(mode) {
 // criteria of the road it runs along: S-01 on the NLTN (met by definition), S-02·S-03 connects
 // ≥2 centres, S-04·S-05 connects a port/airport/intermodal. Green = meets ≥2; orange = on-network-only.
 function showNltnDetail(p) {
+    if (typeof traceCode === 'function') traceCode(
+        'Open Nat. Sig. detail: ' + nltnLabel(p).replace(/<[^>]*>/g, ''),
+        'National-network clicks use the NLTN route record instead of the normal State/Regional road detail. It shows national criteria and PBS 2B status.',
+        "function showNltnDetail(p) {\n  const nev = window.NLTN_EVID[p._natGroup] || {};\n  const green = p._natCat === 'green';\n  detailLayout('nltn');\n  // Render NLTN criteria, connected centres,\n  // ports/airports/intermodals and PBS Level 2B.\n}",
+        'NLTN group=' + (p._natGroup || 'unknown') + ', category=' + (p._natCat || 'orange')
+    );
     switchTab('detail');
     document.getElementById('detail-empty').style.display = 'none';
     document.getElementById('detail-content').style.display = 'block';

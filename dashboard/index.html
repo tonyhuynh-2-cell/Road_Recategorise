@@ -297,6 +297,21 @@
         <div id="map"></div>
         <!-- Data-refresh pill (top-centre): shown while road vectors reload — showMapRefresh() in state.js -->
         <div class="map-refresh" id="map-refresh" role="status"><span class="mr-spin" aria-hidden="true"></span><span id="map-refresh-text">Refreshing network…</span></div>
+        <!-- Live code trace: a learning overlay that prints the code path behind interactions. -->
+        <section id="code-trace" class="code-trace" aria-label="Live code trace">
+            <div class="ct-head">
+                <div>
+                    <h3>Live code trace</h3>
+                    <span><b id="code-trace-count">0</b> events</span>
+                </div>
+                <div class="ct-actions">
+                    <button type="button" onclick="pauseCodeTrace(this)">Pause</button>
+                    <button type="button" onclick="clearCodeTrace()">Clear</button>
+                    <button type="button" onclick="toggleCodeTrace()" aria-label="Collapse code trace">−</button>
+                </div>
+            </div>
+            <div id="code-trace-feed" class="ct-feed"></div>
+        </section>
         <!-- Road search (top-left). Find a road by name or ID and jump to it — see js/search.js. -->
         <div id="road-search" class="road-search">
             <div class="rs-box">
@@ -350,7 +365,7 @@
 <script>
 (function () {
     var v = Date.now();
-    var files = ['config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'init'];
+    var files = ['trace', 'config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'init'];
     for (var i = 0; i < files.length; i++) {
         document.write('<script src="js/' + files[i] + '.js?v=' + v + '"><\/script>');
     }
@@ -363,7 +378,7 @@
 <script>
 (function () {
     var WATCH = ['index.html', 'css/dashboard.css',
-        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/suburbs.js', 'js/local.js', 'js/export.js', 'js/init.js',
+        'js/trace.js', 'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/suburbs.js', 'js/local.js', 'js/export.js', 'js/init.js',
         'data/nsw_assessment.geojson', 'data/nsw_nltn.json', 'data/nsw_criteria.json', 'data/nsw_recat.json',
         'data/nsw_urbanity.json', 'data/nsw_refs.json', 'data/ref_overrides.json', 'data/summary_stats.json',
         'data/clarence_valley_assessment.geojson', 'data/towns_cv.geojson', 'data/cv_refs.json',
