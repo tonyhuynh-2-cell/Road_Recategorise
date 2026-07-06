@@ -243,8 +243,8 @@ Promise.all([
                 const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
                 if (typeof traceCode === 'function') traceCode(
                     'Road clicked: ' + roadName(agg),
-                    'The Leaflet road layer receives the click, selects every segment in the same road group, then sends the grouped road record to showRoadDetail().',
-                    "layer.on('click', function(e) {\n  const group = nswRoadLayers[k];\n  highlightRoad(group, nswLayer);\n  const agg = nswRoadAgg[k];\n  showRoadDetail(agg, 'nsw');\n});",
+                    'The road key `k` is created when Leaflet builds each feature layer. The click handler closes over that key, so later it can find every segment belonging to the same road.',
+                    "onEachFeature: function(feature, layer) {\n  const k = roadKeyOf(feature.properties);\n  if (k) (nswRoadLayers[k] || (nswRoadLayers[k] = [])).push(layer);\n  const group = () => nswRoadLayers[k] || [layer];\n\n  layer.on('click', function(e) {\n    highlightRoad(group(), nswLayer);\n    const agg = nswRoadAgg[k];\n    showRoadDetail(agg, 'nsw');\n  });\n}",
                     'road key=' + k + ', grouped segments=' + group().length
                 );
                 showRoadDetail(agg, 'nsw');
@@ -341,8 +341,8 @@ Promise.all([
                     const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
                     if (typeof traceCode === 'function') traceCode(
                         'Clipped CV road clicked: ' + roadName(agg),
-                        'The clipped Clarence Valley layer uses the same statewide road verdict, but its geometry is trimmed to the LGA boundary for display.',
-                        "layer.on('click', function(e) {\n  highlightRoad(group(), cvClipLayer);\n  const agg = nswRoadAgg[k];\n  showRoadDetail(agg, 'nsw');\n});",
+                        'The clipped Clarence Valley layer also creates `k` before the click handler. The geometry is clipped to the LGA, but the lookup still uses the same statewide road key.',
+                        "onEachFeature: function(feature, layer) {\n  const k = roadKeyOf(feature.properties);\n  if (k) (cvClipLayers[k] || (cvClipLayers[k] = [])).push(layer);\n  const group = () => cvClipLayers[k] || [layer];\n\n  layer.on('click', function(e) {\n    highlightRoad(group(), cvClipLayer);\n    const agg = nswRoadAgg[k];\n    showRoadDetail(agg, 'nsw');\n  });\n}",
                         'road key=' + k + ', clipped segment group=' + group().length
                     );
                     showRoadDetail(agg, 'nsw');
@@ -425,8 +425,8 @@ Promise.all([
                     highlightRoad(group(), nltnLayer);
                     if (typeof traceCode === 'function') traceCode(
                         'NLTN route clicked',
-                        'The Nationally Significant layer selects all NLTN segments in the same route group, then opens the national-criteria detail panel.',
-                        "layer.on('click', function(e) {\n  highlightRoad(group(), nltnLayer);\n  showNltnDetail(p);\n});",
+                        'The Nationally Significant layer uses `_natGroup` instead of the normal road key. That route group is captured by the click handler so every matching NLTN segment can be selected together.',
+                        "onEachFeature: function(feature, layer) {\n  const p = feature.properties || {};\n  const gk = p._natGroup;\n  (nltnGroups[gk] || (nltnGroups[gk] = [])).push(layer);\n  const group = () => nltnGroups[gk] || [layer];\n\n  layer.on('click', function(e) {\n    highlightRoad(group(), nltnLayer);\n    showNltnDetail(p);\n  });\n}",
                         'NLTN group=' + (p._natGroup || 'unknown') + ', segments=' + group().length
                     );
                     showNltnDetail(p);
@@ -470,8 +470,8 @@ Promise.all([
                 highlightRoad(group(), cvLayer);
                 if (typeof traceCode === 'function') traceCode(
                     'Legacy CV road clicked: ' + roadName(feature.properties),
-                    'This older Clarence Valley assessment layer can still open road detail if shown, using the CV-specific properties on the feature.',
-                    "layer.on('click', function(e) {\n  highlightRoad(group(), cvLayer);\n  showRoadDetail(feature.properties, 'cv');\n});",
+                    'This older Clarence Valley layer creates the same kind of road key before the click handler, but it passes the CV feature properties directly into the detail panel.',
+                    "onEachFeature: function(feature, layer) {\n  const k = roadKeyOf(feature.properties);\n  if (k) (cvRoadLayers[k] || (cvRoadLayers[k] = [])).push(layer);\n  const group = () => cvRoadLayers[k] || [layer];\n\n  layer.on('click', function(e) {\n    highlightRoad(group(), cvLayer);\n    showRoadDetail(feature.properties, 'cv');\n  });\n}",
                     'road key=' + k
                 );
                 showRoadDetail(feature.properties, 'cv');
