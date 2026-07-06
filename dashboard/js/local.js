@@ -421,7 +421,7 @@ function drawSuburbOutline(gj) {
     // that pane that spans the map and swallows clicks to the graded roads below (breaking State/Regional/
     // Overview selection). The SVG cvbRenderer (same as the Sydney/CV outlines) lets clicks pass through.
     suburbOutlineLayer = L.geoJSON(gj, { pane: 'cvbPane', renderer: cvbRenderer, interactive: false,
-        style: { color: '#000000', weight: 3.5, opacity: 1, fill: false, dashArray: '4 4' } }).addTo(map);
+        style: { color: '#000000', weight: 5.25, opacity: 1, fill: false, dashArray: '4 4' } }).addTo(map);
 }
 
 // Local tab cross-test toggle: grade the loaded council roads by the Regional connectivity test.
