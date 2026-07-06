@@ -25,8 +25,9 @@ function traceCode(title, explanation, code, context) {
         '<pre><code>' + _traceEsc(code).trim() + '</code></pre>' +
         '</article>';
     if (feed) {
-        feed.insertAdjacentHTML('afterbegin', html);
-        while (feed.children.length > 24) feed.removeChild(feed.lastElementChild);
+        feed.insertAdjacentHTML('beforeend', html);
+        while (feed.children.length > 24) feed.removeChild(feed.firstElementChild);
+        feed.scrollTop = feed.scrollHeight;
     }
     if (count && feed) count.textContent = feed.children.length;
     if (panel) panel.classList.add('ct-has-entries');
@@ -59,7 +60,7 @@ function pauseCodeTrace(btn) {
 document.addEventListener('DOMContentLoaded', function () {
     traceCode(
         'Trace ready',
-        'This panel will print the key JavaScript path whenever you use the dashboard.',
+        'This panel will print the key JavaScript path whenever you use the dashboard. Read it from top to bottom: older events stay above newer events.',
         "traceCode('Action name', 'Plain-English explanation', 'small code snippet');",
         'Tip: use Pause/Clear/Collapse if the feed gets busy.'
     );

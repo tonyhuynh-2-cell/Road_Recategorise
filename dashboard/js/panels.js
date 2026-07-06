@@ -4,8 +4,10 @@ function switchTab(tab) {
     if (tab === 'detail' && currentTab !== 'detail') lastViewTab = currentTab;   // remember where to return
     if (typeof traceCode === 'function') traceCode(
         'Tab switch: ' + tab,
-        'The tab button calls switchTab(). This updates the active sidebar panel, chooses the matching map lens, then calls the view function for that tab.',
-        "function switchTab(tab) {\n  currentTab = tab;\n  const contentId = tab === 'overview' ? 'overview'\n    : NSW_LENSES.includes(tab) ? 'nsw' : tab;\n\n  if (NSW_MAP_TABS.includes(tab)) {\n    nswView = tab === 'overview' ? 'all' : tab;\n    tab === 'overview' ? refreshOverview() : refreshNswView();\n    showNSW();\n  } else if (tab === 'cv') {\n    refreshCV();\n    showCV();\n  } else if (tab === 'sydney') {\n    refreshSydney();\n    showSydney();\n  }\n}",
+        tab === 'detail'
+            ? 'showRoadDetail() calls switchTab("detail") internally. This does not run a new map assessment; it only swaps the sidebar from the map summary panel to the road detail panel.'
+            : 'The tab button calls switchTab(). This updates the active sidebar panel, chooses the matching map lens, then calls the view function for that tab.',
+        "function switchTab(tab) {\n  currentTab = tab;\n  const contentId = tab === 'overview' ? 'overview'\n    : NSW_LENSES.includes(tab) ? 'nsw' : tab;\n  document.getElementById(`tab-${contentId}`).classList.add('active');\n\n  if (NSW_MAP_TABS.includes(tab)) {\n    refresh the NSW map view;\n  } else if (tab === 'cv') {\n    refreshCV(); showCV();\n  } else if (tab === 'sydney') {\n    refreshSydney(); showSydney();\n  } else if (tab === 'detail') {\n    // no new map calculation; just show the detail sidebar\n  }\n}",
         'previous tab: ' + currentTab + ' -> next tab: ' + tab
     );
     currentTab = tab;

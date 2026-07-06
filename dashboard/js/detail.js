@@ -3,9 +3,9 @@
 function showRoadDetail(p, source) {
     if (typeof traceCode === 'function') traceCode(
         'Open road detail: ' + roadName(p),
-        'The clicked road opens a detail view. The app looks up the prepared criteria result, evidence, NHVR access, geometry tests and traffic data for this road key.',
-        "function showRoadDetail(p, source) {\n  const key = roadKeyOf(p);\n  const evd = window.NSW_EVID[key] || {};\n  const c = window.NSW_CRIT[key];\n  const nh = window.NHVR[key] || {};\n  const ad = window.ADT[key];\n  // Render traffic, mandatory criteria, optional criteria,\n  // vehicle access and connectivity into the detail panel.\n}",
-        'road key=' + roadKeyOf(p) + ', source=' + source + ', status=' + (p.status || p._roadStatus || p.meets_criteria)
+        '`p` is the road object passed in by the click handler. `source` is the string passed beside it, usually "nsw", telling the detail panel which evidence collection to read.',
+        "layer.on('click', function(e) {\n  const agg = nswRoadAgg[k];       // this becomes p\n  showRoadDetail(agg, 'nsw');      // 'nsw' becomes source\n});\n\nfunction showRoadDetail(p, source) {\n  const key = roadKeyOf(p);\n  const evd = (source === 'cv' ? window.CV_EVID : window.NSW_EVID)[key] || {};\n  const c = window.NSW_CRIT[key];\n  const nh = window.NHVR[key] || {};\n  const ad = window.ADT[key];\n  switchTab('detail');\n}",
+        'p.road_name=' + roadName(p) + ', road key=' + roadKeyOf(p) + ', source=' + source + ', status=' + (p.status || p._roadStatus || p.meets_criteria)
     );
     switchTab('detail');
     document.getElementById('detail-empty').style.display = 'none';
