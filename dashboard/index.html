@@ -57,6 +57,9 @@
             <div class="tab-row">
                 <button class="tab-btn tab-g3" onclick="switchTab('sydney')">Sydney</button>
                 <button class="tab-btn tab-g3" onclick="switchTab('cv')">Clarence Valley</button>
+                <!-- ⚑ Flagged roads — rightmost in the row; red (tab-g2 family + its own tab-flag
+                     tint/lift/pulse styling, see the Flagged CSS section) rather than the row's teal -->
+                <button class="tab-btn tab-g2 tab-flag" onclick="switchTab('flagged')">Flagged roads</button>
             </div>
         </div>
 
@@ -68,17 +71,17 @@
                 <div class="stat-sub" id="ov-total-sub">State &amp; Regional roads graded against their criteria</div>
             </div>
             <div class="stat-grid">
-                <div class="stat-card">
+                <div class="stat-card acc-green">
                     <h3>Meets criteria</h3>
                     <div class="stat-value green" id="ov-green">–</div>
                     <div class="stat-sub" id="ov-green-pct"></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card acc-orange">
                     <h3>Meets 1 of 2</h3>
                     <div class="stat-value orange" id="ov-orange">–</div>
                     <div class="stat-sub" id="ov-orange-pct"></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card acc-red">
                     <h3>Does not meet</h3>
                     <div class="stat-value red" id="ov-red">–</div>
                     <div class="stat-sub" id="ov-red-pct"></div>
@@ -102,17 +105,17 @@
                 <div class="stat-sub" id="nsw-total-sub"></div>
             </div>
             <div class="stat-grid">
-                <div class="stat-card">
+                <div class="stat-card acc-green">
                     <h3 id="nsw-green-label">Meets criteria</h3>
                     <div class="stat-value green" id="nsw-green">–</div>
                     <div class="stat-sub" id="nsw-green-pct"></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card acc-orange">
                     <h3 id="nsw-orange-label">Meets 1 of 2</h3>
                     <div class="stat-value orange" id="nsw-orange">–</div>
                     <div class="stat-sub" id="nsw-orange-pct"></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card acc-red">
                     <h3 id="nsw-red-label">Does not meet</h3>
                     <div class="stat-value red" id="nsw-red">–</div>
                     <div class="stat-sub" id="nsw-red-pct"></div>
@@ -144,17 +147,17 @@
                 <div class="stat-sub">State &amp; Regional roads in the Sydney urban area, graded against their criteria</div>
             </div>
             <div class="stat-grid">
-                <div class="stat-card">
+                <div class="stat-card acc-green">
                     <h3>Meets criteria</h3>
                     <div class="stat-value green" id="syd-green">–</div>
                     <div class="stat-sub" id="syd-green-pct"></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card acc-orange">
                     <h3>Meets 1 of 2</h3>
                     <div class="stat-value orange" id="syd-orange">–</div>
                     <div class="stat-sub" id="syd-orange-pct"></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card acc-red">
                     <h3>Does not meet</h3>
                     <div class="stat-value red" id="syd-red">–</div>
                     <div class="stat-sub" id="syd-red-pct"></div>
@@ -170,6 +173,25 @@
             </div>
         </div>
 
+        <!-- Flagged Roads Tab — up to 10 user-pinned roads, shown alone on the map (see js/flagged.js).
+             Flags are UI pins only: verdicts, counts and criteria are never altered by pinning.
+             Its boxes border RED (acc-red) — the ⚑ pin motif, matching the red tab. -->
+        <div class="tab-content" id="tab-flagged">
+            <div class="stat-card hero acc-red">
+                <h3 id="flag-hero-title">Flagged roads (0/10)</h3>
+                <div class="stat-value blue" id="flag-total">0</div>
+                <div class="stat-sub">Pinned roads — drawn alone on the map in their normal verdict colours</div>
+            </div>
+            <div class="stat-card acc-red">
+                <h3>Pinned roads</h3>
+                <div id="flag-list"></div>
+            </div>
+            <div class="data-note">
+                <span class="note-label">Note</span>
+                <p>Flags are pins, not assessments: pinning a road never changes its verdict, the criteria it is graded against, or any count on the other tabs. Select a road and press <strong>⚑ Flag road</strong> in its detail panel to pin it here (up to 10).</p>
+            </div>
+        </div>
+
         <!-- Clarence Valley Tab — the Overview, zoomed into the Clarence Valley LGA with its outline -->
         <div class="tab-content" id="tab-cv">
             <div class="stat-card hero">
@@ -178,17 +200,17 @@
                 <div class="stat-sub">State &amp; Regional roads in the region, graded against their criteria</div>
             </div>
             <div class="stat-grid">
-                <div class="stat-card">
+                <div class="stat-card acc-green">
                     <h3>Meets criteria</h3>
                     <div class="stat-value green" id="cv-green">–</div>
                     <div class="stat-sub" id="cv-green-pct"></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card acc-orange">
                     <h3>Meets 1 of 2</h3>
                     <div class="stat-value orange" id="cv-orange">–</div>
                     <div class="stat-sub" id="cv-orange-pct"></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card acc-red">
                     <h3>Does not meet</h3>
                     <div class="stat-value red" id="cv-red">–</div>
                     <div class="stat-sub" id="cv-red-pct"></div>
@@ -250,6 +272,8 @@
                     <div id="detail-road-name" style="font-size:1.25rem; font-weight:600; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em;"></div>
                     <div id="detail-road-number" style="font-size:0.78rem; color:var(--faint); margin-bottom:5px;"></div>
                     <div id="detail-admin-class" style="font-size:0.85rem; color:var(--ink-soft);"></div>
+                    <!-- ⚑ flag/pin toggle (js/flagged.js) — a UI pin only, never touches the verdict -->
+                    <div id="detail-flag-wrap"></div>
                 </div>
 
                 <div class="stat-card">
@@ -350,7 +374,7 @@
 <script>
 (function () {
     var v = Date.now();
-    var files = ['config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'init'];
+    var files = ['config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'flagged', 'init'];
     for (var i = 0; i < files.length; i++) {
         document.write('<script src="js/' + files[i] + '.js?v=' + v + '"><\/script>');
     }
@@ -363,7 +387,7 @@
 <script>
 (function () {
     var WATCH = ['index.html', 'css/dashboard.css',
-        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/suburbs.js', 'js/local.js', 'js/export.js', 'js/init.js',
+        'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/suburbs.js', 'js/local.js', 'js/export.js', 'js/flagged.js', 'js/init.js',
         'data/nsw_assessment.geojson', 'data/nsw_nltn.json', 'data/nsw_criteria.json', 'data/nsw_recat.json',
         'data/nsw_urbanity.json', 'data/nsw_refs.json', 'data/ref_overrides.json', 'data/summary_stats.json',
         'data/clarence_valley_assessment.geojson', 'data/towns_cv.geojson', 'data/cv_refs.json',

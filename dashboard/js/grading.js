@@ -11,6 +11,9 @@ function nswInView(p) {
     // leaks past the outline) — handled by the layer swap in applyLegend, not here.
     // CV and Sydney tabs show the full State + Regional network (they add a region outline on top).
     if (currentTab === 'cv' || currentTab === 'sydney') return p.admin_class === 'S' || p.admin_class === 'R';
+    // Flagged tab (and a Road Detail opened from it): ONLY the user-pinned roads — a pure UI filter
+    // over the same overlay. Verdicts, criteria and every other tab's counts are untouched (flagged.js).
+    if (inFlaggedScope()) return (p.admin_class === 'S' || p.admin_class === 'R') && isRoadFlagged(roadKeyOf(p));
     // Local tab shows ONLY the green council roads — the S/R overlay is removed entirely (see applyLegend).
     if (currentTab === 'local') return false;
     // Overview: show EVERY State + Regional road. Nationally significant routes get the green/orange
@@ -47,7 +50,8 @@ function nswStyle(feature) {
     else if (currentTab === 'regional' && xLens.regional) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = x.asState; }
     if (!legendToggles[v]) return HIDDEN_STYLE;                       // verdict colour toggled off
     if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;    // route-numbered roads toggled off
-    return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: p._w || 2, opacity: v === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
+    // Flagged view: the pins keep their normal verdict colour, one weight bolder for focus.
+    return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: (p._w || 2) + (inFlaggedScope() ? 1 : 0), opacity: v === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }
 
 function cvStyle(feature) {

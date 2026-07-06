@@ -32,6 +32,8 @@
         /* Tabs — segmented control */
         .tabs { display: flex; flex-direction: column; gap: 5px; margin-bottom: 22px; }
         .tab-row { display: flex; gap: 5px; }
+        /* 1px full borders in each button's DEEP group colour (see the tab colour groups below) —
+           the depth of the hue carries the visibility, not the width. */
         .tab-btn { padding: 9px 6px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); font: 500 11.5px var(--sans); white-space: nowrap; cursor: pointer; border-radius: 9px; transition: all .15s; }
         .tab-row .tab-btn { flex: 1; }
         .tab-btn.tab-overview { padding: 12px 6px; font-size: 13px; font-weight: 600; }
@@ -54,8 +56,11 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* Stat cards */
-        .stat-card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+        /* Stat cards — full 1.5px semantic border (see the "Card accents" rules below; hero/total
+           and other colourless cards keep the black ink default). border+padding sums match the
+           original 1px/16px/18px values, so the inner content width and the card's outer size
+           (border-box) both stay put. */
+        .stat-card { background: var(--bg); border: 1.5px solid var(--ink); border-radius: 12px; padding: 15.5px 17.5px; margin-bottom: 12px; }
         .stat-card h3 { font: 600 10.5px/1.3 var(--sans); text-transform: uppercase; color: var(--muted); letter-spacing: .07em; margin-bottom: 11px; }
         .stat-value { font: 600 34px/1 var(--mono); letter-spacing: -.02em; color: var(--ink); font-feature-settings: 'tnum'; }
         .stat-value.green { color: var(--pass); }
@@ -64,10 +69,21 @@
         .stat-value.blue { color: var(--ink); }
         .stat-sub { font: 400 12px/1.45 var(--sans); color: var(--faint); margin-top: 8px; }
         .stat-card.hero .stat-value { font-size: 40px; }
+        /* Card accents — every side-panel box is SURROUNDED by a 1.5px border in its own semantic
+           colour: BLACK for the hero/total cards and the colourless cards (the var(--ink) base —
+           near-black in light mode, flipping to near-white under body.dark-mode), green / orange /
+           red for the verdict cards (deep shades, matching their stat-value colours), red also for
+           the Flagged tab's pinned-roads boxes (the ⚑ motif), grey for the notes (.data-note).
+           The acc-* classes are set in the markup next to each card's .stat-value colour class;
+           the 1.5px width itself comes from the .stat-card / .data-note base rules, so these only
+           recolour. */
+        .stat-card.acc-green { border-color: #16a34a; }
+        .stat-card.acc-orange { border-color: #d97706; }
+        .stat-card.acc-red { border-color: #dc2626; }
 
         /* KPI grid */
         .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
-        .stat-grid .stat-card { margin-bottom: 0; padding: 14px 13px; }
+        .stat-grid .stat-card { margin-bottom: 0; padding: 13.5px 12.5px; }
         .stat-grid .stat-card h3 { font-size: 9.5px; margin-bottom: 9px; letter-spacing: .04em; }
         .stat-grid .stat-value { font-size: 23px; }
         .stat-grid .stat-sub { font-size: 10.5px; margin-top: 6px; line-height: 1.35; }
@@ -117,8 +133,9 @@
         .legend-swatch { width: 22px; display: inline-flex; justify-content: center; flex-shrink: 0; }
         .legend-pin { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 
-        /* Note */
-        .data-note { margin-top: 16px; background: var(--bg-soft); border: 1px solid var(--line-soft); border-radius: 12px; padding: 13px 15px; }
+        /* Note — same full 1.5px surround as the cards, in mid-GREY (var(--muted) reads on both
+           themes; padding compensates so the box geometry stays put) */
+        .data-note { margin-top: 16px; background: var(--bg-soft); border: 1.5px solid var(--muted); border-radius: 12px; padding: 12.5px 14.5px; }
         .data-note .note-label { font: 600 9.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); display: block; margin-bottom: 7px; }
         .data-note p { font: 400 11.5px/1.55 var(--sans); color: var(--muted); }
         .data-note strong { color: var(--ink-soft); font-weight: 600; }
@@ -328,10 +345,12 @@
         .sub-meta { color: var(--muted); font: 400 11px var(--mono); margin-top: 1px; }
         .sub-empty { padding: 9px 11px; color: var(--muted); font: 400 12px var(--sans); }
 
-        /* --- Tab colour groups: g1 Overview · g2 Nat/State/Reg/Local · g3 Sydney/Clarence --- */
-        .tab-btn.tab-g1 { color: #2563eb; border-color: #cddbfa; }
-        .tab-btn.tab-g2 { color: #dc2626; border-color: #f4c9c9; }
-        .tab-btn.tab-g3 { color: #0d9488; border-color: #bfe6e2; }
+        /* --- Tab colour groups: g1 Overview · g2 Nat/State/Reg/Local/Flagged · g3 Sydney/Clarence.
+           Inactive borders carry the FULL group colour (deep, not the old faint tints); the active
+           solid fills below are unchanged. --- */
+        .tab-btn.tab-g1 { color: #2563eb; border-color: #2563eb; }
+        .tab-btn.tab-g2 { color: #dc2626; border-color: #dc2626; }
+        .tab-btn.tab-g3 { color: #0d9488; border-color: #0d9488; }
         .tab-btn.tab-g1:hover:not(.active) { border-color: #2563eb; color: #1e40af; }
         .tab-btn.tab-g2:hover:not(.active) { border-color: #dc2626; color: #b91c1c; }
         .tab-btn.tab-g3:hover:not(.active) { border-color: #0d9488; color: #0f766e; }
@@ -495,13 +514,19 @@
         body.dark-mode .bar-bg, body.dark-mode .dist-track,
         body.dark-mode .local-progress { background: #3a3733; }
         body.dark-mode .legend-color.legend-dash { border-top-color: #a8a29e; }
+        /* Card accents: the same FULL surrounding border, each hue lifted for contrast on the dark
+           ground (the black-ink hero/neutral cards and the grey notes flip automatically with the
+           palette — var(--ink) / var(--muted)) */
+        body.dark-mode .stat-card.acc-green { border-color: #4ade80; }
+        body.dark-mode .stat-card.acc-orange { border-color: #fbbf24; }
+        body.dark-mode .stat-card.acc-red { border-color: #f87171; }
         body.dark-mode .detail-placeholder svg { stroke: #57534e; }
         body.dark-mode .ev-dot.ev-sua { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px #1d4ed8; }
         /* Tab colour groups: same hue coding, lifted for contrast on the dark ground
            (:not(.active) — active tabs keep their solid colour + white text from the light theme) */
-        body.dark-mode .tab-btn.tab-g1:not(.active) { color: #7ea8f8; border-color: #2c3d63; }
-        body.dark-mode .tab-btn.tab-g2:not(.active) { color: #f38b8b; border-color: #5c2727; }
-        body.dark-mode .tab-btn.tab-g3:not(.active) { color: #45c8bc; border-color: #1d4b46; }
+        body.dark-mode .tab-btn.tab-g1:not(.active) { color: #7ea8f8; border-color: #2563eb; }
+        body.dark-mode .tab-btn.tab-g2:not(.active) { color: #f38b8b; border-color: #dc2626; }
+        body.dark-mode .tab-btn.tab-g3:not(.active) { color: #45c8bc; border-color: #0d9488; }
         body.dark-mode .tab-btn.tab-g1:hover:not(.active) { border-color: #2563eb; color: #a5c3fb; }
         body.dark-mode .tab-btn.tab-g2:hover:not(.active) { border-color: #dc2626; color: #f7b1b1; }
         body.dark-mode .tab-btn.tab-g3:hover:not(.active) { border-color: #0d9488; color: #7fdcd3; }
@@ -539,3 +564,62 @@
            and must stay pixel-identical (the localPane street-label tiles also stay unfiltered,
            because that pane carries the verdict-green local-roads canvas). */
         body.dark-mode .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9); }
+
+        /* ═══════════ Flagged roads (⚑ pins — up to 10; js/flagged.js) ═══════════
+           Presentation only: pins never touch verdict colours or counts. The pinned-roads list
+           mirrors the category-row idiom; the chips reuse the verdict tint pairs from the
+           criteria icons (config.js). Red accent = the tab's g2 colour group (the ⚑ motif). */
+        /* Each row is a click target (selectFlaggedRoad — selects the road on the map), so it gets
+           the pointer + a soft hover/focus wash; the ✕ inside keeps its own affordance. */
+        .flag-row { display: flex; align-items: center; gap: 9px; padding: 9px 6px; margin: 0 -6px; border-bottom: 1px solid var(--line-soft); border-radius: 8px; cursor: pointer; transition: background .12s ease; }
+        .flag-row:hover { background: var(--bg-soft); }
+        .flag-row:focus-visible { outline: 2px solid #93b4d8; outline-offset: -2px; }
+        .flag-row:last-child { border-bottom: none; }
+        .flag-info { flex: 1; min-width: 0; }
+        .flag-name { display: block; font: 500 13px/1.35 var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .flag-meta { display: block; font: 400 11px var(--sans); color: var(--faint); margin-top: 1px; }
+        .flag-chip { flex: none; font: 600 10px/1 var(--sans); letter-spacing: .02em; padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
+        .flag-chip.fc-green { color: #15803d; background: #dcf2e3; }
+        .flag-chip.fc-orange { color: #b45309; background: #f7ead1; }
+        .flag-chip.fc-red { color: #b91c1c; background: #fbe3e3; }
+        .flag-x { flex: none; border: none; background: transparent; color: var(--muted); font-size: 17px; line-height: 1;
+            cursor: pointer; padding: 2px 5px; border-radius: 6px; transition: color .12s ease, background .12s ease, transform .1s ease; }
+        .flag-x:hover { color: var(--fail); background: var(--red-soft); }
+        .flag-x:active { transform: scale(.94); }
+        .flag-x:focus-visible { outline: 2px solid #93b4d8; outline-offset: 1px; }
+        .flag-empty { font: 400 12.5px/1.5 var(--sans); color: var(--muted); padding: 2px 0; }
+        /* The little red flag icon — ICON-ONLY red (never road geometry or verdict chips).
+           Outline = unflagged, solid = flagged (flagIconSVG draws with currentColor). */
+        .flag-ico { display: inline-block; flex: none; color: var(--red); }
+        .flag-row-ico { flex: none; display: inline-flex; align-items: center; }
+        /* The flag/unflag toggle in the Road Detail panel — neutral chrome; the red flag icon +
+           label carry the state (unflagged: outline + "Flag road" · flagged: solid + "Unflag"). */
+        .flag-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 12px;
+            border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink-soft);
+            font: 500 12px var(--sans); cursor: pointer; transition: all .15s; }
+        .flag-btn:hover { border-color: var(--red); color: var(--ink); }
+        .flag-btn:active { transform: scale(.97); }
+        .flag-btn:focus-visible { outline: 2px solid #93b4d8; outline-offset: 2px; }
+        .flag-btn.is-flagged { background: var(--red-soft); border-color: #f4c9c9; color: var(--ink); }
+        .flag-btn.is-flagged:hover { border-color: var(--red); }
+        /* The "Flagged roads" TAB button — red (the shared tab-g2 red family supplies text/border/
+           active-solid + dark variants; these add its own hover tint + lift and the confirmation
+           pulse). Interaction-only motion: nothing animates at rest or on page load. */
+        .tab-btn.tab-flag { transition: all .15s, transform .18s var(--ease-out); }
+        .tab-btn.tab-flag:hover:not(.active) { background: var(--red-soft); transform: translateY(-1px); }
+        .tabs .tab-btn.tab-flag:active { transform: scale(.97); }   /* press beats the hover lift */
+        @keyframes flagPulse { 0% { transform: scale(1); } 35% { transform: scale(1.07); } 70% { transform: scale(.98); } 100% { transform: scale(1); } }
+        .tab-btn.flag-pulse { animation: flagPulse .5s var(--ease-out); }
+        @media (prefers-reduced-motion: reduce) {
+            .flag-btn:active, .flag-x:active { transform: none; }
+            .tab-btn.tab-flag, .tab-btn.tab-flag:hover:not(.active), .tabs .tab-btn.tab-flag:active { transition: none; transform: none; }
+            .tab-btn.flag-pulse { animation: none; }
+        }
+        /* Dark mode — chips/buttons/icon carry literal tints (same treatment as the tab-group rules) */
+        body.dark-mode .flag-chip.fc-green { color: #4ade80; background: #14301f; }
+        body.dark-mode .flag-chip.fc-orange { color: #fbbf24; background: #38290e; }
+        body.dark-mode .flag-chip.fc-red { color: #f87171; background: #3b1717; }
+        body.dark-mode .flag-x:hover { background: #3b1717; }
+        body.dark-mode .flag-ico { color: #f38b8b; }
+        body.dark-mode .flag-btn.is-flagged { background: #3b1717; border-color: #5c2727; }
+        body.dark-mode .tab-btn.tab-flag:hover:not(.active) { background: #3b1717; }
