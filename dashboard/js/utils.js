@@ -28,9 +28,24 @@ function isHighSpeed(p) {
 function isDashed(p) { return !!(p.ref) || isHighSpeed(p); }
 
 // Render one criteria row. state: true=pass, false=fail, null/undefined=not assessed (warn).
-function critItem(state, label, value) {
+function critItem(state, label, value, anchorId) {
     const icon = state === true ? ICON.pass : state === false ? ICON.fail : ICON.warn;
-    return '<div class="criteria-item"><span class="criteria-icon">' + icon + '</span><div class="criteria-text"><div class="criteria-label">' + label + '</div>' + (value ? '<div class="criteria-value">' + value + '</div>' : '') + '</div></div>';
+    return '<div class="criteria-item"' + (anchorId ? ' id="' + anchorId + '"' : '') + '><span class="criteria-icon">' + icon + '</span><div class="criteria-text"><div class="criteria-label">' + label + '</div>' + (value ? '<div class="criteria-value">' + value + '</div>' : '') + '</div></div>';
+}
+
+function scrollToCriterion(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (typeof traceCode === 'function') traceCode(
+        'Criteria chip clicked: ' + id,
+        'The result summary chip scrolls the detail panel to the matching criteria row and briefly highlights it.',
+        "function scrollToCriterion(id) {\n  const el = document.getElementById(id);\n  el.scrollIntoView({ behavior: 'smooth', block: 'center' });\n  el.classList.add('criteria-target');\n}",
+        'target row id=' + id
+    );
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('criteria-target');
+    void el.offsetWidth; // restart the highlight animation on repeated clicks
+    el.classList.add('criteria-target');
 }
 
 function roadName(p) {

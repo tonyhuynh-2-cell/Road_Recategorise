@@ -186,6 +186,20 @@
         .criteria-text { flex: 1; }
         .criteria-label { color: var(--ink-soft); font: 400 12.5px/1.4 var(--sans); }
         .criteria-value { color: var(--faint); font: 400 11px/1.4 var(--sans); margin-top: 2px; }
+        .criteria-jump { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 9px; }
+        .criteria-jump-label { color: var(--faint); font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: .08em; margin-right: 2px; }
+        .criteria-chip { border: 1px solid var(--line); background: var(--bg-soft); color: var(--ink-soft);
+            border-radius: 999px; padding: 4px 8px; font: 700 10.5px var(--mono); cursor: pointer;
+            transition: background .12s ease, border-color .12s ease, color .12s ease, transform .1s ease; }
+        .criteria-chip:hover { border-color: #93b4d8; color: var(--ink); background: #f4f8fc; }
+        .criteria-chip:active { transform: scale(.96); }
+        .criteria-chip.is-fail { color: #b91c1c; border-color: #f3c7c7; background: #fff5f5; }
+        .criteria-chip.is-warn { color: #9a6700; border-color: #f1d59d; background: #fff8e8; }
+        .criteria-item.criteria-target { animation: criteriaPulse 1.35s ease-out; border-radius: 8px; }
+        @keyframes criteriaPulse {
+            0% { background: rgba(37, 99, 235, .16); box-shadow: 0 0 0 2px rgba(37, 99, 235, .22); }
+            100% { background: transparent; box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
         .ci { width: 15px; height: 15px; vertical-align: middle; display: inline-block; }
         .result-line { display: inline-flex; align-items: center; gap: 8px; }
         .result-line .ci { width: 20px; height: 20px; }
