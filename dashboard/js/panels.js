@@ -2,6 +2,7 @@
 
 function switchTab(tab) {
     if (tab === 'detail' && currentTab !== 'detail') lastViewTab = currentTab;   // remember where to return
+    if (tab !== 'detail' && typeof clearSelectedRoad === 'function') clearSelectedRoad();
     if (typeof traceCode === 'function') traceCode(
         'Tab switch: ' + tab,
         tab === 'detail'
