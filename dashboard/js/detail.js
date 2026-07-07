@@ -33,6 +33,10 @@ function showRoadDetail(p, source) {
         (zoneLabel ? ' <span style="color:var(--muted)">· ' + zoneLabel + ' zone</span>' : '') +
         (p._nsr ? ' <span style="color:var(--muted)">· on the National Land Transport Network</span>' : '');
 
+    // ⚑ Flag/pin toggle (flagged.js) — a UI pin only: flagging never alters the verdict below, the
+    // criteria, or any tab's counts. Only NSW-overlay roads (the ones the Flagged tab can draw) get it.
+    const flagWrap = document.getElementById('detail-flag-wrap');
+    if (flagWrap) flagWrap.innerHTML = (source === 'nsw' && typeof flagButtonHTML === 'function') ? flagButtonHTML(roadKeyOf(p)) : '';
     // Computed, area-aware criteria for this road (data/nsw_criteria.json), keyed like the map rollup.
     const c = (source === 'nsw' && window.NSW_CRIT) ? window.NSW_CRIT[roadKeyOf(p)] : null;
     const urbanArea = c ? c.area === 'urban' : !!p._urban;
@@ -268,6 +272,10 @@ function showNltnDetail(p) {
     document.getElementById('detail-road-name').innerHTML = nltnLabel(p);
     document.getElementById('detail-road-number').textContent = p._proposed ? 'Proposed corridor — not yet built' : 'National Land Transport Network — Road';
     document.getElementById('detail-admin-class').innerHTML = 'Source: <strong>NLTN Determination 2020</strong> <span style="color:var(--muted)">· data.gov.au</span>';
+    // National routes aren't part of the road overlay the Flagged tab draws — no ⚑ pin here (and the
+    // shared detail DOM must not keep a stale button from a previously-shown road).
+    const nFlagWrap = document.getElementById('detail-flag-wrap');
+    if (nFlagWrap) nFlagWrap.innerHTML = '';
 
     const green = p._natCat === 'green';
     document.getElementById('detail-result').innerHTML = '<span class="result-line">' + (green ? ICON.pass : ICON.maybe) + '<span style="color:' + (green ? '#16a34a' : '#d97706') + '">' + (green ? 'NATIONALLY SIGNIFICANT' : 'ON NETWORK ONLY') + '</span></span>';

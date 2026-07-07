@@ -25,6 +25,7 @@ function switchTab(tab) {
         showNSW();
     } else if (tab === 'cv') { refreshCV(); showCV(); }
     else if (tab === 'sydney') { refreshSydney(); showSydney(); }
+    else if (tab === 'flagged') { refreshFlagged(); showFlagged(); }   // ⚑ pinned roads (flagged.js)
     else if (tab === 'local') { refreshLocal(); showLocal(); }
     renderMapLegend();   // rebuild the floating legend for this view (also re-syncs the toggle dimming)
     // The network-growth reveal plays ONCE per page load, at boot (hideLoader → revealFromSydney,
@@ -35,9 +36,10 @@ function switchTab(tab) {
 function backFromDetail() { switchTab(lastViewTab || 'overview'); }
 
 // Tab colour group (matches the tab-btn tinting + the floating legend accent):
-// g1 = Overview · g2 = Nat.Significant / State / Regional / Local · g3 = Sydney / Clarence Valley.
+// g1 = Overview · g2 = Nat.Significant / State / Regional / Local / Flagged (red — matches the ⚑
+// red-flag motif) · g3 = Sydney / Clarence Valley.
 function tabGroup(tab) {
-    if (tab === 'nsr' || tab === 'state' || tab === 'regional' || tab === 'local') return 'g2';
+    if (tab === 'nsr' || tab === 'state' || tab === 'regional' || tab === 'local' || tab === 'flagged') return 'g2';
     if (tab === 'sydney' || tab === 'cv') return 'g3';
     return 'g1';   // overview + detail
 }
@@ -62,7 +64,9 @@ function applyLegend(opts) {
     // them entirely. Mirrors nswInView's precedence: CV/Sydney show roads even if nswView is stale 'nsr';
     // the detail view keeps whatever lens it came from (nswView is unchanged there).
     const cvClip = currentTab === 'cv' && legendToggles.clip;
-    const nsrLens = currentTab !== 'cv' && currentTab !== 'sydney' && nswView === 'nsr';
+    // Flagged view: the ⚑ pins are drawn by this SAME overlay (nswStyle hides the unpinned roads),
+    // so a stale 'nsr' nswView must not take the layer off the map there (inFlaggedScope, flagged.js).
+    const nsrLens = currentTab !== 'cv' && currentTab !== 'sydney' && !inFlaggedScope() && nswView === 'nsr';
     const hideNsw = cvClip || currentTab === 'local' || nsrLens;
     if (nswLayer) {
         if (hideNsw) map.removeLayer(nswLayer);

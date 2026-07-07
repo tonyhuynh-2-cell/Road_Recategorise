@@ -255,7 +255,8 @@ map.on('zoomend', updateTownLabels);
 // draw solid while growing.
 const REVEAL_ORIGIN = L.latLng(-33.8688, 151.2093);   // Sydney CBD
 // Phased by class: Nationally Significant first, then State, then Regional — each phase starts
-// when the previous one is REVEAL_PHASE_START complete, with its own speeds (km/s of animation).
+// once the previous one has REVEAL_PHASE_START of its kilometres drawn, with its own speeds
+// (km/s of animation).
 const REVEAL_CLASSES = ['nsr', 'state', 'regional'];
 const REVEAL_SPEED = {
     nsr:      { spread: 1000, draw: 500 },   // motorway streams: fast and sweeping
@@ -270,9 +271,11 @@ const REVEAL_COLOR_BOOST = { '#16a34a': 1.35, '#f59e0b': 1.2, '#dc2626': 1 };
 // slower than base — the downgrade candidates crawl in last. DORMANT while the reveal is
 // boot-only (boot lands on the Overview); it kicks back in if per-tab reveals ever return.
 const REVEAL_COLOR_BOOST_REGIONAL = { '#16a34a': 1.5, '#f59e0b': 1, '#dc2626': 0.85 };
-// Phase overlap: the next class begins when the previous one is this fraction complete —
-// 0.5 = State starts once Nat.Sig is halfway done, Regional once State is halfway done
-// (1 would be strictly sequential).
+// Phase overlap: the fraction of a class's total road-KILOMETRES that must be drawn on screen
+// before the next class starts — 0.5 = State starts the moment half of Nat.Sig's km are on the
+// map, Regional once half of State's are (1 would be strictly sequential). Progress-based, not
+// time-based: chaining makes a class's END time hinge on its single longest chain, so a fraction
+// of the end time would land long after the class LOOKS finished.
 const REVEAL_PHASE_START = 0.5;
 const REVEAL_MAX_MS = 40000;      // hard safety cap on the whole animation
 let _revealPanes = null, _revealPending = null, _revealGen = 0;
@@ -524,16 +527,44 @@ function _revealStart() {
     if (!strands.length) return;
     _revealNetworkDelays(strands);   // Dijkstra: web-shaped per-endpoint arrivals (s._dA/_dB)
     _revealChainRoads(strands);      // serialize each road: ONE front, entering at its earliest-reached end
-    // Overlapped class sequencing: each class starts once the previous one is REVEAL_PHASE_START
-    // complete (Nat.Sig halfway → State begins; State halfway → Regional begins). Classes absent
-    // from this lens cost nothing. rawDelay is now the chain-assigned start (chain start + earlier
-    // strands' durations), so clsEnd = when the class's last-finishing CHAIN completes — and since
-    // a chain is class-pure, adding one phase offset to all its strands keeps it sequential.
+    // Overlapped class sequencing, PROGRESS-based: each class starts at the moment the previous
+    // one has REVEAL_PHASE_START of its total road-KILOMETRES on screen (half of Nat.Sig's km
+    // drawn → State begins; half of State's → Regional). Time-based ("50% of the class's end
+    // time") stopped meaning that once chaining serialized each road: a class's END is dominated
+    // by its single longest chain, so most of it looks finished long before. Per class we find
+    // T50 = the smallest t (in the class's own rawDelay timeline) where the summed drawn km —
+    // each strand drawing linearly from rawDelay to rawDelay+dur — reaches the fraction; that sum
+    // is monotonic in t, so a binary search over [0, clsEnd] nails it. Classes absent from this
+    // lens cost nothing. Since a chain is class-pure, adding one phase offset to all its strands
+    // keeps it sequential.
     let phaseOffset = 0;
     REVEAL_CLASSES.forEach(function (cls) {
-        let clsEnd = 0;
-        strands.forEach(function (s) { if (s.cls === cls) { s.delay = phaseOffset + s.rawDelay; clsEnd = Math.max(clsEnd, s.rawDelay + s.dur); } });
-        phaseOffset += clsEnd * REVEAL_PHASE_START;
+        const clsStrands = [];
+        let clsEnd = 0, totalKm = 0;
+        strands.forEach(function (s) {
+            if (s.cls !== cls) return;
+            s.delay = phaseOffset + s.rawDelay;
+            clsStrands.push(s);
+            totalKm += s.len;
+            clsEnd = Math.max(clsEnd, s.rawDelay + s.dur);
+        });
+        if (!clsStrands.length || !(totalKm > 0)) return;   // no strands → contributes no offset
+        const targetKm = totalKm * REVEAL_PHASE_START;
+        const drawnKm = function (t) {   // km on screen at t: linear ramp per strand (dur 0 = instant)
+            let km = 0;
+            for (let i = 0; i < clsStrands.length; i++) {
+                const s = clsStrands[i];
+                if (t <= s.rawDelay) continue;
+                km += s.dur > 0 ? Math.min(1, (t - s.rawDelay) / s.dur) * s.len : s.len;
+            }
+            return km;
+        };
+        let lo = 0, hi = clsEnd;
+        for (let i = 0; i < 40; i++) {
+            const mid = (lo + hi) / 2;
+            if (drawnKm(mid) >= targetKm) hi = mid; else lo = mid;
+        }
+        phaseOffset += hi;   // T50: the previous classes' offsets already sit in s.delay above
     });
     // Hide the real vector/marker panes (opacity keeps hit-testing alive) and draw over the tiles.
     _revealPanes = Array.prototype.filter.call(mapPane.children, function (el) {

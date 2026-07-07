@@ -218,7 +218,7 @@ Promise.all([
         const sydGeo = { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: su.rings.map(r => [r]) } };
         sydBoundaryLayer = L.geoJSON(sydGeo, {
             interactive: false, pane: 'cvbPane', renderer: cvbRenderer, smoothFactor: 2,
-            style: { color: '#000000', weight: 4.5, fill: false, opacity: 1, lineJoin: 'round' }
+            style: { color: '#000000', weight: 6.75, fill: false, opacity: 1, lineJoin: 'round' }
         });
     })();
     nswLayer = L.geoJSON(nswRoads, {
@@ -489,7 +489,7 @@ Promise.all([
         pane: 'cvbPane',
         renderer: cvbRenderer,
         smoothFactor: 2,   // 25k-vertex outline — simplify on render so the SVG stays smooth on pan/zoom
-        style: {color: '#000000', weight: 4.5, fill: false, opacity: 1, lineJoin: 'round'}
+        style: {color: '#000000', weight: 6.75, fill: false, opacity: 1, lineJoin: 'round'}
     });
 
     // CV Towns
