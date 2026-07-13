@@ -32,10 +32,58 @@ function showRoadDetail(p, source) {
     const flagWrap = document.getElementById('detail-flag-wrap');
     if (flagWrap) flagWrap.innerHTML = (source === 'nsw' && typeof flagButtonHTML === 'function') ? flagButtonHTML(roadKeyOf(p)) : '';
 
-    // Result — graded by the road's own category criteria (no forced pass for being on the NLTN).
+    // Cross-criteria lens context (cross-mode criteria display): when this detail was opened from
+    // the State/Regional lens with a cross-test mode active, the map is showing the roads
+    // re-coloured against the TARGET category — so the assessment + criteria cards below describe
+    // that target category's criteria, populated with the road's REAL cross values (never
+    // fabricated; unknowns render as "not assessed"). false = own criteria (original rendering).
+    const xtMode = detailXtMode(source);
+    const xtX = xtMode ? (buildXtest()[roadKeyOf(p)] || null) : null;
+    const xtShort = xtMode ? XT_MODES[xtMode].short : '';
+    const xtNoun = xtMode ? XT_MODES[xtMode].noun : '';
+
+    // Computed, area-aware criteria for this road (data/nsw_criteria.json), keyed like the map rollup.
+    const c = (source === 'nsw' && window.NSW_CRIT) ? window.NSW_CRIT[roadKeyOf(p)] : null;
+    const urbanArea = c ? c.area === 'urban' : !!p._urban;
+    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts (data/nsw_adt.json), spatially
+    // joined to the busiest count station on the road. Threshold depends on category + urban/rural —
+    // under a State/Regional cross-test the TARGET category's thresholds apply (effState).
+    const ad = (source === 'nsw' && window.ADT) ? window.ADT[roadKeyOf(p)] : null;
+    const effState = xtMode === 'state' ? true : xtMode === 'regional' ? false : isState;
+    const adtThr = effState ? (urbanArea ? 10000 : 7000) : (urbanArea ? 7000 : 2000);
+    const hvThr = effState ? 8 : 6;
+
+    // Result — graded by the road's own category criteria (no forced pass for being on the NLTN);
+    // under an active cross-test, by the road's REAL verdict against the target category (buildXtest).
     const resultEl = document.getElementById('detail-result');
     const reasonEl = document.getElementById('detail-result-reason');
-    if (source === 'nsw') {
+    const resultTitle = resultEl.closest('.stat-card').querySelector('h3');
+    if (resultTitle) resultTitle.textContent = xtMode ? ('Assessment result — tested as ' + xtShort) : 'Assessment result';
+    if (xtMode) {
+        const xv = xtX ? (xtMode === 'natsig' ? xtX.asNat : xtMode === 'regional' ? xtX.asReg : xtX.asState) : null;
+        if (xv === 'green') {
+            resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">WOULD MEET ' + xtShort.toUpperCase() + '</span></span>';
+            reasonEl.textContent = xtMode === 'natsig'
+                ? 'Meets ≥2 national criteria (NLTN membership · centre connections · port / airport / intermodal)'
+                : 'Meets ≥2 optional criteria and the ' + (xtMode === 'state' ? 'PBS Level 1' : '19m B-double') + ' mandatory gate — reclassification test';
+        } else if (xv === 'orange') {
+            resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">' + (xtMode === 'natsig' ? 'MEETS 1 NATIONAL CRITERION' : 'WOULD MEET 1 OF 2') + '</span></span>';
+            reasonEl.textContent = xtMode === 'natsig'
+                ? 'Meets 1 of the 3 national criteria — not nationally significant on this data'
+                : 'Passes the ' + (xtMode === 'state' ? 'PBS Level 1' : '19m B-double') + ' gate but meets only 1 optional criterion — would qualify with sufficient ADT';
+        } else if (xv === 'red') {
+            resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">WOULD NOT MEET ' + xtShort.toUpperCase() + '</span></span>';
+            if (xtMode === 'natsig') reasonEl.textContent = 'Meets none of the national criteria in the assessment data';
+            else {
+                const gateOk = xtMode === 'state' ? !!(c && c.mand && c.mand.pbs1) : nh.bdouble19 === true;
+                reasonEl.textContent = gateOk ? 'Meets no optional criterion at the ' + xtNoun + ' thresholds'
+                    : 'Fails the mandatory ' + (xtMode === 'state' ? 'PBS Level 1 (S-09)' : '19m B-double (R-04)') + ' gate';
+            }
+        } else {
+            resultEl.innerHTML = '<span class="result-line">' + ICON.warn + '<span style="color:#b45309">NOT ASSESSED UNDER THIS TEST</span></span>';
+            reasonEl.textContent = 'No cross-test data exists for this road';
+        }
+    } else if (source === 'nsw') {
         if (p.status === 'green') { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Passes all testable criteria even without ADT data'; }
         else if (p.status === 'orange') { resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY MEETS</span></span>'; reasonEl.textContent = 'Would meet criteria if ADT exceeds the relevant threshold'; }
         else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>'; reasonEl.textContent = 'Fails mandatory criteria or insufficient connectivity'; }
@@ -44,18 +92,14 @@ function showRoadDetail(p, source) {
         else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>'; reasonEl.textContent = p.mandatory_pass === 0 ? 'Fails mandatory criteria' : 'Does not meet ≥2 optional criteria'; }
     }
 
-    // Computed, area-aware criteria for this road (data/nsw_criteria.json), keyed like the map rollup.
-    const c = (source === 'nsw' && window.NSW_CRIT) ? window.NSW_CRIT[roadKeyOf(p)] : null;
-    const urbanArea = c ? c.area === 'urban' : !!p._urban;
-    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts (data/nsw_adt.json), spatially
-    // joined to the busiest count station on the road. Threshold depends on category + urban/rural.
-    const ad = (source === 'nsw' && window.ADT) ? window.ADT[roadKeyOf(p)] : null;
-    const adtThr = isState ? (urbanArea ? 10000 : 7000) : (urbanArea ? 7000 : 2000);
-    const hvThr = isState ? 8 : 6;
-
     // Traffic
     const trafficEl = document.getElementById('detail-traffic');
-    if (source === 'cv' && p.adt) {
+    if (xtMode === 'natsig') {
+        // Traffic volume is not one of the national significance criteria — factual display only.
+        trafficEl.innerHTML = ad
+            ? critItem(null, 'AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day (TfNSW, ' + ad.year + ')', 'Traffic volume is not part of the national significance criteria')
+            : critItem(null, 'ADT data not available', 'Traffic volume is not part of the national significance criteria');
+    } else if (source === 'cv' && p.adt) {
         const thr = isState ? 7000 : 2000;
         const cvHvThr = isState ? 8 : 6;
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (p.adt > thr ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">ADT: ' + Math.round(p.adt).toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + thr.toLocaleString() + '</div></div></div>' +
@@ -63,10 +107,10 @@ function showRoadDetail(p, source) {
     } else if (ad) {
         // Statewide AADT now available for this road (TfNSW count station).
         const hvOk = ad.hv_pct != null ? ad.hv_pct > hvThr : null;
-        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (ad.aadt > adtThr ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + adtThr.toLocaleString() + ' (' + (urbanArea ? 'urban' : 'rural') + ' ' + (isState ? 'State' : 'Regional') + ') · TfNSW count, ' + ad.year + '</div></div></div>' +
+        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (ad.aadt > adtThr ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + adtThr.toLocaleString() + ' (' + (urbanArea ? 'urban' : 'rural') + ' ' + (effState ? 'State' : 'Regional') + (xtMode ? ' — cross-test' : '') + ') · TfNSW count, ' + ad.year + '</div></div></div>' +
             '<div class="criteria-item"><span class="criteria-icon">' + (hvOk === true ? ICON.pass : hvOk === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · busiest of ' + ad.stations + ' stations' : '') + '</div></div></div>';
     } else {
-        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">No TfNSW count station on this road · ' + (isState ? 'State threshold >' + adtThr.toLocaleString() : 'Regional threshold >' + adtThr.toLocaleString()) + '</div></div></div>';
+        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">No TfNSW count station on this road · ' + (effState ? 'State threshold >' + adtThr.toLocaleString() : 'Regional threshold >' + adtThr.toLocaleString()) + (xtMode ? ' (cross-test)' : '') + '</div></div></div>';
     }
     // Shared traffic-volume criterion row — real AADT vs threshold when we have it, else "not available".
     const trafficCrit = ad
@@ -74,10 +118,31 @@ function showRoadDetail(p, source) {
             'AADT ' + ad.aadt.toLocaleString() + ' (' + ad.year + ')' + (ad.hv_pct != null ? ' · ' + ad.hv_pct + '% HV' : '') + ' vs >' + adtThr.toLocaleString())
         : critItem(null, 'Meets traffic volume + heavy-vehicle thresholds', 'ADT not available for this road');
 
-    // Mandatory
+    // Mandatory — under a cross-test these are the TARGET category's gates, populated with the
+    // road's REAL data (PBS-1 from the criteria table, 19m B-double from the NHVR network). The
+    // natsig mode shows the national significance criteria (S-01–S-05) from natCrit instead;
+    // values that don't exist for this road render as "not assessed", never fabricated.
     const mandEl = document.getElementById('detail-mandatory');
+    const mandTitle = document.querySelector('#detail-card-mandatory h3');
+    const optTitle = document.querySelector('#detail-card-optional h3');
+    if (mandTitle) mandTitle.textContent = xtMode === 'natsig' ? 'National significance criteria (S-01–S-05)'
+        : xtMode ? ('Mandatory criteria — ' + xtNoun + ' test') : 'Mandatory criteria';
+    if (optTitle) optTitle.textContent = xtMode === 'natsig' ? 'Mandatory criteria — Nat. Sig. test'
+        : xtMode ? ('Optional criteria (must meet ≥2) — ' + xtNoun + ' test') : 'Optional criteria (must meet ≥2)';
     const par = rx.parallel_state_20;   // true = a State Road closely parallels this one (geometry test)
-    if (isState) {
+    // Which category's gate rows to render: the target's under a State/Regional cross-test,
+    // otherwise the road's own (natsig renders its own national block instead).
+    const mandAsState = xtMode === 'state' ? true : xtMode === 'regional' ? false : isState;
+    if (xtMode === 'natsig') {
+        const nc = c && c.natCrit;
+        const natRow = (v, label, on, off) => critItem(v === true ? true : v === false ? false : null, label,
+            v === true ? on : v === false ? off : 'Not assessed under this test — data unavailable');
+        mandEl.innerHTML = nc
+            ? (natRow(nc.nltn, 'S-01: Comprises the National Land Transport Network', 'Predominantly on the NLTN 2020 network', 'Not on the NLTN 2020 network')
+                + natRow(nc.metros, 'S-02·S-03: Connects ≥2 metropolitan / urban centres', 'Connects ≥2 qualifying centres', 'Does not connect ≥2 qualifying centres')
+                + natRow(nc.portair, 'S-04·S-05: Connects a Major Port, International Airport or Major Intermodal', 'Connects a qualifying port / airport / intermodal', 'No qualifying port / airport / intermodal connection'))
+            : critItem(null, 'National criteria', 'Not assessed under this test — no national-criteria data for this road');
+    } else if (mandAsState) {
         const pbs1 = c ? !!c.mand.pbs1 : !!p.has_pbs1;
         // "Does not parallel a State Road" — PASS when it does NOT parallel one. Now tested (not assumed).
         const parPass = par === true ? false : par === false ? true : null;
@@ -117,24 +182,38 @@ function showRoadDetail(p, source) {
     // Links two State Roads — real geometry topology (a Regional road that joins two State Roads).
     const twoStateRow = critItem(rx.two_state === true ? true : rx.two_state === false ? false : null,
         'Links two State Roads', rx.two_state === true ? 'Both ends meet a State Road' : rx.two_state === false ? 'Does not link two State Roads' : 'Not assessed');
-    if (source === 'cv' && (p.criteria_met || p.criteria_failed)) {
+    if (xtMode === 'natsig') {
+        // Nat. Sig. mandatory block (mirrors the NLTN detail): S-06 PBS 2B is only computed for
+        // NLTN determination routes, so for an overlay road it is honestly "not assessed".
+        optEl.innerHTML =
+            critItem(null, 'S-06: PBS Level 2B vehicle access',
+                'Not assessed under this test — NHVR PBS 2B status is computed for NLTN determination routes only') +
+            critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant');
+    } else if (xtMode && !c) {
+        optEl.innerHTML = critItem(null, xtNoun + ' optional criteria', 'Not assessed under this test — no criteria data for this road');
+    } else if (source === 'cv' && (p.criteria_met || p.criteria_failed)) {
         let html = '';
         if (p.criteria_met) p.criteria_met.split('; ').forEach(cc => { html += critItem(true, cc); });
         if (p.criteria_failed) p.criteria_failed.split('; ').forEach(cc => { html += critItem(false, cc); });
         html += evCentres(evCent) + facilityRows;
         optEl.innerHTML = html;
-    } else if (c && isState) {
+    } else if (c && mandAsState) {
         let html = '';
         const cLabel = urbanArea
             ? 'S-10: Connects Metro Centres / Regional Cities / Major Urban Centres / Major Towns'
             : 'S-07: Connects Metro Centres / Regional Cities / Major Towns to each other';
         html += critItem(!!c.opt.centres, cLabel, centresVal(!!c.opt.centres, evCent)) + evCentres(evCent);
-        if (!urbanArea) html += critItem(!!c.opt.ldr, 'Connects a centre to town centres along a long-distance rural route');
+        // ldr under a cross-test renders tri-state — null must read "not assessed", never a fail.
+        if (!urbanArea) html += xtMode
+            ? critItem(c.opt.ldr === true ? true : c.opt.ldr === false ? false : null,
+                'Connects a centre to town centres along a long-distance rural route',
+                c.opt.ldr == null ? 'Not assessed under this test — data unavailable' : undefined)
+            : critItem(!!c.opt.ldr, 'Connects a centre to town centres along a long-distance rural route');
         const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / Airports / Employment Centres';
         html += critItem(!!c.opt.dest, dLabel, destVal(!!c.opt.dest, evDests, evHosps, evEmploy)) + facilityRows;
         html += trafficCrit;
         optEl.innerHTML = html;
-    } else if (c && !isState) {
+    } else if (c && !mandAsState) {
         // Regional roads use the Sydney-Metropolitan criteria set (R-05 / R-06) in urban areas and the
         // Regional & Remote set (R-01 / R-02) elsewhere — mirroring the State urban/rural split above.
         let html = '';
@@ -188,6 +267,18 @@ function showRoadDetail(p, source) {
         critItem(connDest, 'Connects hospitals / ports / airports', nFac ? (nFac + ' named above') : (connDest ? 'Per assessment' : 'None within range'));
 }
 
+// The active cross-test mode for a Road Detail: the lens this detail was opened from (or the
+// lens on screen right now) with its cross-criteria mode, if any. Only the State / Regional
+// lenses carry cross-tests; a detail opened from anywhere else (Overview, Sydney, CV, Flagged,
+// search on another tab) renders the road's own criteria. false = own criteria.
+function detailXtMode(source) {
+    if (source !== 'nsw' || typeof xLens === 'undefined') return false;
+    const lens = (currentTab === 'detail') ? lastViewTab : currentTab;
+    if (lens === 'state') return xLens.state || false;
+    if (lens === 'regional') return xLens.regional || false;
+    return false;
+}
+
 // Configure which detail-panel sections show + their headings: 'road' (full criteria set) vs
 // 'nltn' (national criteria only). Lets the road and NLTN detail views share the same DOM.
 function detailLayout(mode) {
@@ -219,10 +310,11 @@ function showNltnDetail(p) {
     document.getElementById('detail-road-name').innerHTML = nltnLabel(p);
     document.getElementById('detail-road-number').textContent = p._proposed ? 'Proposed corridor — not yet built' : 'National Land Transport Network — Road';
     document.getElementById('detail-admin-class').innerHTML = 'Source: <strong>NLTN Determination 2020</strong> <span style="color:var(--muted)">· data.gov.au</span>';
-    // National routes aren't part of the road overlay the Flagged tab draws — no ⚑ pin here (and the
-    // shared detail DOM must not keep a stale button from a previously-shown road).
+    // ⚑ Flag/pin toggle — national routes CAN be pinned now: flagged.js draws them on the Flagged tab
+    // via the NLTN layer, filtered to the pinned routes. The flag key is namespaced 'nltn:<group>'.
+    // UI pin only: flagging never changes the national grade, the criteria, or any tab's counts.
     const nFlagWrap = document.getElementById('detail-flag-wrap');
-    if (nFlagWrap) nFlagWrap.innerHTML = '';
+    if (nFlagWrap) nFlagWrap.innerHTML = (typeof flagButtonHTML === 'function') ? flagButtonHTML('nltn:' + p._natGroup) : '';
 
     const green = p._natCat === 'green';
     document.getElementById('detail-result').innerHTML = '<span class="result-line">' + (green ? ICON.pass : ICON.maybe) + '<span style="color:' + (green ? '#16a34a' : '#d97706') + '">' + (green ? 'NATIONALLY SIGNIFICANT' : 'ON NETWORK ONLY') + '</span></span>';

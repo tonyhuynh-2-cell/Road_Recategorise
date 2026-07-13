@@ -69,21 +69,37 @@ function localRoadClickHandler(e) {
         }
     }
     if (!bestFeat || bestD > 10) return;   // clicked empty space — leave it for the map's deselect
-    const nm = (bestFeat.properties && bestFeat.properties.name) || 'Local road';
-    L.popup().setLatLng(e.latlng).setContent('<strong>' + nm + '</strong><br><span style="color:#78716c; font-size:11px">Local road · council-managed</span>').openOn(map);
+    // Open the SAME per-road assessment the list rows open (one shared path) — the map's deselect
+    // has already run (it was registered first), so the highlight set here sticks.
+    const gid = bestFeat.properties ? bestFeat.properties._lgid : null;
+    if (gid != null && LOCAL_GROUPS[gid]) openLocalRoad(gid);
 }
 map.on('click', localRoadClickHandler);
 
+// Colour a local-road feature by its ROAD's verdict under the active cross-test mode (false =
+// own criteria = plain green). Verdicts are graded per road group (gradeLocalGroup) so the map,
+// the list chips and the per-road detail can never disagree about one road.
 function styleLocalX(f) {
-    if (!xLens.local) return { color: '#16a34a', weight: 1.5, opacity: 0.9, lineCap: 'round' };
-    const v = regionalTestOfLocal(f);
+    const mode = xLens.local;
+    if (!mode) return { color: '#16a34a', weight: 1.5, opacity: 0.9, lineCap: 'round' };
+    const g = f.properties ? LOCAL_GROUPS[f.properties._lgid] : null;
+    const v = g ? gradeLocalGroup(g, mode).v : 'red';
     return { color: ROAD_COLORS[v] || '#9a938c', weight: 1.5, opacity: v === 'red' ? 0.7 : 0.95, lineCap: 'round' };
 }
 
-// Simplified Regional test: count distinct town/urban centres within ~1.2km of the road — ≥2 → green
-// (a Regional road connects ≥2 centres), 1 → orange, 0 → red. B-double access (the Regional mandatory
-// gate) isn't available for local roads, so this is connectivity-only (flagged in the panel).
-// Centre points = the 170 major towns PLUS the Significant Urban Area centroids. Built once.
+// --- Local cross-tests (Regional / State), connectivity-only and INDICATIVE -------------------
+// Neither mandatory gate (19m B-double for Regional, PBS-1 for State) is published for council
+// roads, so both tests grade the connectivity criteria alone — flagged as indicative in the panel.
+// Regional test (unchanged rule): count distinct town/urban centres within ~1.2km of the road —
+// ≥2 → green (a Regional road connects ≥2 centres), 1 → orange, 0 → red.
+// State test: two State-level optional criteria from the same evidence base — (a) connects ≥2
+// STATE-TIER centres (Regional Cities / Major Towns from the towns dataset + Significant Urban
+// Areas — S-07/S-10's centre classes), (b) connects ≥1 major facility (the major hospitals /
+// ports / airports / intermodals / Major-tier employment centres named in the statewide
+// assessment evidence). ≥2 met → green, 1 → orange, 0 → red — the standard "must meet ≥2
+// optional" rule. Verdicts are earned from the data, never forced.
+
+// Centre points for the Regional test = the ~170 major towns PLUS the SUA centroids. Built once.
 function xtCentrePts() {
     if (window._XT_CENTRES) return window._XT_CENTRES;
     const c = (window.NSW_TOWN_PTS || []).slice();
@@ -91,22 +107,78 @@ function xtCentrePts() {
     window._XT_CENTRES = c;
     return c;
 }
+// State-tier centre points: Regional Cities + Major Towns (init.js filters the towns dataset by
+// town_type) plus the Significant Urban Area centroids (major urban centres).
+function xtStateCentrePts() {
+    if (window._XT_CENTRES_STATE) return window._XT_CENTRES_STATE;
+    const c = (window.NSW_TOWN_PTS_MAJOR || []).slice();
+    (window.SUA_OUTLINES || []).forEach(function (s) { if (s && s.centroid) c.push(s.centroid); });
+    window._XT_CENTRES_STATE = c;
+    return c;
+}
+// Major facilities for the State test: the union of every named hospital / port / airport /
+// intermodal / Major-tier employment centre in the statewide assessment evidence
+// (data/nsw_evidence.json — the same evidence the road criteria grade against). Built once.
+function xtFacilityPts() {
+    if (window._XT_FACILITIES) return window._XT_FACILITIES;
+    const pts = [], names = [], seen = {};
+    const add = function (e, label) {
+        if (!e || e.lon == null || e.lat == null) return;
+        const id = (e.name || '?') + '|' + (+e.lat).toFixed(3) + '|' + (+e.lon).toFixed(3);
+        if (seen[id]) return;
+        seen[id] = 1;
+        pts.push([+e.lon, +e.lat]);
+        names.push((e.name || 'Facility') + (label ? ' (' + label + ')' : ''));
+    };
+    const ev = window.NSW_EVID || {};
+    for (const k in ev) {
+        const e = ev[k];
+        (e.hospitals || []).forEach(function (x) { add(x, 'hospital'); });
+        (e.dests || []).forEach(function (x) { add(x, x.ftype || 'port/airport'); });
+        (e.employment || []).forEach(function (x) { if (x.tier === 'Major') add(x, 'employment'); });
+    }
+    window._XT_FACILITIES = { pts: pts, names: names };
+    return window._XT_FACILITIES;
+}
 
-function regionalTestOfLocal(f) {
-    const pts = xtCentrePts();
-    if (!pts.length) return 'green';
-    const g = f.geometry, lines = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
-    const near = {}, R = 1.2;
-    for (const cs of lines) for (const v of cs) {
-        const lon = v[0], lat = v[1], cosl = Math.cos(lat * Math.PI / 180);
-        for (let i = 0; i < pts.length; i++) {
-            if (near[i]) continue;
-            const dLat = (pts[i][1] - lat) * 111.32, dLon = (pts[i][0] - lon) * 111.32 * cosl;
-            if (dLat * dLat + dLon * dLon <= R * R) near[i] = 1;
+// Indices of `pts` ([lon,lat]) within R km of any vertex of any geometry in `geoms`
+// (equirectangular — the same maths the original Regional test used).
+function _nearPtIdx(geoms, pts, R) {
+    const near = {};
+    if (!pts.length) return [];
+    for (const g of geoms) {
+        const lines = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
+        for (const cs of lines) for (const v of cs) {
+            const lon = v[0], lat = v[1], cosl = Math.cos(lat * Math.PI / 180);
+            for (let i = 0; i < pts.length; i++) {
+                if (near[i]) continue;
+                const dLat = (pts[i][1] - lat) * 111.32, dLon = (pts[i][0] - lon) * 111.32 * cosl;
+                if (dLat * dLat + dLon * dLon <= R * R) near[i] = 1;
+            }
         }
     }
-    const n = Object.keys(near).length;
-    return n >= 2 ? 'green' : n === 1 ? 'orange' : 'red';
+    return Object.keys(near);
+}
+
+// Grade one local ROAD (group of ways/parts) against a cross-test mode; cached per mode on the
+// group, cleared whenever a new suburb loads (buildLocalGroups resets the objects).
+function gradeLocalGroup(g, mode) {
+    if (g.v[mode]) return g.v[mode];
+    const geoms = g.feats.map(function (f) { return f.geometry; });
+    let res;
+    if (mode === 'state') {
+        const nc = _nearPtIdx(geoms, xtStateCentrePts(), 1.2).length;
+        const fac = xtFacilityPts();
+        const fIdx = _nearPtIdx(geoms, fac.pts, 1.2);
+        const met = (nc >= 2 ? 1 : 0) + (fIdx.length ? 1 : 0);
+        res = { v: met >= 2 ? 'green' : met === 1 ? 'orange' : 'red', centres: nc, nFac: fIdx.length,
+                facNames: fIdx.slice(0, 4).map(function (i) { return fac.names[i]; }) };
+    } else {
+        const n = _nearPtIdx(geoms, xtCentrePts(), 1.2).length;
+        res = { v: n >= 2 ? 'green' : n === 1 ? 'orange' : 'red', centres: n };
+    }
+    g.v[mode] = res;
+    return res;
 }
 
 // --- Clip roads to the suburb polygon so they don't leak past the perimeter ---
@@ -143,12 +215,14 @@ function clipCoordsToRings(coords, rings) {
 
 // Overpass `out geom` → GeoJSON FeatureCollection, clipped to `rings` (if given). Returns the collection
 // plus the count of source ways that kept at least one segment (so the tally isn't inflated by splitting).
+// Every part of one way SHARES its props object (`_way` identifies the way), so buildLocalGroups can
+// re-assemble ways — and same-named ways — into whole roads afterwards.
 function overpassToClippedGeojson(data, rings) {
     const feats = []; let roads = 0;
-    ((data && data.elements) || []).forEach(function (el) {
+    ((data && data.elements) || []).forEach(function (el, idx) {
         if (el.type !== 'way' || !el.geometry || el.geometry.length < 2) return;
         const coords = el.geometry.map(function (pt) { return [pt.lon, pt.lat]; });
-        const props = { name: (el.tags && el.tags.name) || '', hw: (el.tags && el.tags.highway) || '' };
+        const props = { name: (el.tags && el.tags.name) || '', hw: (el.tags && el.tags.highway) || '', _way: idx };
         const parts = (rings && rings.length) ? clipCoordsToRings(coords, rings) : [coords];
         if (parts.length) roads++;
         parts.forEach(function (p) { feats.push({ type: 'Feature', properties: props, geometry: { type: 'LineString', coordinates: p } }); });
@@ -398,11 +472,22 @@ function loadSuburbResult(g) {
             const res = overpassToClippedGeojson(data, rings);
             localRoadsXLayer.clearLayers();
             if (!map.hasLayer(localRoadsXLayer)) map.addLayer(localRoadsXLayer);
+            closeLocalRoad();   // a previous suburb's open per-road detail would now be stale
             if (res.fc.features.length) {
                 localRoadsXLayer.addData(res.fc);
-                setLocalTotal(res.roads);
-                setLocalXStatus(res.roads.toLocaleString() + ' local roads in ' + suburbLabel(g) + (xLens.local ? ' · graded as Regional' : ' · green'));
-            } else { setLocalTotal(0); setLocalXStatus('No local roads found in ' + suburbLabel(g)); }
+                buildLocalGroups(suburbLabel(g));
+                setLocalTotal(LOCAL_GROUPS.length);
+                const sub = document.getElementById('local-total-sub');
+                if (sub) sub.textContent = 'Council-managed local roads in ' + suburbLabel(g) + ' (OpenStreetMap)';
+                setLocalXStatus(LOCAL_GROUPS.length.toLocaleString() + ' local roads in ' + suburbLabel(g));
+                if (xLens.local) localRoadsXLayer.setStyle(styleLocalX);   // fresh groups → fresh verdict colours
+            } else {
+                buildLocalGroups(suburbLabel(g));
+                setLocalTotal(0);
+                setLocalXStatus('No local roads found in ' + suburbLabel(g));
+            }
+            renderLocalList();
+            updateLocalXtStatus();
             progDone();
         })
         .catch(function (err) {
@@ -424,12 +509,217 @@ function drawSuburbOutline(gj) {
         style: { color: '#000000', weight: 5.25, opacity: 1, fill: false, dashArray: '4 4' } }).addTo(map);
 }
 
-// Local tab cross-test toggle: grade the loaded council roads by the Regional connectivity test.
-function toggleLocalTest(on) {
-    xLens.local = !!on;
+// --- Per-road list + detail (Local tab) --------------------------------------------------------
+// The loaded ways are re-assembled into ROADS: parts of one way share a props object (_way), and
+// same-named ways merge into one road — so 'Kent Street' is one row/verdict, not ten segments.
+// Unnamed ways stay individual. LOCAL_GROUPS is the single source the list, the map colours, the
+// per-road detail, the xt status line and the Excel export all read from.
+let LOCAL_GROUPS = [];      // [{ id, name, hw, lenKm, feats, layers, v: {regional, state} }]
+let LOCAL_SUBURB = '';      // display name of the loaded suburb
+let _localOpenId = null;    // group id of the open per-road detail (null = list view)
+
+function buildLocalGroups(suburbName) {
+    LOCAL_GROUPS = [];
+    LOCAL_SUBURB = suburbName || '';
+    _localOpenId = null;
+    const byKey = {};
+    localRoadsXLayer.eachLayer(function (lyr) {
+        const f = lyr.feature; if (!f || !f.properties) return;
+        const pr = f.properties;
+        const key = pr.name ? 'n:' + pr.name.toLowerCase() : 'w:' + pr._way;
+        let g = byKey[key];
+        if (!g) {
+            g = { id: LOCAL_GROUPS.length, name: pr.name || '', hw: pr.hw || '', lenKm: 0, feats: [], layers: [], v: {} };
+            byKey[key] = g;
+            LOCAL_GROUPS.push(g);
+        }
+        g.feats.push(f);
+        g.lenKm += roadLenKm(f.geometry);
+        g.layers.push(lyr);
+        pr._lgid = g.id;
+    });
+}
+
+const LOCAL_HW_LABEL = { residential: 'Residential street', unclassified: 'Unclassified road', living_street: 'Living street', tertiary: 'Tertiary road', tertiary_link: 'Tertiary link', road: 'Road' };
+function localHwLabel(hw) { return LOCAL_HW_LABEL[hw] || 'Local road'; }
+function localFmtKm(km) { return km >= 10 ? km.toFixed(0) : km.toFixed(1); }
+function localEsc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// The scrollable per-road list ("click a road for its assessment"). Chips follow the active
+// cross-test mode; under own criteria local roads carry no verdict, so the chip is neutral.
+function renderLocalList() {
+    const card = document.getElementById('local-list-card');
+    const list = document.getElementById('local-road-list');
+    if (!card || !list) return;
+    if (!LOCAL_GROUPS.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
+    card.style.display = '';
+    const mode = xLens.local;
+    const CHIP = { green: 'Meets', orange: 'Meets 1 of 2', red: 'Does not meet' };
+    const order = LOCAL_GROUPS.slice().sort(function (a, b) {
+        if (!a.name !== !b.name) return a.name ? -1 : 1;   // named roads first, unnamed ways last
+        return (a.name || '').localeCompare(b.name || '') || a.id - b.id;
+    });
+    list.innerHTML = order.map(function (g) {
+        const label = g.name || 'Unnamed local road';
+        const v = mode ? gradeLocalGroup(g, mode).v : null;
+        const chip = mode
+            ? '<span class="flag-chip fc-' + v + '">' + CHIP[v] + '</span>'
+            : '<span class="flag-chip fc-neutral">Local</span>';
+        const dot = mode ? ' style="background:' + (ROAD_COLORS[v] || '#16a34a') + '"' : '';
+        return '<div class="lr-row" data-lg="' + g.id + '" role="button" tabindex="0" aria-label="Assess ' + localEsc(label) + '"' +
+            ' onclick="openLocalRoad(+this.dataset.lg)"' +
+            ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openLocalRoad(+this.dataset.lg)}">' +
+            '<span class="lr-dot"' + dot + '></span>' +
+            '<span class="lr-info"><span class="lr-name">' + localEsc(label) + '</span>' +
+            '<span class="lr-meta">' + localFmtKm(g.lenKm) + ' km · ' + localHwLabel(g.hw) + '</span></span>' +
+            chip + '</div>';
+    }).join('');
+}
+
+// Open one local road's assessment — the SHARED path for list rows and map clicks: swap the
+// panel to the detail view, highlight the whole road on the map (the existing selection
+// mechanism), frame it, and show its length in the distance pill.
+function openLocalRoad(id) {
+    const g = LOCAL_GROUPS[id];
+    if (!g || currentTab !== 'local') return;
+    _localOpenId = id;
+    const lv = document.getElementById('local-list-view');
+    const dv = document.getElementById('local-road-detail');
+    if (lv) lv.hidden = true;
+    if (dv) dv.hidden = false;
+    renderLocalRoadDetail(g);
+    highlightRoad(g.layers, localRoadsXLayer);
+    try { map.fitBounds(L.featureGroup(g.layers).getBounds().pad(0.3), { maxZoom: 17 }); } catch (e) { /* no bounds */ }
+    if (typeof showRoadDistance === 'function') showRoadDistance(g.lenKm);
+}
+
+// Back to the list view (also called when a new suburb load makes an open detail stale).
+function closeLocalRoad() {
+    _localOpenId = null;
+    const lv = document.getElementById('local-list-view');
+    const dv = document.getElementById('local-road-detail');
+    if (dv) dv.hidden = true;
+    if (lv) lv.hidden = false;
+    deselect();
+}
+
+// The per-road criteria view — MODE-AWARE (cross-mode criteria display): it shows the criteria
+// of whatever the segmented control is testing (own = no S/R criteria apply; as Regional / as
+// State = that target's criteria populated with the road's real connectivity counts). Unknowns
+// (the unpublished mandatory gates, traffic counts) are explicit "not assessed" rows — never
+// fabricated passes or fails.
+function renderLocalRoadDetail(g) {
+    const mode = xLens.local;
+    const set = function (id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    set('lrd-name', g.name || 'Unnamed local road');
+    set('lrd-meta', (LOCAL_SUBURB ? LOCAL_SUBURB + ' · ' : '') + localFmtKm(g.lenKm) + ' km · ' + localHwLabel(g.hw) + ' · council-managed (OpenStreetMap)');
+    const vEl = document.getElementById('lrd-verdict');
+    const rEl = document.getElementById('lrd-reason');
+    const cEl = document.getElementById('lrd-criteria');
+    if (!vEl || !rEl || !cEl) return;
+    const line = function (icon, color, txt) { return '<span class="result-line">' + icon + '<span style="color:' + color + '">' + txt + '</span></span>'; };
+    if (!mode) {
+        set('lrd-verdict-title', 'Assessment');
+        set('lrd-criteria-title', 'Criteria — Local road');
+        vEl.innerHTML = line(ICON.warn, '#57534e', 'NOT GRADED — LOCAL ROAD');
+        rEl.textContent = 'Local roads carry no State / Regional criteria of their own. Switch the cross-criteria test to "Test as Regional" or "Test as State" for an indicative re-grade.';
+        cEl.innerHTML =
+            critItem(null, 'Category: Local (council-managed)', 'OpenStreetMap class: ' + localHwLabel(g.hw)) +
+            critItem(null, 'Mandatory vehicle-access gates', 'PBS-1 / 19m B-double access is not published for council roads — not assessed') +
+            critItem(null, 'Traffic volume thresholds', 'No TfNSW count data for local roads — not assessed');
+    } else if (mode === 'regional') {
+        const res = gradeLocalGroup(g, 'regional');
+        set('lrd-verdict-title', 'Assessment — tested as Regional (indicative)');
+        set('lrd-criteria-title', 'Criteria — Regional Road test');
+        vEl.innerHTML = res.v === 'green' ? line(ICON.pass, '#16a34a', 'WOULD MEET REGIONAL')
+            : res.v === 'orange' ? line(ICON.maybe, '#d97706', 'MEETS 1 CENTRE — 1 OF 2')
+            : line(ICON.fail, '#dc2626', 'WOULD NOT MEET REGIONAL');
+        rEl.textContent = res.centres + ' town / urban centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km — a Regional road connects ≥2. Indicative: the mandatory 19m B-double gate is not published for council roads.';
+        cEl.innerHTML =
+            critItem(res.centres >= 2, 'R-01·R-05: Connects ≥2 town / urban centres', res.centres + ' centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km of the road') +
+            critItem(null, 'R-04: 19m B-double access (mandatory gate)', 'Not published for council-managed roads — not assessed') +
+            critItem(null, 'Traffic volume thresholds', 'No TfNSW count data for local roads — not assessed');
+    } else {
+        const res = gradeLocalGroup(g, 'state');
+        set('lrd-verdict-title', 'Assessment — tested as State (indicative)');
+        set('lrd-criteria-title', 'Criteria — State Road test');
+        vEl.innerHTML = res.v === 'green' ? line(ICON.pass, '#16a34a', 'WOULD MEET STATE')
+            : res.v === 'orange' ? line(ICON.maybe, '#d97706', 'MEETS 1 OF 2 STATE CRITERIA')
+            : line(ICON.fail, '#dc2626', 'WOULD NOT MEET STATE');
+        rEl.textContent = res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' and ' + res.nFac + ' major facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — a State road needs ≥2 optional criteria. Indicative: the mandatory PBS Level 1 gate is not published for council roads.';
+        cEl.innerHTML =
+            critItem(res.centres >= 2, 'S-07·S-10: Connects ≥2 State-tier centres (Regional Cities / Major Towns / urban areas)', res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km') +
+            critItem(res.nFac >= 1, 'S-08·S-11: Connects a major hospital / port / airport / intermodal / employment centre', res.nFac ? (res.nFac + ' within ~1.2 km — ' + res.facNames.join('; ')) : 'None within ~1.2 km') +
+            critItem(null, 'S-09: PBS Level 1 access (mandatory gate)', 'Not published for council-managed roads — not assessed') +
+            critItem(null, 'Traffic volume thresholds', 'No TfNSW count data for local roads — not assessed');
+    }
+}
+
+// --- Local cross-criteria segmented control: Own criteria / Test as Regional / Test as State ---
+// The distribution line under the control — real verdict counts over the loaded roads.
+function updateLocalXtStatus() {
+    const el = document.getElementById('local-xt-status');
+    if (!el) return;
+    const m = xLens.local;
+    if (!m) { el.textContent = ''; return; }
+    if (!LOCAL_GROUPS.length) { el.textContent = 'Load a suburb to run the test'; return; }
+    const c = { green: 0, orange: 0, red: 0 };
+    LOCAL_GROUPS.forEach(function (g) { c[gradeLocalGroup(g, m).v]++; });
+    el.textContent = LOCAL_GROUPS.length.toLocaleString() + ' local roads re-graded against the ' +
+        (m === 'state' ? 'State Road' : 'Regional Road') + ' criteria — ' +
+        c.green.toLocaleString() + ' would meet · ' + c.orange.toLocaleString() + ' meet 1 of 2 · ' +
+        c.red.toLocaleString() + ' would not (indicative).';
+}
+
+// mode: 'own' | false = plain green local roads, 'regional' | 'state' = indicative re-grade.
+// Mirrors setCrossTest (panels.js) for the State/Regional lenses.
+function setLocalCrossTest(mode) {
+    const m = (mode === 'own' || !mode) ? false : mode;
+    xLens.local = m;
+    document.querySelectorAll('#local-xt .xt-btn').forEach(function (b) {
+        b.classList.toggle('on', (m || 'own') === b.getAttribute('data-xt'));
+    });
     if (localRoadsXLayer) localRoadsXLayer.setStyle(styleLocalX);
-    const nn = localRoadsXLayer ? localRoadsXLayer.getLayers().length : 0;
-    if (nn) { const el = document.getElementById('local-status'); if (el && /local roads/.test(el.textContent)) el.textContent = el.textContent.replace(/· (green|graded as Regional)$/, xLens.local ? '· graded as Regional' : '· green'); }
+    renderLocalList();
+    updateLocalXtStatus();
+    renderMapLegend();   // the Local legend's verdict rows follow the mode
+    // An open per-road detail re-renders coherently under the new mode (same road, new criteria).
+    if (_localOpenId != null && LOCAL_GROUPS[_localOpenId]) renderLocalRoadDetail(LOCAL_GROUPS[_localOpenId]);
+    if (typeof showMapRefresh === 'function' && LOCAL_GROUPS.length)
+        showMapRefresh(m ? ('Re-grading local roads as ' + (m === 'state' ? 'State' : 'Regional') + '…') : 'Restoring plain local roads…', 1100);
+}
+// Back-compat entry point (the old checkbox's boolean semantics).
+function toggleLocalTest(on) { setLocalCrossTest(on ? 'regional' : false); }
+
+// --- Excel export hooks (the export menu's "Local roads (loaded suburb)" scope, export.js) ---
+function localLoadedInfo() { return { count: LOCAL_GROUPS.length, suburb: LOCAL_SUBURB }; }
+function localExportRows() {
+    const m = xLens.local;
+    const noun = m === 'state' ? 'State' : 'Regional';
+    return LOCAL_GROUPS.map(function (g) {
+        const res = m ? gradeLocalGroup(g, m) : null;
+        const v = res ? res.v : null;
+        return {
+            'Road Name': g.name || 'Unnamed local road',
+            'Connects To': (res && res.facNames && res.facNames.length) ? res.facNames.join('; ') : '—',
+            'Categorisation': !m ? 'Local road (not graded)'
+                : v === 'green' ? ('Would meet ' + noun) : v === 'orange' ? 'Would meet 1 of 2' : ('Would not meet ' + noun),
+            'Why': !m ? 'Own criteria — local roads carry no State/Regional grading'
+                : m === 'state'
+                    ? ('S-07·S-10  ' + (res.centres >= 2 ? 'met' : 'not met') + ' (' + res.centres + ' State-tier centres)\nS-08·S-11  ' + (res.nFac ? 'met (' + res.nFac + ' facilities)' : 'not met') + '\nS-09  not assessed (gate unpublished)')
+                    : ('R-01·R-05  ' + (res.centres >= 2 ? 'met' : 'not met') + ' (' + res.centres + ' centres)\nR-04  not assessed (gate unpublished)'),
+            'What (criteria tested)': m
+                ? (m === 'state' ? 'Connectivity to State-tier centres + major facilities (indicative cross-test)' : 'Connectivity to town / urban centres (indicative cross-test)')
+                : 'None — local (council) road',
+            'HV Networks (NHVR)': 'Not published for council roads',
+            'AADT (TfNSW)': '—',
+            'Zone': '—',
+            'Road ID': '—',
+            'LGA(s) Touched': LOCAL_SUBURB || '—',
+            'Length (km)': Math.round(g.lenKm * 10) / 10,
+            _v: v || undefined
+        };
+    });
 }
 
 // Close the suburb dropdown when clicking outside the search box.

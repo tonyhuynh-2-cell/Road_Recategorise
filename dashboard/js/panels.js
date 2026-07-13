@@ -68,9 +68,13 @@ function applyLegend(opts) {
     if (nltnLayer) {
         // Shown on the Nat. Significant lens, the Overview AND the Sydney tab (which IS the Overview,
         // just framed on Sydney): the green/orange national network drawn alongside the road overlays.
-        if ((currentTab === 'nsr' || currentTab === 'overview' || currentTab === 'sydney') && legendToggles.nltn) {
+        const onNltnTab = (currentTab === 'nsr' || currentTab === 'overview' || currentTab === 'sydney') && legendToggles.nltn;
+        // Flagged view: show the national network too, but only when a national route is pinned — its
+        // style (nltnFeatureStyle) then hides every unpinned route, so ONLY the pins draw.
+        const onFlagged = typeof inFlaggedScope === 'function' && inFlaggedScope() && typeof anyNltnFlagged === 'function' && anyNltnFlagged();
+        if (onNltnTab || onFlagged) {
             map.addLayer(nltnLayer);
-            nltnLayer.setStyle(nltnFeatureStyle);   // per-feature grade + proposed translucency
+            nltnLayer.setStyle(nltnFeatureStyle);   // per-feature grade + proposed translucency (+ flagged filter)
         } else map.removeLayer(nltnLayer);
     }
     // Connectivity highlights honour their per-category toggles — re-render the current selection.
@@ -133,14 +137,25 @@ function renderMapLegend() {
         h += li('towns', townSw, 'Town / City — pin size scales with population');
         h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', 'Sydney outline');
     } else if (currentTab === 'local') {
-        h += liStatic('<div class="legend-color" style="background:#16a34a; height:2px"></div>', 'Local road (council) — green');
-        h += li('green', sw('#16a34a'), 'Tested: meets Regional (≥2 centres)');
-        h += li('orange', sw('#f59e0b'), 'Tested: 1 centre nearby');
-        h += li('red', sw('#dc2626'), 'Tested: no ≥2-centre link');
+        // Verdict rows follow the ACTIVE local cross-test mode (own = plain green, no verdicts).
+        const lm = (typeof xLens !== 'undefined') ? xLens.local : false;
+        h += liStatic('<div class="legend-color" style="background:#16a34a; height:2px"></div>', 'Local road (council)' + (lm ? '' : ' — green'));
+        if (lm === 'state') {
+            h += li('green', sw('#16a34a'), 'Tested: meets State (centres + facility)');
+            h += li('orange', sw('#f59e0b'), 'Tested: meets 1 State criterion');
+            h += li('red', sw('#dc2626'), 'Tested: meets no State criterion');
+        } else if (lm) {
+            h += li('green', sw('#16a34a'), 'Tested: meets Regional (≥2 centres)');
+            h += li('orange', sw('#f59e0b'), 'Tested: 1 centre nearby');
+            h += li('red', sw('#dc2626'), 'Tested: no ≥2-centre link');
+        }
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     } else if (NSW_LENSES.includes(currentTab) && NSW_VIEW_META[nswView]) {
         const m = NSW_VIEW_META[nswView];
-        m.legend.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
+        // Cross-criteria test active → the verdict rows describe the TARGET category's tiers.
+        const xm = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional) || false;
+        const legendRows = (xm && XT_MODE_LEGEND[xm]) ? XT_MODE_LEGEND[xm] : m.legend;
+        legendRows.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
         if (nswView === 'nsr') h += liStatic('<div class="legend-color" style="background:#16a34a; opacity:0.45"></div>', 'Proposed corridor — not yet built (translucent)');
         else h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
@@ -387,22 +402,34 @@ function showLocal() {
     mapContext = 'local';
 }
 
-// Local tab panel: the in-view count is filled by the Overpass fetch (setLocalTotal, local.js). Reset it
-// on (re)entering so a stale number doesn't linger before the fetch runs.
+// Local tab panel: the count is filled by the Overpass fetch (setLocalTotal, local.js) and the
+// loaded suburb PERSISTS across tab switches — restore its road count on re-entry (— when
+// nothing is loaded yet).
 function refreshLocal() {
-    if (typeof setLocalTotal === 'function') setLocalTotal(null);
+    if (typeof setLocalTotal === 'function')
+        setLocalTotal((typeof LOCAL_GROUPS !== 'undefined' && LOCAL_GROUPS.length) ? LOCAL_GROUPS.length : null);
 }
 
-// Cross-criteria toggle for the State / Regional lenses (folded in from the old Cross-test tab): re-grade
-// the shown roads against the OTHER category. refreshNswView recolours the map and re-counts the cards.
-function toggleCrossLens(on) {
-    if (nswView === 'state') xLens.state = !!on;
-    else if (nswView === 'regional') xLens.regional = !!on;
+// Cross-criteria segmented control for the State / Regional lenses (folded in from the old
+// Cross-test tab): re-grade the shown roads against ANOTHER category. mode: 'own' | false = own
+// criteria, or one of XT_LENS_MODES[nswView] ('regional' / 'natsig' on the State lens, 'state' on
+// the Regional lens — see config.js). refreshNswView re-counts the cards and rebuilds the control.
+function setCrossTest(mode) {
+    const m = (mode === 'own' || !mode) ? false : mode;
+    if (nswView === 'state') xLens.state = m;
+    else if (nswView === 'regional') xLens.regional = m;
     refreshNswView();
-    // refreshNswView no longer restyles the map; the cross toggle has no showNSW/applyLegend follow-up,
+    // refreshNswView no longer restyles the map; the cross test has no showNSW/applyLegend follow-up,
     // so recolour the roads here to reflect the reclassification grade (nswStyle reads xLens).
     if (nswLayer) nswLayer.setStyle(nswStyle);
+    renderMapLegend();   // verdict-row labels follow the active mode (target category's tiers)
+    // Brief top-centre pill while the vectors recolour (informative only).
+    if (typeof showMapRefresh === 'function')
+        showMapRefresh(m ? ('Re-grading as ' + XT_MODES[m].noun + '…') : 'Restoring own-criteria verdicts…', 1100);
 }
+// Back-compat entry point (the old checkbox's boolean semantics): ON = the lens's default
+// other-category test, OFF = own criteria.
+function toggleCrossLens(on) { setCrossTest(on ? (nswView === 'state' ? 'regional' : 'state') : false); }
 
 // Counts for the active lens. Nat. Significant counts the NLTN network's national-criteria grades;
 // the other lenses count roads by their category verdict (rolled-up aggregate + criteria).
@@ -412,22 +439,23 @@ function nswViewCounts() {
         const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };
         return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total };   // carry red, don't force 0
     }
-    // Cross-criteria toggle on: count each road by its verdict AGAINST the other category (asReg on the
-    // State lens, asState on the Regional lens) so the stat cards match the recoloured map.
-    const cross = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional);
-    if (!cross && _lensCounts[nswView]) return _lensCounts[nswView];   // static verdict counts — O(1)
-    const X = cross ? buildXtest() : null;
+    // Cross-criteria test on: count each road by its verdict AGAINST the target category (the
+    // lens's active mode — asReg / asNat on the State lens, asState on the Regional lens) so the
+    // stat cards match the recoloured map.
+    const mode = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional) || false;
+    if (!mode && _lensCounts[nswView]) return _lensCounts[nswView];   // static verdict counts — O(1)
+    const X = mode ? buildXtest() : null;
     const c = { green: 0, orange: 0, red: 0, total: 0 };
     for (const k in NSW_AGG) {
         const a = NSW_AGG[k];
         if (!nswInView(a)) continue;
         let v;
-        if (cross) { const x = X[k]; v = x ? (nswView === 'state' ? x.asReg : x.asState) : 'red'; }
+        if (mode) { const x = X[k]; v = x ? (mode === 'natsig' ? x.asNat : mode === 'regional' ? x.asReg : x.asState) : 'red'; }
         else { const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null; v = (cr && cr.verdict) || a.status; }
         if (c[v] !== undefined) c[v]++;
         c.total++;
     }
-    if (!cross) _lensCounts[nswView] = c;
+    if (!mode) _lensCounts[nswView] = c;
     return c;
 }
 
@@ -444,32 +472,47 @@ function refreshNswView() {
     const redCard = document.getElementById('nsw-red').closest('.stat-card');
     if (redCard) redCard.style.display = hideRed ? 'none' : '';
 
-    // Cross-criteria toggle — only on the State / Regional lenses. When ON, the roads are re-graded
-    // against the OTHER category (State→Regional, Regional→State) and the panel copy reflects that.
+    // Cross-criteria test — only on the State / Regional lenses. The segmented control offers "Own
+    // criteria" + one button per cross-test the lens genuinely supports (XT_LENS_MODES, config.js);
+    // when a mode is active the roads are re-graded against that category and the copy reflects it.
     const canCross = nswView === 'state' || nswView === 'regional';
-    const cross = canCross && (nswView === 'state' ? xLens.state : xLens.regional);
-    const other = nswView === 'state' ? 'Regional' : 'State';
+    const mode = canCross ? ((nswView === 'state' ? xLens.state : xLens.regional) || false) : false;
+    const xm = mode ? XT_MODES[mode] : null;         // { btn, short, noun } for the active mode
+    const subject = nswView === 'state' ? 'State' : 'Regional';
     const xc = document.getElementById('nsw-xtest');
     if (xc) {
         xc.style.display = canCross ? '' : 'none';
         if (canCross) {
-            const lbl = document.getElementById('nsw-xtest-label');
-            if (lbl) lbl.innerHTML = 'Grade these ' + (nswView === 'state' ? 'State' : 'Regional') + ' roads as <strong>' + other + '</strong> (reclassification test)';
-            const cb = document.getElementById('nsw-xtest-cb'); if (cb) cb.checked = !!cross;
+            const seg = document.getElementById('nsw-xt-seg');
+            if (seg) {
+                const xbtn = (mk, on, label) => '<button type="button" class="xt-btn' + (on ? ' on' : '') +
+                    '" data-xt="' + mk + '" onclick="setCrossTest(\'' + mk + '\')">' + label + '</button>';
+                let sh = xbtn('own', !mode, 'Own criteria');
+                (XT_LENS_MODES[nswView] || []).forEach(mk => { sh += xbtn(mk, mode === mk, XT_MODES[mk].btn); });
+                seg.innerHTML = sh;
+            }
+            const status = document.getElementById('nsw-xt-status');
+            if (status) status.textContent = mode
+                ? (c.total.toLocaleString() + ' ' + subject + ' roads re-graded against the ' + xm.noun + ' criteria.')
+                : '';
+            const fine = document.getElementById('nsw-xt-fine');
+            if (fine && XT_LENS_FINE[nswView]) fine.textContent = XT_LENS_FINE[nswView];
         }
     }
 
-    document.getElementById('nsw-hero-title').textContent = cross ? (m.title + ' — tested as ' + other) : m.title;
-    document.getElementById('nsw-total-sub').textContent = cross ? ('Re-graded against the ' + other + ' Road criteria — reclassification test') : m.sub;
+    document.getElementById('nsw-hero-title').textContent = mode ? (m.title + ' — tested as ' + xm.short) : m.title;
+    document.getElementById('nsw-total-sub').textContent = mode ? ('Re-graded against the ' + xm.noun + ' criteria — reclassification test') : m.sub;
     document.getElementById('nsw-total').textContent = c.total.toLocaleString();
     const pct = n => c.total ? (n / c.total * 100).toFixed(0) + '% of these roads' : '';
-    document.getElementById('nsw-green-label').textContent = cross ? ('Would meet ' + other) : m.gLabel;
+    // The natsig test grades 3 national criteria (≥2 green / 1 orange), so "Meets 1 of 2" would lie.
+    const oLbl = mode === 'natsig' ? 'Meets 1 criterion' : m.oLabel;
+    document.getElementById('nsw-green-label').textContent = mode ? ('Would meet ' + xm.short) : m.gLabel;
     document.getElementById('nsw-green').textContent = c.green.toLocaleString();
     document.getElementById('nsw-green-pct').textContent = pct(c.green);
-    document.getElementById('nsw-orange-label').textContent = m.oLabel;
+    document.getElementById('nsw-orange-label').textContent = oLbl;
     document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();
     document.getElementById('nsw-orange-pct').textContent = pct(c.orange);
-    document.getElementById('nsw-red-label').textContent = cross ? ('Would not meet ' + other) : (hideRed ? m.rLabel : (m.rLabel || 'Does not meet'));
+    document.getElementById('nsw-red-label').textContent = mode ? ('Would not meet ' + xm.short) : (hideRed ? m.rLabel : (m.rLabel || 'Does not meet'));
     document.getElementById('nsw-red').textContent = c.red.toLocaleString();
     document.getElementById('nsw-red-pct').textContent = pct(c.red);
     // Verdict distribution bar — the green/orange(/red) split for this lens, mirroring the Overview's
@@ -480,17 +523,16 @@ function refreshNswView() {
         const { gp, op, rp } = barPercents(c.green, c.orange, c.total, hideRed);
         const seg = (w, col) => w > 0 ? '<span style="width:' + w + '%; background:' + col + '"></span>' : '';
         distBar.innerHTML = seg(gp, '#16a34a') + seg(op, '#f59e0b') + seg(rp, '#dc2626');
-        const gLbl = cross ? ('Would meet ' + other) : m.gLabel;
-        const rLbl = cross ? ('Would not meet ' + other) : (m.rLabel || 'Does not meet');
+        const gLbl = mode ? ('Would meet ' + xm.short) : m.gLabel;
+        const rLbl = mode ? ('Would not meet ' + xm.short) : (m.rLabel || 'Does not meet');
         const dk = (col, label, n) => label ? '<span class="dk"><i style="background:' + col + '"></i>' + label + ' <b>' + n.toLocaleString() + '</b></span>' : '';
         document.getElementById('nsw-dist-key').innerHTML =
-            dk('#16a34a', gLbl, c.green) + dk('#f59e0b', m.oLabel, c.orange) + (hideRed ? '' : dk('#dc2626', rLbl, c.red));
+            dk('#16a34a', gLbl, c.green) + dk('#f59e0b', oLbl, c.orange) + (hideRed ? '' : dk('#dc2626', rLbl, c.red));
     }
     // The map legend itself is the floating panel (renderMapLegend), rebuilt by switchTab.
+    // Mode active → the note describes the TARGET category's criteria (XT_MODE_NOTES, config.js).
     const np = document.querySelector('#nsw-note p');
-    if (np) np.textContent = cross
-        ? ('Reclassification test — each road re-graded against the ' + other + ' Road criteria. The optional connectivity criteria are shared; only the mandatory gate swaps (State needs PBS-1 access, Regional needs 19m B-double access). Green = would meet ≥2 optional. Verdicts are earned from the data, not forced.')
-        : m.note;
+    if (np) np.textContent = mode ? (XT_MODE_NOTES[mode] || m.note) : m.note;
     // Map restyle is owned by switchTab's follow-up showNSW()->applyLegend() (which styles nswLayer and,
     // on the nsr lens, nltnLayer). toggleCrossLens is the only caller without that follow-up, so it
     // restyles explicitly. This removes the second full-layer setStyle per NSW tab switch.

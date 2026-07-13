@@ -15,16 +15,48 @@
 <body>
 <div id="loader" role="status" aria-label="Loading network data">
     <div class="loader-inner">
-        <svg class="loader-mark" viewBox="33 8 119 119" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <svg class="loader-brandmark" viewBox="33 8 119 119" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path fill="#a52b32" d="M92.735 125.963c32.657 0 58.966-25.932 58.966-58.125S125.392 9.712 92.735 9.712c-32.659 0-58.967 25.933-58.967 58.126s26.309 58.125 58.967 58.125z"/>
             <path fill="#fff" d="M92.282 11.054l-45.359 90.765s24.041-20.567 45.359-20.567c21.773 0 45.812 20.567 45.812 20.567L92.282 11.054z"/>
         </svg>
         <div class="loader-eyebrow">TfNSW · Network Assessment</div>
         <div class="loader-title">Road Recategorisation Assessment</div>
-        <svg class="loader-map" width="220" height="104" viewBox="0 0 220 104" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M8 92 C52 68 76 40 116 34 C152 29 180 20 212 12" stroke="#16a34a" stroke-width="3.5" pathLength="1"/>
-            <path d="M12 20 C58 32 96 58 138 62 C166 65 190 78 210 88" stroke="#f59e0b" stroke-width="3" pathLength="1" style="animation-delay:.28s"/>
-            <path d="M6 56 C50 54 98 82 146 84 C170 85 188 76 214 64" stroke="#dc2626" stroke-width="2.6" pathLength="1" style="animation-delay:.56s"/>
+        <!-- NSW state outline draws once (nswDraw) and stays; the three verdict-hue roads draw
+             once behind it (loaderDraw, staggered, held); the Sydney coastal dot fades up after the outline.
+             Geometry is REAL: border/coast anchor points (NW corner 141°E −29°S, the −29° north
+             border, the QLD border rising to Point Danger, the east coast through Coffs / Newcastle
+             / Sydney / Wollongong to Cape Howe, the Murray back to the SA border at −34°, and the
+             141°E west border) projected equirectangularly into this viewBox.
+             Line dressing: six real corridors, all draw-and-hold. Primaries out of Sydney — Hume
+             (green, .9s), Pacific (amber, DELIBERATELY slower 1.5s), Cobar/Great Western (red,
+             slowest 1.7s). Secondaries chain in behind: Newell (green, Tocumwal-Dubbo-Boggabilla),
+             New England (amber, Newcastle-Tamworth-Tenterfield), Sturt (red, Wagga-Hay-SA border).
+             Every route lands on a colour-matched terminus dot (delay = route delay + duration);
+             grey town dots (Newcastle, Wagga, Dubbo) anchor the junctions; a ring ripples out from
+             the Sydney hub; a faint light glides along each primary (.pulse — dash-driven, see CSS). -->
+        <svg class="loader-map" width="230" height="188" viewBox="0 0 230 188" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path class="nsw" pathLength="1" d="M22.2 26.6 L139.3 26.6 C148.9 23.9 162.1 21.3 173.9 24.8 C184.2 17.8 196 13.5 207 12 C208.5 16 208.5 19 207.8 23.1 C205.5 32 202.5 41 200.4 49.4 C199 55 198.6 62 197.5 68.7 C195.5 77 191 85 187.2 91.5 C183 99 178.5 105.5 173.9 111.7 C172 114.9 170 118.2 168 121.4 C164 132.9 159.7 144.8 156.2 156.5 C155.4 162.9 155.1 169.5 154.5 176 L128.3 163.5 C122 159 116.5 155 110.6 151.2 C103.5 147 95.5 149.5 88.5 147.7 C81 145.7 73.5 142.5 66.4 139 C54 132.5 41 122.5 29.6 117.9 L22.2 114.4 Z"/>
+            <path class="road" d="M90.2 145.4 C95.5 138.5 99.5 133.5 104.7 127 C109.5 120.5 111 117.5 114.4 112.2 C121.5 100.5 128 92 135.2 83.4 C142 75.2 147 59.5 152.8 49.6 C155 45.8 155.4 36.5 156 28.5" stroke="#16a34a" stroke-width="2.3" pathLength="1" style="animation-delay:1s; animation-duration:1.3s"/>
+            <path class="road" d="M183 94 C176.5 84 170.5 71 170.5 62 C170.5 53 180 47.5 183.5 41 C185.5 36.5 185.8 32 186 27.5" stroke="#f59e0b" stroke-width="2.2" pathLength="1" style="animation-delay:1.15s; animation-duration:1.25s"/>
+            <path class="road" d="M121.5 140.3 C114 134.5 109.5 130 104.7 127 C97 122.3 87 123.2 79.4 122.7 C66 121.8 50 121.5 39.5 117.3 C36 115.9 33 115.2 30.5 114.9" stroke="#dc2626" stroke-width="2.2" pathLength="1" style="animation-delay:1.3s; animation-duration:1.15s"/>
+            <path class="road" d="M171.7 112.6 C163 119 157 125 148.9 127.5 C140 130.5 131 132 123.8 138.1 C118.5 142.5 113.5 146.5 109.8 150.4" stroke="#16a34a" stroke-width="3.5" pathLength="1" style="animation-delay:.55s"/>
+            <path class="road" d="M173.2 110.9 C177.5 103.5 181 97.5 185.5 91 C191 82.5 194.5 76 196.7 69.6 C198.8 62.8 199.2 56.2 199.7 49.4 C200.4 41 203 32.2 205.6 23.9" stroke="#f59e0b" stroke-width="3" pathLength="1" style="animation-delay:.7s; animation-duration:1.5s"/>
+            <path class="road" d="M172.6 111.2 C158 108 146 102 133 97 C120 92 108 89 96 86.5 C90.5 85.2 85.5 84.6 81.5 84.2" stroke="#dc2626" stroke-width="2.6" pathLength="1" style="animation-delay:.85s; animation-duration:1.7s"/>
+            <path class="pulse" d="M171.7 112.6 C163 119 157 125 148.9 127.5 C140 130.5 131 132 123.8 138.1 C118.5 142.5 113.5 146.5 109.8 150.4" pathLength="1" style="animation-delay:1.55s"/>
+            <path class="pulse" d="M173.2 110.9 C177.5 103.5 181 97.5 185.5 91 C191 82.5 194.5 76 196.7 69.6 C198.8 62.8 199.2 56.2 199.7 49.4 C200.4 41 203 32.2 205.6 23.9" pathLength="1" style="animation-delay:2.3s"/>
+            <path class="pulse" d="M172.6 111.2 C158 108 146 102 133 97 C120 92 108 89 96 86.5 C90.5 85.2 85.5 84.6 81.5 84.2" pathLength="1" style="animation-delay:2.65s"/>
+            <circle class="end-dot" cx="109.8" cy="150.4" r="2.4" fill="#16a34a" stroke="#fff" stroke-width="1.2" style="animation-delay:1.45s"/>
+            <circle class="end-dot" cx="205.6" cy="23.9" r="2.4" fill="#f59e0b" stroke="#fff" stroke-width="1.2" style="animation-delay:2.2s"/>
+            <circle class="end-dot" cx="81.5" cy="84.2" r="2.4" fill="#dc2626" stroke="#fff" stroke-width="1.2" style="animation-delay:2.55s"/>
+            <circle class="end-dot" cx="90.2" cy="145.4" r="2" fill="#16a34a" stroke="#fff" stroke-width="1" style="animation-delay:1.05s"/>
+            <circle class="end-dot" cx="156" cy="28.5" r="2" fill="#16a34a" stroke="#fff" stroke-width="1" style="animation-delay:2.3s"/>
+            <circle class="end-dot" cx="186" cy="27.5" r="2" fill="#f59e0b" stroke="#fff" stroke-width="1" style="animation-delay:2.4s"/>
+            <circle class="end-dot" cx="30.5" cy="114.9" r="2" fill="#dc2626" stroke="#fff" stroke-width="1" style="animation-delay:2.45s"/>
+            <circle class="end-dot" cx="183" cy="94" r="2.2" fill="#78716c" stroke="#fff" stroke-width="1" style="animation-delay:1.2s"/>
+            <circle class="end-dot" cx="121.5" cy="140.3" r="2.2" fill="#78716c" stroke="#fff" stroke-width="1" style="animation-delay:1.35s"/>
+            <circle class="end-dot" cx="135.2" cy="83.4" r="2.2" fill="#78716c" stroke="#fff" stroke-width="1" style="animation-delay:1.75s"/>
+            <circle class="hub-ring" cx="173.6" cy="112" r="5"/>
+            <circle class="nsw-dot" cx="173.6" cy="112" r="4.2" fill="#78716c" stroke="#fff" stroke-width="1.5"/>
         </svg>
         <div class="loader-bar"><div class="loader-bar-fill" id="loader-bar-fill"></div></div>
         <div id="loader-status">Loading network data</div>
@@ -128,10 +160,15 @@
                 <div class="dist-track" id="nsw-dist-bar"></div>
                 <div class="dist-key" id="nsw-dist-key"></div>
             </div>
-            <!-- Cross-criteria (reclassification) toggle — shown only on the State / Regional lenses -->
+            <!-- Cross-criteria (reclassification) test — shown only on the State / Regional lenses.
+                 Segmented control: "Own criteria" + one button per available cross-test (State lens:
+                 as Regional, as Nat. Sig. · Regional lens: as State). Buttons are rebuilt per lens by
+                 refreshNswView; setCrossTest(mode) in panels.js drives the existing re-grade machinery. -->
             <div class="stat-card" id="nsw-xtest" style="display:none">
-                <label class="xt-toggle"><input type="checkbox" id="nsw-xtest-cb" onchange="toggleCrossLens(this.checked)"><span id="nsw-xtest-label">Grade as the other category</span></label>
-                <p class="xt-fine">Optional connectivity criteria are shared; only the mandatory gate swaps — State needs PBS-1 access, Regional needs 19m B-double access. Verdicts are earned from the data, not forced.</p>
+                <h3>Cross-criteria test</h3>
+                <div class="xt-seg" id="nsw-xt-seg" role="group" aria-label="Cross-criteria test"></div>
+                <div class="xt-status" id="nsw-xt-status" role="status"></div>
+                <p class="xt-fine" id="nsw-xt-fine">Optional connectivity criteria are shared; only the mandatory gate swaps — State needs PBS-1 access, Regional needs 19m B-double access. Verdicts are earned from the data, not forced.</p>
             </div>
             <div class="data-note" id="nsw-note">
                 <span class="note-label">Note</span>
@@ -226,37 +263,74 @@
             </div>
         </div>
 
-        <!-- Local Tab — council/local roads for the current viewport (OpenStreetMap), zoom in to load.
-             The State + Regional network stays visible underneath for context. See local.js. -->
+        <!-- Local Tab — council/local roads for a searched suburb (OpenStreetMap), see local.js.
+             Two views share the panel: the LIST view (suburb search + per-road list + the Local
+             cross-criteria segmented control) and a per-road DETAIL view (criteria assessment),
+             opened from a list row or a map click on a local road. -->
         <div class="tab-content" id="tab-local">
-            <div class="stat-card hero">
-                <h3>Local roads</h3>
-                <div class="stat-value blue" id="local-total">—</div>
-                <div class="stat-sub">Council-managed local roads (OpenStreetMap)</div>
-            </div>
-            <div class="stat-card">
-                <h3>Find a suburb</h3>
-                <div class="local-search-wrap">
-                    <form class="local-search" onsubmit="return onSuburbSubmit();">
-                        <input id="local-suburb-input" type="text" placeholder="Search a suburb… e.g. Newtown" autocomplete="off"
-                               oninput="onSuburbInput(this.value)" onkeydown="onSuburbKey(event)">
-                        <button type="submit" class="local-search-btn">Load</button>
-                    </form>
-                    <div id="sub-results" class="sub-results"></div>
+            <div id="local-list-view">
+                <div class="stat-card hero">
+                    <h3>Local roads</h3>
+                    <div class="stat-value blue" id="local-total">—</div>
+                    <div class="stat-sub" id="local-total-sub">Council-managed local roads (OpenStreetMap)</div>
                 </div>
-                <div class="local-progress" id="local-progress" hidden><div class="local-progress-bar" id="local-progress-bar"></div></div>
-                <div id="local-status" class="xt-status">Search a suburb to load its local roads</div>
-                <p class="xt-fine">Type a suburb, pick it from the list, and its council / local roads load (drawn green) clipped to the suburb outline.</p>
-            </div>
-            <div class="stat-card">
-                <h3>Cross-criteria test</h3>
-                <label class="xt-toggle"><input type="checkbox" onchange="toggleLocalTest(this.checked)"><span>Grade these local roads as <strong>Regional</strong></span></label>
-                <p class="xt-fine">The Regional test is connectivity-only (≥2 town / urban centres nearby); B-double access isn't published for local roads, so it's indicative and strongest in regional areas.</p>
-            </div>
-            <div class="data-note">
-                <span class="note-label">Note</span>
-                <p>Only the council-managed local roads are shown, drawn green. Toggle the test to see which local roads have the connectivity of a Regional road (≥2 town / urban centres nearby). Verdicts are earned from the data, not forced.</p>
-            </div>
+                <div class="stat-card">
+                    <h3>Find a suburb</h3>
+                    <div class="local-search-wrap">
+                        <form class="local-search" onsubmit="return onSuburbSubmit();">
+                            <input id="local-suburb-input" type="text" placeholder="Search a suburb… e.g. Newtown" autocomplete="off"
+                                   oninput="onSuburbInput(this.value)" onkeydown="onSuburbKey(event)">
+                            <button type="submit" class="local-search-btn">Load</button>
+                        </form>
+                        <div id="sub-results" class="sub-results"></div>
+                    </div>
+                    <div class="local-progress" id="local-progress" hidden><div class="local-progress-bar" id="local-progress-bar"></div></div>
+                    <div id="local-status" class="xt-status">Search a suburb to load its local roads</div>
+                    <p class="xt-fine">Type a suburb, pick it from the list, and its council / local roads load (drawn green) clipped to the suburb outline.</p>
+                </div>
+                <!-- Per-road list: one row per loaded local road; a click opens its assessment. -->
+                <div class="stat-card" id="local-list-card" style="display:none">
+                    <h3>Local roads — click a road for its assessment</h3>
+                    <div id="local-road-list"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Cross-criteria test</h3>
+                    <div class="xt-seg" id="local-xt" role="group" aria-label="Local cross-criteria test">
+                        <button type="button" class="xt-btn on" data-xt="own" onclick="setLocalCrossTest('own')">Own criteria</button>
+                        <button type="button" class="xt-btn" data-xt="regional" onclick="setLocalCrossTest('regional')">Test as Regional</button>
+                        <button type="button" class="xt-btn" data-xt="state" onclick="setLocalCrossTest('state')">Test as State</button>
+                    </div>
+                    <div class="xt-status" id="local-xt-status" role="status"></div>
+                    <p class="xt-fine" id="local-xt-fine">Regional test: connectivity only — ≥2 town / urban centres near the road. State test: State-tier centres (Regional Cities / Major Towns / urban areas) plus a major hospital / port / airport / employment connection. Neither mandatory gate is published for council roads, so both are indicative.</p>
+                </div>
+                <div class="data-note">
+                    <span class="note-label">Note</span>
+                    <p>Only the council-managed local roads are shown, drawn green. Use the test above to see which local roads have the connectivity of a <strong>Regional</strong> or <strong>State</strong> road. Verdicts are earned from the data, not forced.</p>
+                </div>
+            </div><!-- /local-list-view -->
+
+            <!-- Per-road criteria view: opens when a local road is clicked (list row or map). -->
+            <div id="local-road-detail" hidden>
+                <button class="detail-back" onclick="closeLocalRoad()">← Back to local roads</button>
+                <div class="stat-card">
+                    <h3>Road information</h3>
+                    <div id="lrd-name" style="font-size:1.25rem; font-weight:600; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em;"></div>
+                    <div id="lrd-meta" style="font-size:0.8rem; color:var(--muted);"></div>
+                </div>
+                <div class="stat-card">
+                    <h3 id="lrd-verdict-title">Assessment</h3>
+                    <div id="lrd-verdict" style="font-size:1.05rem; font-weight:600; margin-bottom:6px;"></div>
+                    <div id="lrd-reason" style="font-size:0.8rem; color:var(--muted); line-height:1.45;"></div>
+                </div>
+                <div class="stat-card">
+                    <h3 id="lrd-criteria-title">Criteria</h3>
+                    <div id="lrd-criteria"></div>
+                </div>
+                <div class="data-note">
+                    <span class="note-label">Note</span>
+                    <p>Local-road verdicts are indicative — the mandatory vehicle-access gates (PBS-1 / 19m B-double) aren't published for council-managed roads.</p>
+                </div>
+            </div><!-- /local-road-detail -->
         </div>
 
         <!-- Road Detail Tab -->
@@ -309,11 +383,44 @@
             </div>
         </div>
 
-        <!-- Export sits at the very bottom of the sidebar — scroll down to reach it -->
+        <!-- Export sits at the very bottom of the sidebar — the link opens a SCOPE menu: whole
+             network, flagged (pinned) roads, any tab's group, or a custom hand-picked set (added
+             via the search field in the menu or Shift+clicked on the map). Every count is computed
+             LIVE from the same predicates the tabs use — see js/export.js. -->
         <div class="sidebar-foot">
-            <a class="export-link" onclick="exportToExcel(this)" title="Download every assessed road (Nationally Significant, State, Regional) as an Excel workbook">
-                <span class="export-ico">↓</span><span class="export-label">Export all data to Excel</span>
-            </a>
+            <div class="export-wrap" id="export-wrap">
+                <!-- Split button: the wide primary half one-click-exports the whole workbook; the nested
+                     caret button opens the scope dropdown to export a specific group / custom set. -->
+                <div class="export-split">
+                    <button type="button" class="export-link export-main" id="export-main"
+                            onclick="exportToExcel('all', null, this)" title="Export the full workbook — all assessed roads">
+                        <span class="export-ico">⤓</span><span class="export-label">Export to Excel</span>
+                    </button>
+                    <button type="button" class="export-link export-caret-btn" id="export-toggle"
+                            aria-haspopup="dialog" aria-expanded="false" onclick="toggleExport()"
+                            aria-label="Choose export scope" title="Choose what to export">
+                        <span class="export-caret">▾</span>
+                    </button>
+                </div>
+                <div class="export-menu" id="export-menu" role="dialog" aria-label="Export scope">
+                    <h4>Export scope</h4>
+                    <div class="em-scope" id="em-scope"></div>
+                    <div class="em-custom" id="em-custom" hidden>
+                        <div class="em-search">
+                            <input id="em-search-input" type="text" placeholder="Add a road by name or ID…" autocomplete="off" spellcheck="false"
+                                   aria-label="Add a road to the custom selection"
+                                   oninput="emSearchInput(this.value)" onkeydown="emSearchKey(event)">
+                            <div class="em-suggest" id="em-suggest" role="listbox"></div>
+                        </div>
+                        <div class="em-chips" id="em-chips"></div>
+                        <p class="em-hint">Tip: <strong>Shift+click</strong> roads on the map to add or remove them from this selection.</p>
+                    </div>
+                    <div class="em-foot">
+                        <button type="button" class="em-download" id="em-download" onclick="runExport()">Download (.xlsx)</button>
+                        <button type="button" class="em-cancel" onclick="toggleExport(false)">Cancel</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

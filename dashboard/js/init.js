@@ -3,7 +3,7 @@
 // Load all data. Cache-bust so edits to data/ always load fresh (no stale browser cache).
 // Each resolved file advances the loading screen's progress bar — REAL progress, not simulated.
 const _bust = '?v=' + Date.now();
-const _loadTotal = 23; let _loadDone = 0;
+const _loadTotal = 24; let _loadDone = 0;
 const _loadTick = () => {
     _loadDone++;
     const bf = document.getElementById('loader-bar-fill');
@@ -35,8 +35,9 @@ Promise.all([
     _f('data/nhvr_networks.json').catch(() => ({})),
     _f('data/nsw_road_ext.json').catch(() => ({})),
     _f('data/nsw_adt.json').catch(() => ({})),
-    _f('data/nsw_zone.json').catch(() => ({}))
-]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt, adt, zone]) => {
+    _f('data/nsw_zone.json').catch(() => ({})),
+    _f('data/nsw_boundary.geojson').catch(() => null)
+]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt, adt, zone, nswBoundary]) => {
     // Data fetched — the remaining boot time is aggregation + layer construction (the "draw" phase).
     const _lst = document.getElementById('loader-status'); if (_lst) _lst.textContent = 'Drawing road vectors';
     const _lbf = document.getElementById('loader-bar-fill'); if (_lbf) _lbf.style.width = '94%';
@@ -59,9 +60,50 @@ Promise.all([
     // Significant Urban Area boundary outlines (drawn as the "town perimeter" highlight on selection),
     // indexed by suaId — data/sua_outlines.json.
     window.SUA_OUTLINES = suaOutlines || [];
+
+    // ── NSW spotlight ──────────────────────────────────────────────────────────────────────────
+    // Outline the state and wash out everything around it: a big rectangle with a NSW-shaped hole
+    // (even-odd fill) pales the neighbouring states + ocean so the NSW network is the clear focus,
+    // and a thin line traces the border. SVG (never a 2nd canvas pane, which would swallow every map
+    // click) + non-interactive, in a pane just above the basemap tiles and below the road overlay,
+    // so the wash only dims the basemap and all clicks pass straight through. Optional data — if the
+    // boundary file is missing the map simply renders without the spotlight.
+    (function buildNswSpotlight() {
+        const feat = nswBoundary && nswBoundary.features && nswBoundary.features[0];
+        const g = feat && feat.geometry;
+        if (!g || g.type !== 'Polygon' || !g.coordinates || !g.coordinates[0]) return;
+        const nswRing = g.coordinates[0].map(function (c) { return [c[1], c[0]]; });   // [lng,lat] -> Leaflet [lat,lng]
+        map.createPane('nswMaskPane');
+        map.getPane('nswMaskPane').style.zIndex = 250;                                 // tiles 200 < here < roads 400
+        map.getPane('nswMaskPane').style.pointerEvents = 'none';                       // never intercept map/road clicks
+        map.getPane('nswMaskPane').style.opacity = '0';                                // born transparent — fades in with the boot reveal (startMaskFade, state.js)
+        // Big padding = render the wash + border WELL beyond the viewport (≈7× each way), so panning
+        // just shifts the already-drawn overlay instead of re-rendering an uncovered edge into view.
+        // The map is bounded to a small region (maxBounds), so at the zoomed-out scales where the mask
+        // shows this keeps the whole thing drawn once — panning stays smooth, no per-move re-render.
+        const maskRenderer = L.svg({ pane: 'nswMaskPane', padding: 3 });
+        // Outer ring generously covers Australia + surrounding ocean (never visible edges at NSW-focused
+        // zooms) while keeping projected coordinates sane; the NSW ring is the hole the wash spares.
+        const outer = [[-62, 100], [-62, 176], [-4, 176], [-4, 100]];
+        window.nswMaskLayer = L.polygon([outer, nswRing], {
+            pane: 'nswMaskPane', renderer: maskRenderer, className: 'nsw-mask',
+            stroke: false, fill: true, fillColor: '#ffffff', fillOpacity: 0.66, fillRule: 'evenodd',
+            interactive: false
+        }).addTo(map);
+        window.nswOutlineLayer = L.polygon([nswRing], {
+            pane: 'nswMaskPane', renderer: maskRenderer, className: 'nsw-outline',
+            color: '#000000', weight: 0.8, opacity: 1, fill: false, interactive: false   // thin, fully-black NSW border
+        }).addTo(map);
+    })();
     // Town/centre points [lon,lat] — used by the Cross-test tab's simplified "local road → Regional"
     // proximity test (a Regional road connects ≥2 urban/town centres).
     window.NSW_TOWN_PTS = ((nswTowns && nswTowns.features) || []).map(function (f) { return f.geometry && f.geometry.coordinates; }).filter(Boolean);
+    // State-tier centres only (Regional Cities incl. the metros, Major Towns) — the Local tab's
+    // "test as State" centre set (xtStateCentrePts, local.js). Same source, filtered by town_type.
+    window.NSW_TOWN_PTS_MAJOR = ((nswTowns && nswTowns.features) || []).filter(function (f) {
+        const t = f.properties && f.properties.town_type;
+        return t === 'Regional City' || t === 'Major Town';
+    }).map(function (f) { return f.geometry && f.geometry.coordinates; }).filter(Boolean);
     NSW_SEG_TOTAL = (nswRoads.features || []).length;   // total road segments (e.g. 17,691)
     // Manual overrides (data/ref_overrides.json) win over the auto OSM join.
     // Key by road_number: "B76" forces a shield, "" removes it. By road_name (UPPER) as fallback.
@@ -233,6 +275,9 @@ Promise.all([
             layer.on('click', function(e) {
                 if (!nswInView(feature.properties)) return;   // ignore roads hidden in the active lens
                 L.DomEvent.stopPropagation(e);
+                // Shift+click routes to the export menu's custom selection (export.js) — normal
+                // click-select below is untouched.
+                if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
                 highlightRoad(group(), nswLayer);
                 const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
                 showRoadDetail(agg, 'nsw');
@@ -325,6 +370,8 @@ Promise.all([
                 layer.bindTooltip(roadLabel(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
                 layer.on('click', function (e) {
                     L.DomEvent.stopPropagation(e);
+                    // Shift+click = export custom-selection pick (same branch as the main overlay).
+                    if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
                     highlightRoad(group(), cvClipLayer);
                     const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
                     showRoadDetail(agg, 'nsw');
@@ -335,15 +382,18 @@ Promise.all([
         });
     })();
 
-    // NSW Towns
+    // NSW Towns. Markers AND their permanent name labels go in the dedicated townPane (state.js):
+    // it boot-fades 0 → full opacity once the network reveal finishes and then holds that as the
+    // pins' steady-state multiplier — label opacity 1 (not Leaflet's 0.9 default) so the pane value
+    // passes straight through to the labels; the dot markers keep their own soft-grey rgba alpha.
     nswTownsLayer = L.geoJSON(nswTowns, {
         pointToLayer: function(f, ll) {
             const pop = f.properties.population || 0;
             const size = pop >= 100000 ? 24 : pop >= 50000 ? 20 : pop >= 20000 ? 16 : pop >= 7000 ? 13 : 10;
-            return L.marker(ll, { icon: townIcon(size, 'rgba(68,64,60,0.8)'), keyboard: false });
+            return L.marker(ll, { pane: 'townPane', icon: townIcon(size, 'rgba(68,64,60,0.8)'), keyboard: false });
         },
         onEachFeature: function(f, layer) {
-            layer.bindTooltip(f.properties.name, { permanent: true, direction: 'right', offset: [7, 0], className: 'town-label' });
+            layer.bindTooltip(f.properties.name, { permanent: true, direction: 'right', offset: [7, 0], className: 'town-label', pane: 'townPane', opacity: 1 });
             layer.bindPopup(townPopup(f.properties));   // click pin → name + population
         }
     });
@@ -373,6 +423,10 @@ Promise.all([
         // readout when a national road is selected on the Nat. Significant tab (these are the long routes).
         window.NLTN_LEN = {};
         nltn.features.forEach(f => { const g = f.properties._natGroup; window.NLTN_LEN[g] = (window.NLTN_LEN[g] || 0) + roadLenKm(f.geometry); });
+        // Per-route aggregate (label / shield / national grade) keyed by _natGroup — the Flagged tab
+        // reads this to render a pinned national route's list row (name, class, verdict chip). UI only.
+        window.NLTN_AGG = {};
+        nltn.features.forEach(f => { const p = f.properties, g = p._natGroup; if (!window.NLTN_AGG[g]) window.NLTN_AGG[g] = { road_name: p._natName, ref: p._natRef, _natCat: p._natCat, admin_class: 'NLTN' }; });
         // Count whole national ROADS (determination routes), not segments → Nat. Significant stat cards.
         const _seenG = {};
         window.NLTN_CAT_COUNTS = nltn.features.reduce((c, f) => {
@@ -416,6 +470,7 @@ Promise.all([
                 });
             }
         });
+        window.NLTN_ROAD_LAYERS = nltnGroups;   // route (_natGroup) -> its segment layers; lets the Flagged tab pin national routes
     }
 
     // CV Roads — group segments so a click selects the whole road
@@ -462,14 +517,14 @@ Promise.all([
         style: {color: '#000000', weight: 6.75, fill: false, opacity: 1, lineJoin: 'round'}
     });
 
-    // CV Towns
+    // CV Towns — same dedicated townPane + label opacity as the NSW towns above.
     if (cvTowns && cvTowns.features) {
         cvTownsLayer = L.geoJSON(cvTowns, {
             pointToLayer: function(f, ll) {
-                return L.marker(ll, { icon: townIcon(14, 'rgba(68,64,60,0.8)'), keyboard: false });
+                return L.marker(ll, { pane: 'townPane', icon: townIcon(14, 'rgba(68,64,60,0.8)'), keyboard: false });
             },
             onEachFeature: function(f, layer) {
-                layer.bindTooltip(f.properties.name, { permanent: true, direction: 'right', offset: [7, 0], className: 'town-label' });
+                layer.bindTooltip(f.properties.name, { permanent: true, direction: 'right', offset: [7, 0], className: 'town-label', pane: 'townPane', opacity: 1 });
                 layer.bindPopup(townPopup(f.properties));   // click pin → name + population
             }
         });

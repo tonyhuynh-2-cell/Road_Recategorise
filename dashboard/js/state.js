@@ -4,7 +4,14 @@
 // hitbox is ~25% larger than the drawn line (a 1.5px buffer) without changing how thin roads look.
 // Using the map default (not per-layer renderers) is deliberate: a per-layer canvas gets detached or
 // stacked on tab switches, which silently kills road clicking until reload.
-const map = L.map('map', { preferCanvas: true, renderer: L.canvas({ tolerance: 1.5 }) }).setView([-32.0, 149.5], 6);
+// Keep the map centred on NSW and stop it drifting off to the blank world: maxBounds walls panning
+// to an NSW-centred box (firm edges, no elastic drag past them) whose east edge grazes New Zealand,
+// and minZoom stops zoom-out at roughly eastern-Australia scale. Box centre = the default view centre.
+const VIEW_BOUNDS = L.latLngBounds([[-48, 128], [-16, 171]]);   // centred on ~(-32, 149.5) = NSW
+const map = L.map('map', {
+    preferCanvas: true, renderer: L.canvas({ tolerance: 1.5 }),
+    maxBounds: VIEW_BOUNDS, maxBoundsViscosity: 1.0, minZoom: 5
+}).setView([-32.0, 149.5], 6);
 // Drop the "Leaflet" branding watermark from the attribution box (keep the © OSM / © CARTO data
 // credit — required by the basemap tile terms).
 map.attributionControl.setPrefix(false);
@@ -149,6 +156,74 @@ function fitToSua(suaId) {
     else if (su.centroid) map.panTo([su.centroid[1], su.centroid[0]], { animate: true });
 }
 
+// --- Town/city labelled pins: dedicated pane + one-shot boot fade-in ------------------------------
+// The town pins (teardrop markers — townIcon, drawn by nswTownsLayer / cvTownsLayer in init.js) and
+// their permanent name labels share THIS pane, so one opacity write covers exactly the labelled
+// town/city pins and nothing else. Without it the markers land in the shared markerPane and the
+// labels in tooltipPane — right next to the road hover labels, which must not fade. z 620: above
+// the road overlay (400) and markerPane (600), below the road hover tooltips (650), connection
+// highlights (660) and popups (700).
+// The pane is born fully transparent: the pins stay invisible through boot — including all of the
+// network reveal — and fade 0 → full opacity ONCE, the moment the reveal finishes drawing the
+// regional roads (startTownFade, wired to the reveal's natural end / early cancel, with
+// reduced-motion and no-reveal fallbacks). That resting opacity (TOWN_FADE_TARGET) is then their
+// STEADY-STATE multiplier for the rest of the session: zoom-driven label swaps, tab switches and
+// legend re-toggles all re-add layers into this same pane, so they simply present at it — the fade
+// is a boot moment, never repeated.
+map.createPane('townPane');
+map.getPane('townPane').style.zIndex = 620;
+map.getPane('townPane').style.opacity = '0';
+const TOWN_FADE_MS = 1200;
+const TOWN_FADE_TARGET = '1';   // steady-state pane opacity — the pins settle fully opaque once the boot fade completes
+let _townFadeDone = false;        // one-shot latch — later calls (cleanups, fallbacks) are no-ops
+function startTownFade() {
+    if (_townFadeDone) return;
+    _townFadeDone = true;
+    // Every reveal-less boot path funnels through here — make sure the outside-NSW wash is shown too
+    // (no-op on the normal path, where startMaskFade has already begun the ramp).
+    if (typeof ensureMaskShown === 'function') ensureMaskShown();
+    const pane = map.getPane('townPane');
+    if (!pane) return;
+    // Reduced motion: no ramp — the pins simply appear at their resting opacity.
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        pane.style.opacity = TOWN_FADE_TARGET;
+        return;
+    }
+    pane.style.transition = 'none';
+    pane.style.opacity = '0';
+    // Force the 0 frame to COMMIT before retargeting — without this synchronous reflow the
+    // browser can coalesce 0 → full into one style flush and paint the pins visible on frame one.
+    void pane.getBoundingClientRect();
+    pane.style.transition = 'opacity ' + TOWN_FADE_MS + 'ms cubic-bezier(0.45, 0, 0.55, 1)';   // ease-in-out: gentle start, smooth landing
+    pane.style.opacity = TOWN_FADE_TARGET;
+}
+
+// The outside-NSW wash + border (nswMaskPane, init.js) fade IN across the boot animations: born
+// transparent, they ramp to full opacity as the roads draw and the town pins come up, so the
+// spotlight "switches on" in step with everything else instead of being there from the first frame.
+let _maskFadeStarted = false;
+function startMaskFade(ms) {
+    const pane = map.getPane('nswMaskPane');
+    if (!pane || _maskFadeStarted) return;
+    _maskFadeStarted = true;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { pane.style.opacity = '1'; return; }
+    pane.style.transition = 'none';
+    pane.style.opacity = '0';
+    void pane.getBoundingClientRect();   // commit the 0 frame before ramping (same forced-reflow trick as the town fade)
+    pane.style.transition = 'opacity ' + Math.max(600, ms || 6000) + 'ms linear';   // linear: tracks the roads drawing at a steady pace
+    pane.style.opacity = '1';
+}
+// Reveal-less paths (reduced motion, no strands, loader failsafe): the spotlight must not stay
+// invisible — settle it to full now. Idempotent with startMaskFade via the shared latch.
+function ensureMaskShown() {
+    const pane = map.getPane('nswMaskPane');
+    if (!pane || _maskFadeStarted) return;
+    _maskFadeStarted = true;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { pane.style.opacity = '1'; return; }
+    pane.style.transition = 'opacity 400ms ease';
+    pane.style.opacity = '1';
+}
+
 // Legend visibility toggles — clicking a legend item flips its key and re-applies to the map.
 // green/orange/red = verdict colours; nltn = green national network; dashed = route-numbered roads;
 // towns = town/city pins; boundary = CV LGA outline.
@@ -157,10 +232,13 @@ function fitToSua(suaId) {
 let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
     bypass: false, local: true, c_centre: true, c_hosp: true, c_dest: true, c_employ: true };
 
-// Cross-criteria (reclassification) test — folded into the State / Regional / Local tabs as a per-tab
-// toggle (there is no separate Cross-test tab). On the State tab it re-grades roads AS Regional; on the
-// Regional tab, AS State; on the Local tab it grades the council roads by the Regional connectivity test.
-// The optional criteria are shared; only the mandatory gate swaps (State PBS-1 ↔ Regional 19m B-double).
+// Cross-criteria (reclassification) test — folded into the State / Regional / Local tabs (there is
+// no separate Cross-test tab). state/regional hold the segmented control's active MODE (false = own
+// criteria): the State tab re-grades AS Regional ('regional') or AS Nationally Significant
+// ('natsig'); the Regional tab AS State ('state'). The Local tab keeps its boolean checkbox — it
+// grades the council roads by the Regional connectivity test. Shared optional criteria swap only
+// the mandatory gate (State PBS-1 ↔ Regional 19m B-double); the natsig mode reads the per-road
+// national-criteria verdict precomputed in nsw_criteria.json. See buildXtest() / setCrossTest().
 let xLens = { state: false, regional: false, local: false };
 
 let currentTab = 'overview';
@@ -282,11 +360,19 @@ let _revealPanes = null, _revealPending = null, _revealGen = 0;
 let _revealRaf = null, _revealCanvas = null;
 
 function _revealCleanup() {
+    const ran = !!(_revealRaf || _revealCanvas || _revealPanes);   // a reveal was actually in flight
     if (_revealRaf) { cancelAnimationFrame(_revealRaf); _revealRaf = null; }
     map.off('movestart', _revealCleanup);
     map.off('zoomstart', _revealCleanup);
     if (_revealCanvas) { if (_revealCanvas.parentNode) _revealCanvas.parentNode.removeChild(_revealCanvas); _revealCanvas = null; }
     if (_revealPanes) { _revealPanes.forEach(function (el) { el.style.opacity = ''; }); _revealPanes = null; }
+    // The reveal's natural end (Regional is the final class) or its early cancel (pan/zoom
+    // mid-growth snaps to the finished map): either way the regional roads are done loading, so
+    // the town pins start their one-shot boot fade HERE — AFTER the pane restore above and in the
+    // same task, so the restore-to-'' on the town pane can never paint over the fade's 0 → full
+    // writes. The leading cleanup call in _revealStart has nothing in flight (ran = false) and
+    // must not start the fade before the reveal has even begun.
+    if (ran) startTownFade();
 }
 
 // Straight-line km between two LatLngs (equirectangular — plenty for animation timing).
@@ -504,7 +590,7 @@ function _revealChainRoads(strands) {
 function _revealStart() {
     _revealCleanup();   // cancel any in-flight growth first
     const container = map.getContainer();
-    const mapPane = map.getPane('mapPane'); if (!mapPane) return;
+    const mapPane = map.getPane('mapPane'); if (!mapPane) { startTownFade(); return; }
     const strands = [];
     const roadCls = function (l) { return (l.feature && l.feature.properties && l.feature.properties.admin_class === 'S') ? 'state' : 'regional'; };
     const nsrCls = function () { return 'nsr'; };
@@ -524,7 +610,7 @@ function _revealStart() {
     _revealStrands(typeof nswLayer !== 'undefined' ? nswLayer : null, roadCls, keyer('nsw'), boostTable, strands);
     _revealStrands(typeof cvClipLayer !== 'undefined' ? cvClipLayer : null, roadCls, keyer('cv'), boostTable, strands);
     _revealStrands(typeof nltnLayer !== 'undefined' ? nltnLayer : null, nsrCls, keyer('nltn'), boostTable, strands);
-    if (!strands.length) return;
+    if (!strands.length) { startTownFade(); return; }   // nothing to reveal — the pins must not stay hidden
     _revealNetworkDelays(strands);   // Dijkstra: web-shaped per-endpoint arrivals (s._dA/_dB)
     _revealChainRoads(strands);      // serialize each road: ONE front, entering at its earliest-reached end
     // Overlapped class sequencing, PROGRESS-based: each class starts at the moment the previous
@@ -568,7 +654,8 @@ function _revealStart() {
     });
     // Hide the real vector/marker panes (opacity keeps hit-testing alive) and draw over the tiles.
     _revealPanes = Array.prototype.filter.call(mapPane.children, function (el) {
-        return el.classList.contains('leaflet-pane') && !el.classList.contains('leaflet-tile-pane');
+        return el.classList.contains('leaflet-pane') && !el.classList.contains('leaflet-tile-pane')
+            && !el.classList.contains('leaflet-nswMaskPane-pane');   // the spotlight washes the tiles + fades on its own timeline
     });
     _revealPanes.forEach(function (el) { el.style.opacity = '0'; });
     const size = map.getSize(), dpr = window.devicePixelRatio || 1;
@@ -605,12 +692,20 @@ function _revealStart() {
         else _revealCleanup();   // growth complete (or capped) — restore the real, untouched map
     }
     _revealRaf = requestAnimationFrame(frame);
+    // Fade the outside-NSW wash + border IN across the whole boot: it starts now (with the first roads)
+    // and lands when the town pins finish — reveal end (the last strand's delay+dur) plus the pin fade —
+    // so the spotlight switches on in step with the roads loading and the pins coming up.
+    let _revealEnd = 0;
+    for (let i = 0; i < strands.length; i++) _revealEnd = Math.max(_revealEnd, strands[i].delay + strands[i].dur);
+    startMaskFade(_revealEnd + TOWN_FADE_MS);
     map.on('movestart', _revealCleanup);
     map.on('zoomstart', _revealCleanup);
 }
 
 function revealFromSydney() {
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // Reduced motion skips the reveal AND the town-pin ramp — the pins appear at their resting opacity
+    // right now, with the app ready underneath.
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { startTownFade(); return; }
     const gen = ++_revealGen;   // a newer call supersedes any pending start from an older one
     let started = false;
     const start = function () { if (started || gen !== _revealGen) return; started = true; _revealStart(); };
@@ -676,23 +771,45 @@ function _countUpStats() {
 
 // Hide the loading screen once boot completes: finish the progress bar, fade the overlay, then
 // release the entrance choreography (body.is-ready — see the revamp CSS) and count the stats up.
+// IDEMPOTENT — safe to call from any milestone (normal boot, the load-failure catch, the 12s
+// failsafe below): only the first call does anything, so the fade / count-up / reveal can never
+// double-fire.
+let _loaderHidden = false;
 function hideLoader() {
+    if (_loaderHidden) return;
+    _loaderHidden = true;
     const l = document.getElementById('loader');
     if (!l) return;
-    const minShow = 1200;
+    const minShow = 3000;   // >= the loader artwork's full choreography (outline 1.4s, six routes chain
+                            // in .55s-2.55s — amber/red primaries draw deliberately slowly, 1.5s/1.7s —
+                            // last terminus dot finishes 3.0s, Sydney hub ring ripples 1.6s-2.5s)
     const elapsed = performance.now() - loadStart;
     const fade = () => {
         const bf = document.getElementById('loader-bar-fill'); if (bf) bf.style.width = '100%';
         const st = document.getElementById('loader-status'); if (st) st.textContent = 'Ready';
+        // .loaded fades the overlay AND sets visibility:hidden + pointer-events:none (CSS), so a
+        // faded loader can never sit invisibly over the app swallowing clicks…
         l.classList.add('loaded');
+        // …and shortly after the .5s fade completes, the node leaves the DOM entirely.
+        setTimeout(function () { if (l.parentNode) l.parentNode.removeChild(l); }, 700);
         document.body.classList.add('is-ready');
         _countUpStats();
         // Revamp: as the loader fades, the network blooms outward from Sydney.
         if (typeof revealFromSydney === 'function') revealFromSydney();
+        // Belt-and-braces for the town-pin boot fade: the reveal owns starting it (its cleanup /
+        // skip paths above), but if the reveal never gets going for ANY reason the pins must not
+        // be stuck invisible. A healthy reveal is visibly running well before 5s (it defers at
+        // most ~1.6s for the boot fitBounds to settle) — if by then neither its rAF loop nor its
+        // canvas exists, fade now. Already faded → startTownFade is a no-op.
+        setTimeout(function () { if (!_revealRaf && !_revealCanvas) startTownFade(); }, 5000);
     };
     if (elapsed < minShow) setTimeout(fade, minShow - elapsed);
     else fade();
 }
+// FAILSAFE — the loader can never hang over the app: if a data fetch stalls (neither resolving
+// nor rejecting, so init.js never reaches hideLoader) force the fade after 12s. On a normal boot
+// the real hideLoader call wins the race and this timer is a no-op (idempotent guard above).
+setTimeout(hideLoader, 12000);
 
 // IPWEA brand mark (sidebar top-left): a physics spinner easter egg. Each click flicks the logo
 // with an angular impulse (+1080°/s, capped at 7200°/s), so rapid clicks wind it up. The spin

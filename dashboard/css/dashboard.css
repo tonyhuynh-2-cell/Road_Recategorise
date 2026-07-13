@@ -42,13 +42,25 @@
 
         /* Export — minimalist link, pinned to the bottom of the sidebar */
         .sidebar-foot { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
-        .export-link { display: inline-flex; align-items: center; gap: 7px; padding: 4px 2px; cursor: pointer;
-            font: 500 11.5px var(--sans); color: var(--muted); letter-spacing: .01em; transition: color .15s; user-select: none; }
-        .export-link:hover { color: var(--ink); }
-        .export-link .export-label { border-bottom: 1px solid transparent; padding-bottom: 1px; }
-        .export-link:hover .export-label { border-bottom-color: var(--faint); }
-        .export-link.is-busy { color: var(--faint); cursor: default; pointer-events: none; }
-        .export-ico { font-size: 12px; line-height: 1; opacity: .8; }
+        /* A prominent SPLIT button (not a faint text link) so exporting is easy to find. The wide
+           primary half one-click-exports the whole workbook; the nested caret button (divided off on
+           the right) opens the scope dropdown. Each half inverts to a solid fill on its own hover; the
+           caret half also stays filled while the menu is open. */
+        .export-split { display: flex; width: 100%; border: 1.5px solid var(--ink); border-radius: 10px;
+            overflow: hidden; transition: box-shadow .15s ease; }
+        .export-split:hover { box-shadow: 0 4px 12px rgba(28,25,23,.2); }
+        .export-link { display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+            padding: 11px 14px; border: none; background: var(--bg); color: var(--ink); font: 600 13px var(--sans);
+            letter-spacing: .01em; user-select: none; transition: background .15s ease, color .15s ease; }
+        .export-main { flex: 1; border-right: 1.5px solid var(--ink); }   /* the divider between the two halves */
+        .export-caret-btn { flex: none; padding: 11px 13px; }
+        .export-link:hover { background: var(--ink); color: var(--bg); }
+        .export-caret-btn[aria-expanded="true"] { background: var(--ink); color: var(--bg); }
+        .export-link:disabled { opacity: .55; cursor: default; pointer-events: none; }
+        .export-link .export-label { border-bottom: none; padding-bottom: 0; }
+        .export-ico { font-size: 15px; line-height: 1; opacity: 1; }
+        .export-caret { font-size: 11px; transition: transform .18s ease; }
+        .export-caret-btn[aria-expanded="true"] .export-caret { transform: rotate(180deg); }
 
         .detail-back { background: none; border: none; color: var(--muted); font: 500 12px var(--sans); cursor: pointer; padding: 0; margin-bottom: 12px; display: inline-flex; align-items: center; gap: 5px; }
         .detail-back:hover { color: var(--ink); }
@@ -148,6 +160,11 @@
         .map-legend .legend-item { margin-bottom: 8px; font-size: 12px; }
         .map-legend .legend-item:last-child { margin-bottom: 0; }
         @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
+        /* NSW spotlight (init.js): the mask + border outline. Light theme uses the layer's own white
+           wash; dark theme swaps to a dark wash (the tile pane is inverted, so a white wash would glare)
+           and a lighter border. CSS overrides the SVG presentation attributes Leaflet sets. */
+        body.dark-mode .nsw-mask { fill: #0c0a09; fill-opacity: .52; }
+        body.dark-mode .nsw-outline { stroke: #a8a29e; stroke-opacity: .55; }
         /* "Highlights" sub-heading + the round connection swatches (kept in a 22px box so labels align) */
         .legend-sub { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 11px; }
         .legend-swatch { width: 22px; display: inline-flex; justify-content: center; flex-shrink: 0; }
@@ -205,27 +222,68 @@
         .brand-name { font: 700 28px/1 var(--sans); letter-spacing: .04em; color: var(--ink); }
         .brand-full { font: 400 11px/1.35 var(--sans); color: var(--faint); margin-top: 4px; max-width: 285px; }
 
-        /* Loading screen — map-themed (UI revamp): road lines draw themselves on loop while the
-           bar + status line track REAL boot progress (init.js advances them per data file). */
+        /* Loading screen — map-themed (design pass v2): the NSW state outline draws itself ONCE
+           and stays; the three verdict-hue roads (boot-reveal order Nat.Sig → State → Regional)
+           loop inside it; the Sydney coastal dot fades up after the outline lands. The bar +
+           status line track REAL boot progress (init.js advances them per data file). Palette is
+           var()-driven, so the dark theme flips it for free. Robustness: .loaded sets opacity AND
+           visibility + pointer-events (a faded loader can never sit invisibly over the app and
+           swallow clicks); hideLoader() in state.js is idempotent, backed by a 12s failsafe, and
+           removes this node from the DOM shortly after the fade completes. */
         #loader { position: fixed; inset: 0; z-index: 4000; background: var(--bg-soft); display: flex; align-items: center; justify-content: center; transition: opacity .5s ease, visibility .5s ease; }
         #loader.loaded { opacity: 0; visibility: hidden; pointer-events: none; }
         .loader-inner { width: 320px; max-width: calc(100vw - 48px); text-align: center; }
-        #loader .loader-mark { width: 44px; height: 44px; margin: 0 auto 14px; display: block; }
+        .loader-brandmark { width: 76px; height: 76px; margin: 0 auto 16px; display: block; }
         .loader-eyebrow { font: 500 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
         .loader-title { font: 600 14.5px/1.3 var(--sans); color: var(--ink); letter-spacing: -.01em; }
-        .loader-map { display: block; margin: 22px auto 6px; overflow: visible; }
+        .loader-map { display: block; margin: 16px auto 0; overflow: visible; }
+        /* Roads draw ONCE and stay, like the outline. They must NOT loop: data parsing blocks the
+           main thread ~0.8s-2.3s into boot, stroke-dashoffset can't animate through that, and with
+           an infinite fade-out cycle the last-staggered (red) road was still undrawn — or caught in
+           its fade-out phase — when the loader dismissed. Draw-and-hold means the post-jank catch-up
+           always lands on the finished artwork. */
         .loader-map path { fill: none; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1;
-            animation: loaderDraw 2.4s cubic-bezier(.22, .9, .32, 1) infinite; }
+            animation: loaderDraw .9s var(--ease-out) forwards; }
         @keyframes loaderDraw {
-            0%   { stroke-dashoffset: 1; opacity: 0; }
-            10%  { opacity: 1; }
-            52%  { stroke-dashoffset: 0; opacity: 1; }
-            80%  { stroke-dashoffset: 0; opacity: 1; }
-            100% { stroke-dashoffset: 0; opacity: 0; }
+            from { stroke-dashoffset: 1; }
+            to   { stroke-dashoffset: 0; }
         }
+        /* NSW state outline: draws itself ONCE (1.4s) and stays; the three verdict-hue roads
+           chain in behind it and stay too. The Sydney coastal dot fades up after the outline lands. */
+        .loader-map path.nsw { stroke: var(--faint); stroke-width: 1.75; stroke-linejoin: round;
+            animation: nswDraw 1.4s var(--ease-out) forwards; }
+        @keyframes nswDraw { from { stroke-dashoffset: 1; opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+        .loader-map .nsw-dot { opacity: 0; animation: nswDot .5s ease 1.5s forwards; }
+        @keyframes nswDot { to { opacity: 1; } }
+        /* Line dressing. Roads get a soft lift shadow (NOT a bg-coloured casing — the amber road runs
+           parallel to the coast outline ~1px inside it, a casing would erase the coastline). Each
+           terminus lands as a colour-matched dot timed to its route's draw end (delay + duration —
+           durations vary per route, amber/red primaries are deliberately slow); a ring ripples out
+           of the Sydney hub as the Sydney routes converge. The .pulse overlays retrace each
+           road with a short white dash gliding start→end (dasharray period 2: the .12 dash idles at
+           [-.12,0] before its delay — invisible — and exits past the path end each cycle). Pulses ride
+           the SAME main-thread dash clock as loaderDraw, so boot jank freezes them in lockstep with
+           the artwork — they can never desync from the drawn roads or leave one half-drawn. */
+        .loader-map path.road { filter: drop-shadow(0 1px 1.2px rgba(28,25,23,.28)); }
+        .loader-map .end-dot { opacity: 0; animation: nswDot .45s ease forwards; }
+        .loader-map .hub-ring { opacity: 0; fill: none; stroke: #78716c; stroke-width: 1.1;
+            transform-box: fill-box; transform-origin: center; animation: hubRing .9s var(--ease-out) 1.6s forwards; }
+        @keyframes hubRing { from { opacity: .5; transform: scale(.5); } to { opacity: 0; transform: scale(2.6); } }
+        .loader-map path.pulse { stroke: #fff; stroke-width: 1.3; opacity: .75;
+            stroke-dasharray: .12 1.88; stroke-dashoffset: .12; animation: loaderPulse 1.8s ease-in-out infinite; }
+        @keyframes loaderPulse { from { stroke-dashoffset: .12; } to { stroke-dashoffset: -1.12; } }
         .loader-bar { height: 2px; background: var(--line); border-radius: 1px; overflow: hidden; margin: 18px 0 12px; }
         .loader-bar-fill { height: 100%; width: 0%; background: var(--ink); border-radius: 1px; transition: width .25s ease; }
         #loader-status { font: 500 10px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); min-height: 15px; }
+        /* Reduced motion: a calm static loader — every path fully drawn, dot visible, no loops.
+           (#loader-prefixed so these out-specify the .loader-map path.nsw outline rule above.) */
+        @media (prefers-reduced-motion: reduce) {
+            #loader { transition: none; }
+            #loader .loader-map path { animation: none; stroke-dashoffset: 0; opacity: 1; }
+            #loader .loader-map path.pulse, #loader .loader-map .hub-ring { display: none; }
+            #loader .loader-map .nsw-dot, #loader .loader-map .end-dot { animation: none; opacity: 1; }
+            #loader .loader-bar-fill { transition: none; }
+        }
 
         /* Minimalist pin markers + zoom-to-label */
         .town-icon { background: none !important; border: none !important; }
@@ -343,6 +401,21 @@
         .xt-dot { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
         .xt-status { font: 600 11.5px var(--sans); color: #6d28d9; min-height: 14px; margin-top: 2px; }
         .xt-fine { font-size: 11px; color: var(--muted); margin: 6px 0 0; line-height: 1.4; }
+        /* Cross-criteria SEGMENTED control (design pass v2) — State / Regional lens panels only
+           (#nsw-xtest): "Own criteria" + one button per available cross-test (State lens: as
+           Regional / as Nat. Sig. · Regional lens: as State). Purple is the cross-test accent; it
+           never touches the green/orange/red verdict hues. setCrossTest(mode) in panels.js drives
+           the existing re-grade machinery. The Local tab keeps its .xt-toggle checkbox above. */
+        .xt-seg { display: flex; gap: 5px; }
+        .xt-btn { flex: 1; padding: 7px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+            color: var(--muted); font: 500 11.5px var(--sans); white-space: nowrap; cursor: pointer; transition: all .15s; }
+        .xt-btn:hover:not(.on) { border-color: #6d28d9; color: #6d28d9; }
+        .xt-btn.on { background: #6d28d9; border-color: #6d28d9; color: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(109,40,217,.3); }
+        .xt-btn:active { transform: scale(.97); }
+        .xt-btn:focus-visible { outline: 2px solid #93b4d8; outline-offset: 2px; }
+        /* Status line under the segmented control (scoped so the Local tab's #local-status,
+           which shares .xt-status, keeps its current rhythm). */
+        #nsw-xtest .xt-status { font-weight: 500; line-height: 1.4; min-height: 15px; margin-top: 9px; }
         /* Local roads loading bar — determinate, fills 0→100% at constant speed like the page-load bar */
         .local-progress { height: 5px; background: #e7e5e4; border-radius: 3px; overflow: hidden; margin: 8px 0 4px; }
         .local-progress[hidden] { display: none; }
@@ -381,9 +454,8 @@
         /* Floating legend accent matches the active tab group — g1 is the Overview's monochrome
            ink (flips with the dark palette), g2 red, g3 the vibrant green. The verdict swatch
            colours inside the legend are data and never change here. */
-        .map-legend.legend-g1 { border-top: 3px solid var(--ink); }
-        .map-legend.legend-g2 { border-top: 3px solid #dc2626; }
-        .map-legend.legend-g3 { border-top: 3px solid #16a34a; }
+        /* No coloured top accent bar on any tab — every legend keeps the plain thin grey panel
+           border on all four sides. (The h3 title still takes the tab's colour below.) */
         .map-legend.legend-g1 h3 { color: var(--ink); }
         .map-legend.legend-g2 h3 { color: #dc2626; }
         .map-legend.legend-g3 h3 { color: #16a34a; }
@@ -501,12 +573,11 @@
             body:not(.is-ready) .map-legend, body:not(.is-ready) .bypass-toggle,
             body:not(.is-ready) .map-widgets { opacity: 1; transform: none; }
             body:not(.is-ready) .bar-fill, body:not(.is-ready) .dist-track > span { width: auto !important; }
-            #loader .loader-map path { animation: none; stroke-dashoffset: 0; opacity: 1; }
             .map-refresh { transition: none; }
             #page-reload { transition: none; }
             #page-reload:hover, #page-reload:active { transform: none; }
             .tab-btn:active, .local-search-btn:active, .legend-item[data-legend-key]:active,
-            .xt-toggle:active { transform: none; }
+            .xt-toggle:active, .xt-btn:active { transform: none; }
         }
 
         /* ═══════════ Dark mode — brand-mark easter egg, 5 clicks in 3s (state.js) ═══════════
@@ -586,6 +657,9 @@
         body.dark-mode .xt-toggle:hover { background: #312949; border-color: #6d5aa8; box-shadow: 0 1px 6px rgba(0,0,0,.45); }
         body.dark-mode .xt-toggle input { accent-color: #8b5cf6; }
         body.dark-mode .xt-status { color: #a78bfa; }
+        /* Segmented control: the purple accent lifts a step on the dark ground */
+        body.dark-mode .xt-btn.on { background: #8b5cf6; border-color: #8b5cf6; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+        body.dark-mode .xt-btn:hover:not(.on) { border-color: #a78bfa; color: #a78bfa; }
         /* Basemap ONLY: invert the tile pane to a dark carto look. Never filter #map,
            .leaflet-pane or any overlay/canvas pane — road verdict colours are data-meaningful
            and must stay pixel-identical (the localPane street-label tiles also stay unfiltered,
@@ -626,14 +700,6 @@
         .flag-x:active { transform: scale(.94); }
         .flag-x:focus-visible { outline: 2px solid #93b4d8; outline-offset: 1px; }
         .flag-empty { font: 400 12.5px/1.5 var(--sans); color: var(--muted); padding: 2px 0; }
-        /* Pinned rows FADE IN — an OPACITY-led dissolve (0 → 1 over .48s; its own keyframe, not
-           riseIn, whose 10px translate reads as a slide) with only a whisper of rise (3px), so
-           new rows materialise from transparent instead of popping. .flag-in is applied on row
-           creation (refreshFlagged): a fresh list render staggers rows 40ms apart via inline
-           animation-delay; a newly pinned road's row animates alone. Compositor-only
-           (opacity/transform) — no layout thrash; unflag removal is instant. */
-        @keyframes flagFadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
-        .flag-row.flag-in { animation: flagFadeIn .48s var(--ease-out) backwards; }
         /* The little red flag icon — ICON-ONLY red (never road geometry or verdict chips).
            Outline = unflagged, solid = flagged (flagIconSVG draws with currentColor). */
         .flag-ico { display: inline-block; flex: none; color: var(--red); }
@@ -665,7 +731,6 @@
             .flag-btn:active, .flag-x:active { transform: none; }
             .tab-btn.tab-flag, .tab-btn.tab-flag:hover:not(.active), .tabs .tab-btn.tab-flag:active { transition: none; transform: none; }
             .tab-btn.flag-pulse { animation: none; }
-            .flag-row.flag-in { animation: none; }   /* rows just appear */
             .flag-x::after { transition: none; }
         }
         /* Dark mode — chips/buttons/icon carry literal tints (same treatment as the tab-group rules) */
@@ -680,3 +745,101 @@
            shade + white inset ring. */
         body.dark-mode .tab-btn.tab-flag:not(.active) { background: #dc2626; border-color: #dc2626; color: #fff; }
         body.dark-mode .tab-btn.tab-flag:hover:not(.active) { background: #ef4444; border-color: #ef4444; color: #fff; }
+
+        /* ═══════════ Scoped Excel export — export any group, not just "all" (js/export.js) ═══════════
+           The footer link opens a scope menu: whole network, flagged (pinned) roads, any tab's
+           group (Nat.Sig / State / Regional / Local / Sydney / Clarence Valley) or a CUSTOM
+           hand-picked set — roads added via the search field in the menu or Shift+clicked on the
+           map. Counts are computed live; exportToExcel(scope, keys) reuses the existing workbook
+           generation, filtered to the scope. */
+        .export-wrap { position: relative; }
+        /* Flex column + viewport-capped height so the menu is never clipped by the fold: the scope
+           list (.em-scope) is the flexible scrolling region while the header, custom picker and the
+           Download footer always stay in view. */
+        .export-menu { position: absolute; bottom: calc(100% + 10px); left: -2px; z-index: 900; width: 324px;
+            max-height: calc(100vh - 28px); background: var(--bg); border: 1.5px solid var(--ink); border-radius: 12px;
+            padding: 14px 15px 15px; box-shadow: 0 12px 36px rgba(28,25,23,.2); display: none; }
+        .export-menu.em-open { display: flex; flex-direction: column; animation: riseIn .25s var(--ease-out); }
+        .export-menu h4 { font: 600 10.5px/1.3 var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 4px; flex: none; }
+        .em-scope { display: flex; flex-direction: column; margin: 0 -8px 2px; min-height: 0; overflow-y: auto; }
+        /* Section headers group the nine scopes (Whole network / By category / By area / Selections). */
+        .em-group { font: 600 9px/1 var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--faint); padding: 9px 8px 3px; }
+        .em-group:first-child { padding-top: 3px; }
+        .em-opt { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; cursor: pointer;
+            font: 400 12.5px var(--sans); color: var(--ink-soft); transition: background .12s ease; }
+        .em-opt:hover { background: var(--bg-soft); }
+        /* Selected scope: tinted row + inset ring + bold label so what you're about to export is unmistakable. */
+        .em-opt:has(input:checked) { background: var(--bg-soft); box-shadow: inset 0 0 0 1.5px var(--ink); }
+        .em-opt:has(input:checked) .em-opt-label { color: var(--ink); font-weight: 600; }
+        .em-opt:has(input:checked) .em-count { color: var(--ink); }
+        .em-opt.em-disabled { opacity: .45; cursor: default; }
+        .em-opt.em-disabled:hover { background: transparent; }
+        .em-opt input { accent-color: var(--ink); width: 14px; height: 14px; flex: none; cursor: pointer; }
+        .em-opt input:focus-visible { outline: 2px solid #93b4d8; outline-offset: 1px; }
+        .em-opt.em-disabled input { cursor: default; }
+        .em-opt-label { flex: 1; min-width: 0; }
+        .em-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+        .em-count { font: 500 11px var(--mono); color: var(--faint); font-feature-settings: 'tnum'; flex: none; }
+        .em-custom { border-top: 1px solid var(--line-soft); margin-top: 9px; padding-top: 10px; }
+        .em-custom[hidden] { display: none; }
+        .em-search { position: relative; }
+        .em-search input { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+            font: 400 12.5px var(--sans); color: var(--ink); background: var(--bg); outline: none; }
+        .em-search input::placeholder { color: var(--faint); }
+        .em-search input:focus { border-color: #93b4d8; box-shadow: 0 0 0 2px rgba(147,180,216,.25); }
+        .em-suggest { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; background: var(--bg);
+            border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 6px 18px rgba(28,25,23,.14);
+            max-height: 150px; overflow-y: auto; display: none; }
+        .em-suggest.on { display: block; }
+        .em-sg { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft); transition: background .12s ease; }
+        .em-sg:last-child { border-bottom: 0; }
+        .em-sg:hover { background: var(--bg-soft); }
+        .em-sg.em-on { background: var(--bg-soft); box-shadow: inset 2.5px 0 0 var(--ink); }   /* keyboard-highlighted (Tab/arrows) */
+        .em-sg-name { font: 500 12px/1.3 var(--sans); color: var(--ink); }
+        .em-sg-meta { font: 400 10.5px var(--mono); color: var(--muted); }
+        .em-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+        .em-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 5px 3px 9px; border-radius: 999px;
+            background: var(--bg-soft); border: 1px solid var(--line); font: 500 11px var(--sans); color: var(--ink-soft); }
+        .em-chip button { border: 0; background: transparent; color: var(--muted); font-size: 13px; line-height: 1;
+            cursor: pointer; padding: 0 3px; }
+        .em-chip button:hover { color: var(--fail); }
+        .em-empty { font: 400 11.5px var(--sans); color: var(--faint); margin-top: 8px; }
+        .em-hint { font: 400 11px/1.5 var(--sans); color: var(--muted); margin-top: 9px; }
+        .em-hint strong { color: var(--ink-soft); }
+        .em-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+        .em-download { flex: 1; padding: 8px 12px; border: none; border-radius: 8px; background: var(--ink); color: var(--bg);
+            font: 600 12px var(--sans); cursor: pointer; transition: opacity .15s ease, transform .1s ease; }
+        .em-download:hover { opacity: .88; }
+        .em-download:active { transform: scale(.98); }
+        .em-download:disabled { opacity: .45; cursor: default; transform: none; }
+        .em-download:focus-visible, .em-cancel:focus-visible { outline: 2px solid #93b4d8; outline-offset: 2px; }
+        .em-cancel { padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+            color: var(--muted); font: 500 12px var(--sans); cursor: pointer; }
+        .em-cancel:hover { color: var(--ink); border-color: var(--faint); }
+        body.dark-mode .export-menu, body.dark-mode .em-suggest { box-shadow: 0 12px 36px rgba(0,0,0,.5); }
+        body.dark-mode .em-search input { background: #26221f; color: var(--ink); }
+        body.dark-mode .em-chip button:hover { color: #f87171; }
+        @media (prefers-reduced-motion: reduce) {
+            .export-menu.em-open { animation: none; }
+            .em-download:active { transform: none; }
+        }
+
+        /* ═══════════ Local-road rows + per-road detail (Local tab; js/local.js) ═══════════
+           Each suburb-loaded road is a clickable row that opens its own criteria assessment —
+           the same detail idiom as the map's Road Detail panel. The list scrolls internally. */
+        #local-road-list { max-height: 292px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+        #local-road-list::-webkit-scrollbar { width: 7px; }
+        #local-road-list::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
+        .lr-row { display: flex; align-items: center; gap: 9px; padding: 8px 6px; margin: 0 -6px; border-bottom: 1px solid var(--line-soft); border-radius: 8px; cursor: pointer; transition: background .12s ease; }
+        .lr-row:hover { background: var(--bg-soft); }
+        .lr-row:focus-visible { outline: 2px solid #93b4d8; outline-offset: -2px; }
+        .lr-row:last-child { border-bottom: none; }
+        .lr-dot { width: 16px; height: 3px; border-radius: 2px; background: #16a34a; flex: none; }
+        .lr-info { flex: 1; min-width: 0; }
+        .lr-name { display: block; font: 500 13px/1.35 var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lr-meta { display: block; font: 400 11px var(--sans); color: var(--faint); margin-top: 1px; }
+        #local-list-view[hidden], #local-road-detail[hidden] { display: none; }
+        /* Neutral chip for ungraded local roads ("Own criteria" mode — no verdict exists). */
+        .flag-chip.fc-neutral { color: var(--ink-soft); background: var(--line-soft); }
+        body.dark-mode .flag-chip.fc-neutral { color: var(--ink-soft); background: #2d2a27; }
+        body.dark-mode #local-road-list::-webkit-scrollbar-thumb { background: #44403c; }

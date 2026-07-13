@@ -44,9 +44,10 @@ function nswStyle(feature) {
     // Every road grades by its own category criteria (State / Regional). National significance is a
     // property of the NLTN network (its own lens + green layer), not a re-grade of the road overlay.
     let v = p._roadStatus || p.status;
-    // Cross-criteria toggle (State / Regional tabs only): re-grade this road AGAINST the other category.
-    // State tab → grade as Regional (asReg); Regional tab → grade as State (asState). See buildXtest().
-    if (currentTab === 'state' && xLens.state) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = x.asReg; }
+    // Cross-criteria test (State / Regional tabs only): re-grade this road AGAINST another category.
+    // xLens holds the active MODE per lens (false = own criteria): State tab → 'regional' (asReg) or
+    // 'natsig' (asNat, national criteria); Regional tab → 'state' (asState). See buildXtest().
+    if (currentTab === 'state' && xLens.state) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = xLens.state === 'natsig' ? x.asNat : x.asReg; }
     else if (currentTab === 'regional' && xLens.regional) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = x.asState; }
     if (!legendToggles[v]) return HIDDEN_STYLE;                       // verdict colour toggled off
     if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;    // route-numbered roads toggled off
@@ -71,6 +72,9 @@ function cvStyle(feature) {
 // green/orange legend toggles. Proposed corridors render translucent (still solid → clickable).
 function nltnFeatureStyle(feature) {
     const p = (feature && feature.properties) || {};
+    // Flagged view: draw ONLY pinned national routes — the same UI-pin filter the road overlay uses.
+    if (typeof inFlaggedScope === 'function' && inFlaggedScope() &&
+        !(typeof isRoadFlagged === 'function' && isRoadFlagged('nltn:' + p._natGroup))) return HIDDEN_STYLE;
     const v = p._natCat || 'orange';
     if (!legendToggles[v]) return HIDDEN_STYLE;          // green/orange verdict toggled off
     const s = { stroke: true, color: ROAD_COLORS[v] || '#16a34a', weight: 5, opacity: 0.9, lineCap: 'round', lineJoin: 'round', dashArray: null };
@@ -92,7 +96,16 @@ function buildXtest() {
         const optMet = Object.keys(c.opt).reduce((n, key) => n + (c.opt[key] === true ? 1 : 0), 0);
         const pbs1 = !!(c.mand && c.mand.pbs1 === true);        // PBS-1 access (State mandatory gate)
         const bd = !!(nhvr[k] && nhvr[k].bdouble19 === true);   // 19m B-double access (Regional gate)
-        X[k] = { cls: c.cls, optMet: optMet, asState: xverdict(optMet, pbs1), asReg: xverdict(optMet, bd), real: c.verdict };
+        // Nationally Significant test — the per-road national-criteria verdict PRECOMPUTED by the
+        // pipeline (nsw_criteria.json: nat / natOptMet / natCrit {nltn, metros, portair} = S-01
+        // NLTN membership, S-02·S-03 metro/urban centres, S-04·S-05 port/airport/intermodal).
+        // Green = meets ≥2 national criteria, orange = 1, red = 0 — the same rule the Nat. Sig.
+        // lens grading uses, recomputed here only as a fallback when `nat` is absent. Earned from
+        // the data, never forced.
+        const natMet = (c.natOptMet != null) ? c.natOptMet
+            : (c.natCrit ? Object.keys(c.natCrit).reduce((n, key) => n + (c.natCrit[key] === true ? 1 : 0), 0) : 0);
+        const asNat = c.nat || (natMet >= 2 ? 'green' : natMet === 1 ? 'orange' : 'red');
+        X[k] = { cls: c.cls, optMet: optMet, asState: xverdict(optMet, pbs1), asReg: xverdict(optMet, bd), asNat: asNat, real: c.verdict };
     }
     window.XTEST = X;
     return X;
