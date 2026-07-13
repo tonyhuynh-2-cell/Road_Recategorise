@@ -573,7 +573,7 @@ function renderLocalList() {
     if (!LOCAL_GROUPS.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
     card.style.display = '';
     const mode = xLens.local;
-    const CHIP = { green: 'Meets', orange: 'Meets 1 of 2', red: 'Does not meet' };
+    const CHIP = { green: 'Meets', orange: 'Meets 1 optional', red: 'Does not meet' };
     const order = LOCAL_GROUPS.slice().sort(function (a, b) {
         if (!a.name !== !b.name) return a.name ? -1 : 1;   // named roads first, unnamed ways last
         return (a.name || '').localeCompare(b.name || '') || a.id - b.id;
@@ -686,7 +686,7 @@ function updateLocalXtStatus() {
     LOCAL_GROUPS.forEach(function (g) { c[gradeLocalGroup(g, m).v]++; });
     el.textContent = LOCAL_GROUPS.length.toLocaleString() + ' local roads re-graded against the ' +
         (m === 'state' ? 'State Road' : 'Regional Road') + ' criteria — ' +
-        c.green.toLocaleString() + ' would meet · ' + c.orange.toLocaleString() + ' meet 1 of 2 · ' +
+        c.green.toLocaleString() + ' would meet · ' + c.orange.toLocaleString() + ' meet 1 optional · ' +
         c.red.toLocaleString() + ' would not (indicative).';
 }
 
@@ -728,7 +728,7 @@ function localExportRows() {
             'Road Name': g.name || 'Unnamed local road',
             'Connects To': (res && res.facNames && res.facNames.length) ? res.facNames.join('; ') : '—',
             'Categorisation': !m ? 'Local road (not graded)'
-                : v === 'green' ? ('Would meet ' + noun) : v === 'orange' ? 'Would meet 1 of 2' : ('Would not meet ' + noun),
+                : v === 'green' ? ('Would meet ' + noun) : v === 'orange' ? 'Would meet 1 optional' : ('Would not meet ' + noun),
             'Why': !m ? 'Own criteria — local roads carry no State/Regional grading'
                 : m === 'state'
                     ? ('S-07·S-10  ' + (res.centres >= 2 ? 'met' : 'not met') + ' (' + res.centres + ' State-tier centres)\nS-08·S-11  ' + (res.nFac ? 'met (' + res.nFac + ' facilities)' : 'not met') + '\nS-09  not assessed (gate unpublished)')

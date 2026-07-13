@@ -198,7 +198,7 @@ function renderMapLegend() {
     let h = '<h3>Map legend</h3>';
     if (currentTab === 'cv') {
         h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 of 2 — may pass with ADT');
+        h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
         h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town centres / POIs');
@@ -206,7 +206,7 @@ function renderMapLegend() {
         h += li('clip', '<div class="legend-color" style="background:transparent; border:1.5px solid #1c1917; height:11px; border-radius:2px"></div>', 'Show only roads inside the LGA');
     } else if (currentTab === 'sydney') {
         h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 of 2 — may pass with ADT');
+        h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
         h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
@@ -236,7 +236,7 @@ function renderMapLegend() {
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     } else {   // overview + detail
         h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 of 2 — may pass with ADT');
+        h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
         h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
