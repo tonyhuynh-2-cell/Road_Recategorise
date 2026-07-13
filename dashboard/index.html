@@ -80,6 +80,7 @@
             <!-- Overview / Nat. Sig. / State / Regional / Local share ONE dropdown lens control.
                  It carries .tab-btn so switchTab's active-class sweep treats it like the buttons it
                  replaced; syncLensSelect (panels.js) re-syncs its value + active look per switch. -->
+            <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:4px; display:block;">Category</label>
             <select id="lens-select" class="tab-btn tab-select tab-g1 active" aria-label="Network view"
                     onchange="switchTab(this.value)">
                 <option value="overview" selected>Overview</option>
@@ -88,9 +89,14 @@
                 <option value="regional">Regional</option>
                 <option value="local">Local</option>
             </select>
-            <div class="tab-row">
-                <button class="tab-btn tab-g3" onclick="switchTab('sydney')">Sydney</button>
-                <button class="tab-btn tab-g3" onclick="switchTab('cv')">Clarence Valley</button>
+            <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:10px 0 4px; display:block;">LGA</label>
+            <div class="tab-row" style="gap:8px;">
+                <select class="tab-btn tab-select tab-g3" aria-label="LGA view"
+                        onchange="if(this.value) switchTab(this.value); this.value='';">
+                    <option value="" selected disabled>Select LGA...</option>
+                    <option value="sydney">Sydney</option>
+                    <option value="cv">Clarence Valley</option>
+                </select>
                 <!-- ⚑ Flagged roads — rightmost in the row; red (tab-g2 family + its own tab-flag
                      tint/lift/pulse styling, see the Flagged CSS section) rather than the row's teal -->
                 <button class="tab-btn tab-g2 tab-flag" onclick="switchTab('flagged')">Flagged roads</button>
@@ -152,9 +158,8 @@
                     <div class="stat-sub" id="nsw-red-pct"></div>
                 </div>
             </div>
-            <!-- Verdict distribution bar — the green/orange(/red) split for this lens (populated by
-                 refreshNswView). Nat. Significant is 2-tier (green/orange); State/Regional are 3-tier. -->
-            <div class="stat-card" id="nsw-dist-card">
+            <!-- Verdict distribution bar — hidden: integrated into stat cards above -->
+            <div class="stat-card" id="nsw-dist-card" style="display:none">
                 <h3>Distribution</h3>
                 <div class="dist-track" id="nsw-dist-bar"></div>
                 <div class="dist-key" id="nsw-dist-key"></div>
