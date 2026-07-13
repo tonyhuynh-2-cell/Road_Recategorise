@@ -74,18 +74,20 @@
                 <div class="brand-full">Institute of Public Works Engineering Australasia</div>
             </div>
         </div>
-        <div class="eyebrow">TfNSW · Network Assessment</div>
         <h1>Road Recategorisation Assessment</h1>
-        <h2>Criteria alignment vs. current classification</h2>
 
         <div class="tabs">
-            <button class="tab-btn tab-overview tab-g1 active" onclick="switchTab('overview')">Overview</button>
-            <div class="tab-row">
-                <button class="tab-btn tab-g2" onclick="switchTab('nsr')">Nat. Sig.</button>
-                <button class="tab-btn tab-g2" onclick="switchTab('state')">State</button>
-                <button class="tab-btn tab-g2" onclick="switchTab('regional')">Regional</button>
-                <button class="tab-btn tab-g2" onclick="switchTab('local')">Local</button>
-            </div>
+            <!-- Overview / Nat. Sig. / State / Regional / Local share ONE dropdown lens control.
+                 It carries .tab-btn so switchTab's active-class sweep treats it like the buttons it
+                 replaced; syncLensSelect (panels.js) re-syncs its value + active look per switch. -->
+            <select id="lens-select" class="tab-btn tab-select tab-g1 active" aria-label="Network view"
+                    onchange="switchTab(this.value)">
+                <option value="overview" selected>Overview</option>
+                <option value="nsr">Nat. Sig.</option>
+                <option value="state">State</option>
+                <option value="regional">Regional</option>
+                <option value="local">Local</option>
+            </select>
             <div class="tab-row">
                 <button class="tab-btn tab-g3" onclick="switchTab('sydney')">Sydney</button>
                 <button class="tab-btn tab-g3" onclick="switchTab('cv')">Clarence Valley</button>
@@ -95,13 +97,9 @@
             </div>
         </div>
 
-        <!-- Overview Tab — whole NSW network, each road graded against its own category criteria -->
+        <!-- Overview Tab — whole NSW network, each road graded against its own category criteria.
+             Order: the three verdict cards lead; the network-total hero card sits below them. -->
         <div class="tab-content active" id="tab-overview">
-            <div class="stat-card hero">
-                <h3>NSW network assessed</h3>
-                <div class="stat-value blue" id="ov-total">–</div>
-                <div class="stat-sub" id="ov-total-sub">State &amp; Regional roads graded against their criteria</div>
-            </div>
             <div class="stat-grid">
                 <div class="stat-card acc-green">
                     <h3>Meets criteria</h3>
@@ -119,9 +117,10 @@
                     <div class="stat-sub" id="ov-red-pct"></div>
                 </div>
             </div>
-            <div class="stat-card">
-                <h3>By road group</h3>
-                <div id="ov-group-breakdown"></div>
+            <div class="stat-card hero">
+                <h3>NSW network assessed</h3>
+                <div class="stat-value blue" id="ov-total">–</div>
+                <div class="stat-sub" id="ov-total-sub">State &amp; Regional roads graded against their criteria</div>
             </div>
             <div class="data-note">
                 <span class="note-label">Note</span>

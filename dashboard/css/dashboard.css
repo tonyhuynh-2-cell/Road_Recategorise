@@ -25,9 +25,7 @@
         .sidebar { width: 392px; flex-shrink: 0; background: var(--bg); overflow-y: auto; padding: 26px 24px 40px; border-right: 1px solid var(--line); }
         .sidebar::-webkit-scrollbar { width: 8px; }
         .sidebar::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
-        .eyebrow { font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin-bottom: 12px; }
-        .sidebar h1 { font: 600 17px/1.25 var(--sans); color: var(--ink); margin-bottom: 5px; letter-spacing: -.01em; }
-        .sidebar h2 { font: 400 12.5px/1.4 var(--sans); color: var(--faint); margin-bottom: 20px; }
+        .sidebar h1 { font: 600 17px/1.25 var(--sans); color: var(--ink); margin-bottom: 18px; letter-spacing: -.01em; }
 
         /* Tabs — segmented control */
         .tabs { display: flex; flex-direction: column; gap: 5px; margin-bottom: 22px; }
@@ -36,7 +34,8 @@
            the depth of the hue carries the visibility, not the width. */
         .tab-btn { padding: 9px 6px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); font: 500 11.5px var(--sans); white-space: nowrap; cursor: pointer; border-radius: 9px; transition: all .15s; }
         .tab-row .tab-btn { flex: 1; }
-        .tab-btn.tab-overview { padding: 12px 6px; font-size: 13px; font-weight: 600; }
+        /* (The lens dropdown .tab-select — the Overview/Nat.Sig/State/Regional/Local control —
+           is styled with the tab colour groups below, after the g1 rules it builds on.) */
         .tab-btn.active { border-color: var(--muted); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(28,25,23,.08); }
         .tab-btn:hover:not(.active) { border-color: var(--faint); color: var(--ink); }
 
@@ -107,6 +106,13 @@
         .stat-grid .stat-card.acc-green,
         .stat-grid .stat-card.acc-orange,
         .stat-grid .stat-card.acc-red { border-width: 2.25px; padding: 12.75px 11.75px; }
+        /* The "% of roads" sublines inside the verdict trio: the default --faint grey is too light
+           on the tinted card washes in the LIGHT theme — deepen it (warm stone-600, in step with
+           the palette) so it passes contrast on the pale green/amber/red fills. LIGHT MODE ONLY:
+           the dark theme override below restores its exact current --faint grey. */
+        .stat-grid .stat-card.acc-green .stat-sub,
+        .stat-grid .stat-card.acc-orange .stat-sub,
+        .stat-grid .stat-card.acc-red .stat-sub { color: #57534e; }
         /* HERO cards (all six — Overview 892 / NSW lens / Sydney / CV / Local / Flagged) carry a
            DOUBLE-weight frame: 1.5px -> 3px, colour unchanged (ink; the Flagged hero's acc-red
            still recolours it). Padding drops 1.5px per side so the border+padding sums stay
@@ -508,6 +514,28 @@
         .map-legend.legend-g2 h3 { color: #dc2626; }
         .map-legend.legend-g3 h3 { color: #16a34a; }
 
+        /* Lens dropdown — Overview / Nat. Sig. / State / Regional / Local in ONE native <select>,
+           styled as the full-width monochrome g1 pill the old Overview button was (same font,
+           radius, borders; .active — managed by switchTab/syncLensSelect — inverts it solid-ink
+           exactly like .tab-btn.tab-g1.active). appearance:none drops the UA arrow; the chevron is
+           a background SVG, recoloured per state here and per theme in the dark-mode section
+           (these rules sit AFTER the g1 rules above, so their background-image survives the g1
+           background shorthands). */
+        .tab-btn.tab-select { appearance: none; -webkit-appearance: none; display: block; width: 100%;
+            padding: 12px 30px 12px 12px; font-size: 13px; font-weight: 600; text-align: left;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%231c1917' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center; background-size: 10px 6px; }
+        /* Re-assert the chevron through the g1 hover/active background SHORTHANDS (which reset
+           background-image); the active chevron flips to the inverted pill's text colour. */
+        .tab-btn.tab-select:hover:not(.active) {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%231c1917' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center; background-size: 10px 6px; }
+        .tab-btn.tab-select.active {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center; background-size: 10px 6px; }
+        /* The open option list: readable panel colours in both themes (vars flip with dark mode). */
+        .tab-btn.tab-select option { background: var(--bg); color: var(--ink); font-weight: 500; }
+
         /* ═══════════ UI revamp — motion & polish (Claude design pass) ═══════════
            Additive presentational layer: entrance choreography, tab-switch cascade, the
            data-refresh pill and micro-interactions. No layout, data or behaviour changes;
@@ -668,6 +696,11 @@
         body.dark-mode .stat-grid .stat-card.acc-red { border-color: #f87171; background: #3b1717; }
         body.dark-mode .stat-grid .stat-card.acc-red h3 { color: #f87171; }
         body.dark-mode .stat-card.acc-red { border-color: #f87171; }
+        /* Verdict-trio sublines: the light theme deepens them (see the card-accents section) —
+           dark mode KEEPS its existing --faint grey exactly as before. */
+        body.dark-mode .stat-grid .stat-card.acc-green .stat-sub,
+        body.dark-mode .stat-grid .stat-card.acc-orange .stat-sub,
+        body.dark-mode .stat-grid .stat-card.acc-red .stat-sub { color: var(--faint); }
         body.dark-mode .detail-placeholder svg { stroke: #57534e; }
         body.dark-mode .ev-dot.ev-sua { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px #1d4ed8; }
         /* Tab colour groups: same hue coding, lifted for contrast on the dark ground
@@ -678,6 +711,14 @@
         body.dark-mode .tab-btn.tab-g3:not(.active) { color: #4ade80; border-color: #16a34a; }
         body.dark-mode .tab-btn.tab-g2:hover:not(.active) { border-color: #dc2626; color: #f7b1b1; }
         body.dark-mode .tab-btn.tab-g3:hover:not(.active) { border-color: #16a34a; color: #86efac; background: #14301f; }
+        /* Lens dropdown chevron on the dark ground: near-white at rest/hover (tracks the flipped
+           --ink text), flipping dark on the ACTIVE near-white pill (its text is var(--bg)). */
+        body.dark-mode .tab-btn.tab-select:not(.active) {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ece9e6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center; background-size: 10px 6px; }
+        body.dark-mode .tab-btn.tab-select.active {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%231c1917' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center; background-size: 10px 6px; }
         /* Floating map chrome: the white glass cards go dark glass */
         body.dark-mode .map-legend, body.dark-mode .code-trace, body.dark-mode .rs-box, body.dark-mode .rs-results,
         body.dark-mode .bypass-toggle, body.dark-mode .mw-distance,

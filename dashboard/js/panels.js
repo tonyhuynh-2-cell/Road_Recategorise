@@ -16,6 +16,9 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     const btn = document.querySelector(`.tab-btn[onclick*="'${tab}'"]`);
     if (btn) btn.classList.add('active');
+    // The lens dropdown (#lens-select) carries .tab-btn, so the sweep above just stripped its
+    // active look; re-sync its value + active state for the new tab (see syncLensSelect below).
+    syncLensSelect(tab);
     // Overview has its own panel; the three lenses share #tab-nsw; CV and Detail have their own.
     const contentId = (tab === 'overview') ? 'overview' : NSW_LENSES.includes(tab) ? 'nsw' : tab;
     document.getElementById(`tab-${contentId}`).classList.add('active');
@@ -35,6 +38,63 @@ function switchTab(tab) {
 
 // Road Detail is shown on a road click (it's not a tab) — return to the view that was open.
 function backFromDetail() { switchTab(lastViewTab || 'overview'); }
+
+// The five map lenses that live in the sidebar's ONE dropdown control (#lens-select, index.html);
+// the other views (Sydney / Clarence Valley / Flagged / Detail) stay individual buttons.
+const LENS_SELECT_TABS = ['overview', 'nsr', 'state', 'regional', 'local'];
+
+// Keep the lens dropdown in step with EVERY tab change, however it was driven (its own change
+// event, a tab button, boot, a road-detail open, a search jump…). Called by switchTab right after
+// the .tab-btn active sweep: on one of the five lens tabs the dropdown takes that value + the
+// active pill look (mirroring how the old buttons lit up); on any other view (sydney / cv /
+// flagged / detail) it KEEPS showing the last lens but drops the active styling — exactly like an
+// unselected tab button.
+function syncLensSelect(tab) {
+    const sel = document.getElementById('lens-select');
+    if (!sel) return;
+    // Any pending re-pick hold (see the IIFE below) is finished the moment a real switch lands.
+    const hold = sel.querySelector('option[value="__hold__"]');
+    if (hold) { hold.remove(); delete sel.dataset.holding; }
+    if (LENS_SELECT_TABS.includes(tab)) {
+        sel.value = tab;
+        sel.classList.add('active');
+    } else {
+        sel.classList.remove('active');   // sweep already stripped it; keep this explicit + idempotent
+    }
+}
+
+// Same-lens re-pick: while the dropdown is INACTIVE (a non-lens view is open) it still shows its
+// last lens — but a native <select> fires NO change event when the user picks the value it already
+// shows, so "return to Overview from the Sydney tab via the dropdown" would go dead. Fix: on a
+// mouse open in the inactive state, park the selection on a hidden placeholder option carrying the
+// SAME label (the collapsed box looks identical), so ANY pick — the shown lens included — is a real
+// value change and fires the markup's onchange → switchTab. A dismiss without a pick restores the
+// parked lens on blur/Escape; a landed switch is cleaned up by syncLensSelect above.
+(function () {
+    const sel = document.getElementById('lens-select');
+    if (!sel) return;
+    sel.addEventListener('mousedown', function () {
+        if (sel.classList.contains('active') || sel.dataset.holding) return;
+        const cur = sel.selectedOptions[0];
+        if (!cur) return;
+        const dummy = document.createElement('option');
+        dummy.value = '__hold__';
+        dummy.hidden = true;                    // never offered in the open list
+        dummy.textContent = cur.textContent;    // collapsed box keeps reading the parked lens
+        sel.dataset.holding = cur.value;
+        sel.appendChild(dummy);
+        sel.value = '__hold__';
+    });
+    const restore = function () {
+        const hold = sel.querySelector('option[value="__hold__"]');
+        if (!hold) return;
+        if (sel.value === '__hold__' && sel.dataset.holding) sel.value = sel.dataset.holding;
+        hold.remove();
+        delete sel.dataset.holding;
+    };
+    sel.addEventListener('blur', restore);
+    sel.addEventListener('keydown', function (e) { if (e.key === 'Escape') restore(); });
+})();
 
 // Tab colour group (matches the tab-btn tinting + the floating legend accent):
 // g1 = Overview · g2 = Nat.Significant / State / Regional / Local / Flagged (red — matches the ⚑
@@ -617,7 +677,9 @@ function refreshOverview() {
     );
     // Two mutually exclusive groups (State / Regional) that sum to the network total, each graded by its
     // own category criteria. National significance lives on its own lens (the NLTN network), not here.
-    const { g, o, r, grp } = scopeCounts('all');
+    // (The Overview's "By road group" card is retired — scopeCounts still computes grp for the
+    // Sydney / CV region cards, but nothing on this panel renders it.)
+    const { g, o, r } = scopeCounts('all');
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     document.getElementById('ov-total').textContent = total.toLocaleString();
@@ -625,9 +687,6 @@ function refreshOverview() {
     document.getElementById('ov-green').textContent = g.toLocaleString(); document.getElementById('ov-green-pct').textContent = pct(g);
     document.getElementById('ov-orange').textContent = o.toLocaleString(); document.getElementById('ov-orange-pct').textContent = pct(o);
     document.getElementById('ov-red').textContent = r.toLocaleString(); document.getElementById('ov-red-pct').textContent = pct(r);
-    // Prepend the Nat. Significant national network (statewide) above the two road groups.
-    const grpRows = [natSigGroupRow(window.NLTN_CAT_COUNTS), ...Object.entries(grp)].filter(Boolean);
-    document.getElementById('ov-group-breakdown').innerHTML = groupBreakdownHTML(grpRows);
     // Map restyle is owned by the follow-up showNSW()->applyLegend() in switchTab/init (avoids styling
     // all ~17k paths twice per tab switch); this panel refresher only updates the stats.
 }
