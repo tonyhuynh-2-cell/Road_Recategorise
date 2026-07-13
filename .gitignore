@@ -21,6 +21,9 @@ dashboard/data/geopackages/
 # Editor / working backups
 *.bak
 
+# Local prompt notes / working material
+Prompt/
+
 # Keep these tracked
 !dashboard/
 !dashboard/data/

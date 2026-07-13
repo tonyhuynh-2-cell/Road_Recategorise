@@ -132,6 +132,12 @@ function selectRoadFromSearch(key) {
     const agg = (typeof NSW_AGG !== 'undefined' && NSW_AGG) || {};
     const a = agg[key];
     if (!a) return;
+    if (typeof traceCode === 'function') traceCode(
+        'Search selected road: ' + roadName(a),
+        'Road search jumps to the stored road group, highlights its map layers, frames the map, then opens the same road detail path as a click.',
+        "function selectRoadFromSearch(key) {\n  const a = NSW_AGG[key];\n  if (!nswInView(a)) switchTab('overview');\n  const layers = window.NSW_ROAD_LAYERS[key];\n  highlightRoad(layers, nswLayer);\n  map.fitBounds(L.featureGroup(layers).getBounds());\n  showRoadDetail(a, 'nsw');\n}",
+        'road key=' + key
+    );
     hideRoadResults();
     const inp = document.getElementById('rs-input');
     if (inp) { inp.value = roadName({ road_name: a.road_name, admin_class: a.admin_class }); inp.blur(); }

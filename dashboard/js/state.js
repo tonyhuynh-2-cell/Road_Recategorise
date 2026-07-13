@@ -269,14 +269,17 @@ function highlightRoad(layers, sourceLayer) {
 
 function isSelected(layer) { return selectedLayers.indexOf(layer) !== -1; }
 
-function deselect() {
+function clearSelectedRoad() {
     clearConnections();
     _lastConnEv = null;
-    if (!selectedLayers.length) return;
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = [];
     selectedSource = null;
     hideRoadDistance();     // clear the selected-road distance readout
+}
+
+function deselect() {
+    clearSelectedRoad();
     const c = document.getElementById('detail-content'); if (c) c.style.display = 'none';
     const e = document.getElementById('detail-empty'); if (e) e.style.display = '';
 }
