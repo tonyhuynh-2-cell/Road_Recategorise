@@ -61,7 +61,21 @@ function showRoadDetail(p, source) {
     const par = rx.parallel_state_20;   // true = a State Road closely parallels this one (geometry test)
     const bd = nh.bdouble19;
     const pbs1 = c ? !!c.mand.pbs1 : !!p.has_pbs1;
-    const parPass = par === true ? false : par === false ? true : null;
+    // Parallel-State mandatory, with the guidance exception: "Road does not closely parallel an
+    // existing State Road unless it has similar traffic volumes." 'Similar' is implemented as this
+    // road's AADT >= 0.5 × the parallel State Road's AADT. nsw_road_ext.json stores
+    // parallel_state_20 as a bare boolean — the geometry test does not record WHICH State Road is
+    // the parallel partner — so the partner's AADT cannot be looked up in window.ADT and the
+    // similarity exception is never assessable from the current data. Both branches below therefore
+    // resolve to null (tri-state "not assessable"): absence of traffic data must not hard-fail the
+    // road. If a partner road key is ever added to nsw_road_ext.json, replace the second branch
+    // with: parPass = ad.aadt >= 0.5 * (window.ADT[partnerKey] || {}).aadt.
+    let parPass;
+    if (par === true) {
+        const ownAadt = (ad && typeof ad.aadt === 'number') ? ad.aadt : null;
+        if (ownAadt === null) parPass = null;   // this road's AADT unknown — similarity untestable
+        else parPass = null;                    // own AADT known, but no partner key → partner AADT unavailable
+    } else parPass = par === false ? true : null;
     const bdPass = bd === true ? true : bd === false ? false : !!p.has_bdouble;
     const trafficPass = ad ? ad.aadt > adtThr : null;
     const roadTrainPass = nh.roadtrain === true ? true : nh.roadtrain === false ? false : null;
@@ -85,7 +99,7 @@ function showRoadDetail(p, source) {
     if (source === 'nsw' && c && !xtMode) {
         if (isState) {
             addCriterionRef(pbs1, 'S-09', 'crit-mand-pbs1', 'PBS Level 1 vehicle access');
-            addCriterionRef(parPass, 'Parallel', 'crit-mand-parallel', 'Does not closely parallel another State Road within 20km');
+            addCriterionRef(parPass, 'Parallel', 'crit-mand-parallel', 'Does not closely parallel an existing State Road unless it has similar traffic volumes');
             addCriterionRef(c.opt.centres, urbanArea ? 'S-10' : 'S-07', 'crit-opt-centres', 'Connects qualifying centres');
             if (!urbanArea) addCriterionRef(c.opt.ldr, 'LDR', 'crit-opt-ldr', 'Long-distance rural route');
             addCriterionRef(c.opt.dest, urbanArea ? 'S-11' : 'S-08', 'crit-opt-dest', 'Connects major facilities / employment centres');
@@ -94,8 +108,12 @@ function showRoadDetail(p, source) {
             addCriterionRef(bdPass, 'R-04', 'crit-mand-bdouble', 'GML/CML 19m B-double access');
             addCriterionRef(c.opt.centres, urbanArea ? 'R-05' : 'R-01', 'crit-opt-centres', 'Connects qualifying centres');
             addCriterionRef(c.opt.dest, urbanArea ? 'R-06' : 'R-02', 'crit-opt-dest', 'Connects facilities / employment centres');
-            addCriterionRef(roadTrainPass, 'R-03', 'crit-opt-roadtrain', 'On the road train network');
-            addCriterionRef(twoStatePass, 'Two State', 'crit-opt-two-state', 'Links two State Roads');
+            // R-03 (road train) and Links-two-State-Roads apply to regional & remote Regional roads
+            // only — urban / metropolitan Regional roads are assessed on the R-05 / R-06 set instead.
+            if (!urbanArea) {
+                addCriterionRef(roadTrainPass, 'R-03', 'crit-opt-roadtrain', 'On the road train network');
+                addCriterionRef(twoStatePass, 'Two State', 'crit-opt-two-state', 'Links two State Roads');
+            }
             addCriterionRef(trafficPass, 'Traffic', 'crit-opt-traffic', 'Meets traffic volume + heavy-vehicle thresholds');
         }
     }
@@ -198,12 +216,15 @@ function showRoadDetail(p, source) {
                 + natRow(nc.portair, 'S-04·S-05: Connects a Major Port, International Airport or Major Intermodal', 'Connects a qualifying port / airport / intermodal', 'No qualifying port / airport / intermodal connection'))
             : critItem(null, 'National criteria', 'Not assessed under this test — no national-criteria data for this road');
     } else if (mandAsState) {
-        // "Does not parallel a State Road" — PASS when it does NOT parallel one. Now tested (not assumed).
+        // "Does not parallel a State Road unless similar traffic" — PASS when it does NOT parallel
+        // one, or when it does but carries similar traffic volumes (exception, see parPass above).
         mandEl.innerHTML =
             critItem(pbs1, 'S-09: PBS Level 1 vehicle access', 'Facilitates movement of PBS Level 1 or equivalent', 'crit-mand-pbs1') +
             critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant') +
-            critItem(parPass, 'Does not closely parallel another State Road within 20km',
-                par === true ? 'A State Road runs parallel nearby — candidate to review'
+            critItem(parPass, 'Does not closely parallel an existing State Road unless it has similar traffic volumes',
+                par === true ? (parPass === true ? 'Parallels a State Road but carries similar traffic volumes'
+                    : parPass === false ? 'A State Road runs parallel nearby — candidate to review'
+                        : 'Parallels a State Road — traffic similarity not assessable (AADT unavailable)')
                     : par === false ? 'No State Road runs parallel within range' : 'Not assessed', 'crit-mand-parallel');
     } else {
         // R-04 now uses the real NHVR 19m B-double network (falls back to the prior flag if unknown).
@@ -269,14 +290,15 @@ function showRoadDetail(p, source) {
         // Regional & Remote set (R-01 / R-02) elsewhere — mirroring the State urban/rural split above.
         let html = '';
         const rCentres = urbanArea
-            ? 'R-05: Connects Metropolitan / Strategic Centres and Urban Centres to each other'
+            ? 'R-05: Connects Metropolitan Centres, Major Urban Centres and Major Towns to each other'
             : 'R-01: Connects Urban Centres and Town Centres to each other';
         const rDest = urbanArea
-            ? 'R-06: Connects Major Hospitals / Ports / Airports / Intermodals / Employment Centres'
+            ? 'R-06: Connects Major/Regional Hospitals / Major Ports / Intermodals / Airports / Employment Centres to Major Urban Centres or Major Towns'
             : 'R-02: Connects Major/Regional Hospitals / Ports / Airports / Employment Centres';
         html += critItem(!!c.opt.centres, rCentres, centresVal(!!c.opt.centres, evCent), 'crit-opt-centres') + evCentres(evCent);
         html += critItem(!!c.opt.dest, rDest, destVal(!!c.opt.dest, evDests, evHosps, evEmploy), 'crit-opt-dest') + facilityRows;
-        html += roadTrainRow + twoStateRow;
+        // Rural-only optional criteria — hidden for urban Regional roads (R-05/R-06 set).
+        if (!urbanArea) html += roadTrainRow + twoStateRow;
         html += trafficCrit;
         optEl.innerHTML = html;
     } else {
@@ -288,7 +310,7 @@ function showRoadDetail(p, source) {
         } else {
             html += critItem(!!p.connects_major_town, 'R-01/R-05: Connects Urban / Town Centres', centresVal(!!p.connects_major_town, evCent)) + evCentres(evCent);
             html += critItem(!!p.connects_hospital, 'R-02/R-06: Connects facilities to centres', destVal(!!p.connects_hospital, evDests, evHosps, evEmploy)) + facilityRows;
-            html += roadTrainRow + twoStateRow;
+            if (!urbanArea) html += roadTrainRow + twoStateRow;
         }
         html += trafficCrit;
         optEl.innerHTML = html;
