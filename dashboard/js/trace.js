@@ -1,6 +1,7 @@
 // trace.js — live learning overlay. Prints the code path behind user actions.
 
 let CODE_TRACE_PAUSED = false;
+const CODE_TRACE_POS_KEY = 'codeTracePosition';
 
 function _traceEsc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
@@ -42,7 +43,10 @@ function traceCode(title, explanation, code, context) {
 
 function toggleCodeTrace() {
     const panel = _tracePanel();
-    if (panel) panel.classList.toggle('ct-collapsed');
+    if (panel) {
+        panel.classList.toggle('ct-collapsed');
+        _placeTracePanel(panel.offsetLeft, panel.offsetTop, true);
+    }
 }
 
 function clearCodeTrace() {
@@ -57,10 +61,82 @@ function pauseCodeTrace(btn) {
     if (btn) btn.textContent = CODE_TRACE_PAUSED ? 'Resume' : 'Pause';
 }
 
+function _traceBounds(panel) {
+    const parent = panel && panel.parentElement;
+    if (!parent) return null;
+    const pad = 8;
+    const pr = parent.getBoundingClientRect();
+    const pw = parent.clientWidth || pr.width;
+    const ph = parent.clientHeight || pr.height;
+    const maxX = Math.max(pad, pw - panel.offsetWidth - pad);
+    const maxY = Math.max(pad, ph - panel.offsetHeight - pad);
+    return { pad: pad, maxX: maxX, maxY: maxY };
+}
+
+function _placeTracePanel(x, y, save) {
+    const panel = _tracePanel();
+    const b = _traceBounds(panel);
+    if (!panel || !b) return;
+    const nx = Math.min(Math.max(x, b.pad), b.maxX);
+    const ny = Math.min(Math.max(y, b.pad), b.maxY);
+    panel.style.left = nx + 'px';
+    panel.style.top = ny + 'px';
+    panel.classList.add('ct-moved');
+    if (save) {
+        try { localStorage.setItem(CODE_TRACE_POS_KEY, JSON.stringify({ x: nx, y: ny })); }
+        catch (e) { /* storage unavailable — dragging still works for this page view */ }
+    }
+}
+
+function _restoreTracePosition() {
+    try {
+        const pos = JSON.parse(localStorage.getItem(CODE_TRACE_POS_KEY) || 'null');
+        if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') _placeTracePanel(pos.x, pos.y, false);
+    } catch (e) { /* ignore malformed saved positions */ }
+}
+
+function enableTraceDrag() {
+    const panel = _tracePanel();
+    const head = panel && panel.querySelector('.ct-head');
+    if (!panel || !head || !window.PointerEvent) return;
+    let drag = null;
+    head.addEventListener('pointerdown', function (ev) {
+        if (ev.button !== 0 || ev.target.closest('.ct-actions')) return;
+        const pr = panel.parentElement.getBoundingClientRect();
+        drag = {
+            dx: ev.clientX - pr.left - panel.offsetLeft,
+            dy: ev.clientY - pr.top - panel.offsetTop
+        };
+        panel.classList.add('ct-dragging');
+        head.setPointerCapture(ev.pointerId);
+        ev.preventDefault();
+    });
+    head.addEventListener('pointermove', function (ev) {
+        if (!drag) return;
+        const pr = panel.parentElement.getBoundingClientRect();
+        _placeTracePanel(ev.clientX - pr.left - drag.dx, ev.clientY - pr.top - drag.dy, false);
+    });
+    const finish = function (ev) {
+        if (!drag) return;
+        drag = null;
+        panel.classList.remove('ct-dragging');
+        const b = _traceBounds(panel);
+        if (b) _placeTracePanel(panel.offsetLeft, panel.offsetTop, true);
+        try { head.releasePointerCapture(ev.pointerId); } catch (e) { /* pointer may already be released */ }
+    };
+    head.addEventListener('pointerup', finish);
+    head.addEventListener('pointercancel', finish);
+    window.addEventListener('resize', function () {
+        _placeTracePanel(panel.offsetLeft, panel.offsetTop, true);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
+    _restoreTracePosition();
+    enableTraceDrag();
     traceCode(
         'Trace ready',
-        'This panel will print the key JavaScript path whenever you use the dashboard. Read it from top to bottom: older events stay above newer events.',
+        'This panel will print the key JavaScript path whenever you use the dashboard. Drag its header to move it away from the search box.',
         "traceCode('Action name', 'Plain-English explanation', 'small code snippet');",
         'Tip: use Pause/Clear/Collapse if the feed gets busy.'
     );
