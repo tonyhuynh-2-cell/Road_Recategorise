@@ -83,17 +83,21 @@ function nltnFeatureStyle(feature) {
 }
 
 // --- Cross-criteria (reclassification) test ---
-// Re-grade a road against the OTHER category's criteria. The optional connectivity criteria (opt) are
-// shared; only the mandatory gate swaps — State needs PBS-1 access, Regional needs 19m B-double access.
+// Re-grade a road against the OTHER category's criteria. The shared connectivity criteria stay shared,
+// but category-specific options are counted only for their category: R-03 road-train access is Regional,
+// while the long-distance route and traffic thresholds are State-style optional criteria.
 // Verdict rule is the same everywhere: fail mandatory → red; else ≥2 optional → green, 1 → orange, 0 → red.
 function xverdict(optMet, mandPass) { return !mandPass ? 'red' : optMet >= 2 ? 'green' : optMet === 1 ? 'orange' : 'red'; }
 
 function buildXtest() {
     if (window.XTEST) return window.XTEST;
     const X = {}, crit = window.NSW_CRIT || {}, nhvr = window.NHVR || {};
+    const countOpt = (c, keys) => keys.reduce((n, key) => n + (c.opt && c.opt[key] === true ? 1 : 0), 0);
     for (const k in crit) {
         const c = crit[k]; if (!c || !c.opt) continue;
-        const optMet = Object.keys(c.opt).reduce((n, key) => n + (c.opt[key] === true ? 1 : 0), 0);
+        const asStateOptMet = countOpt(c, ['centres', 'dest', 'ldr', 'traffic']);
+        const asRegionalOptMet = countOpt(c, ['centres', 'dest', 'hv']);
+        const optMet = c.cls === 'Regional' ? asRegionalOptMet : asStateOptMet;
         const pbs1 = !!(c.mand && c.mand.pbs1 === true);        // PBS-1 access (State mandatory gate)
         const bd = !!(nhvr[k] && nhvr[k].bdouble19 === true);   // 19m B-double access (Regional gate)
         // Nationally Significant test — the per-road national-criteria verdict PRECOMPUTED by the
@@ -105,7 +109,7 @@ function buildXtest() {
         const natMet = (c.natOptMet != null) ? c.natOptMet
             : (c.natCrit ? Object.keys(c.natCrit).reduce((n, key) => n + (c.natCrit[key] === true ? 1 : 0), 0) : 0);
         const asNat = c.nat || (natMet >= 2 ? 'green' : natMet === 1 ? 'orange' : 'red');
-        X[k] = { cls: c.cls, optMet: optMet, asState: xverdict(optMet, pbs1), asReg: xverdict(optMet, bd), asNat: asNat, real: c.verdict };
+        X[k] = { cls: c.cls, optMet: optMet, asState: xverdict(asStateOptMet, pbs1), asReg: xverdict(asRegionalOptMet, bd), asNat: asNat, real: c.verdict };
     }
     window.XTEST = X;
     return X;

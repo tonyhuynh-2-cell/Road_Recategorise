@@ -7,7 +7,7 @@ NHVR Heavy Vehicle Network exports in data/geopackages/:
   PBS Level 1            (S-09, State mandatory)   -> has_pbs1
   19m B-Double Over 50t  (R-04, Regional mandatory)-> has_bdouble / bdouble19
   PBS Aggregate GML 2B   (S-06, Nat. Significant)  -> has_pbs2b / nltn_meta.pbs2b
-  Road-train networks    (R-03, display)           -> roadtrain
+  Road-train networks    (R-03, Regional optional) -> roadtrain
 
 Method matches the original process_*.py: a road is "on" a network if it runs
 within ~50 m (0.0005 deg) of an *Approved* segment of that network.
@@ -272,8 +272,8 @@ else:
 # ---- 8f. export_rows.json: patch verdict / mandatory / HV-network fields ----
 log("  patching export_rows.json...")
 exp = read_orig("export_rows.json")
-CAT = {"green":"Meets criteria","orange":"Likely meets (1 of 2 optional)","red":"Does not meet"}
-SUM = {"green":"Meets criteria","orange":"Likely meets (1 of 2)","red":"Does not meet"}
+CAT = {"green":"Meets criteria","orange":"Likely meets (1 optional)","red":"Does not meet"}
+SUM = {"green":"Meets criteria","orange":"Likely meets (1 optional)","red":"Does not meet"}
 def yn(b): return "yes" if b else "no"
 def hv_text(rn): return f"B-double 19m: {yn(g(rn,'bdouble'))}\nRoad train (32m): {yn(g(rn,'roadtrain'))}\nHV bypass: {yn(bool(nh.get(rn,{}).get('bypass')))}"
 def patch_lines(text, mand_pass, is_state, optMet, nv):
@@ -283,7 +283,7 @@ def patch_lines(text, mand_pass, is_state, optMet, nv):
             code = ln.split()[0]
             out.append(f"{code}  {'met' if mand_pass else 'not met'} (mandatory)")
         elif ln.lstrip().startswith("→"):                    # Why summary line
-            out.append(f"→ {optMet} of 2 optional — {SUM[nv]}")
+            out.append(f"→ {optMet} optional met — {SUM[nv]}")
         elif " PBS Level 1" in ln or " 19m B-double" in ln:       # What mandatory line
             head, _, tail = ln.partition("—")
             verb = "PASS" if mand_pass else "fail"
@@ -380,4 +380,3 @@ ss["criteria_breakdown"] = cb
 write_json("summary_stats.json", ss, indent=2)
 
 log("\n[done] NSW + Clarence Valley data rebuilt from NHVR GeoPackages.")
-

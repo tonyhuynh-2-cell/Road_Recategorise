@@ -192,7 +192,7 @@ function refreshFlagged() {
         list.innerHTML = '<div class="flag-empty">Click any road on the map and press ⚑ Flag — up to 10.</div>';
         return;
     }
-    const CHIP = { green: 'Meets', orange: 'Meets 1 of 2', red: 'Does not meet' };
+    const CHIP = { green: 'Meets', orange: 'Meets 1 optional', red: 'Does not meet' };
     let h = '';
     flaggedRoads.forEach(function (k) {
         const a = flagAgg(k);
