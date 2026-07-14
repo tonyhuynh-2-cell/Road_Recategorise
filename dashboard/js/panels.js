@@ -1,8 +1,56 @@
 // panels.js — tab switching, NSW/CV map show, and the lens + overview stat panels.
 
+// LGA filter: when an LGA is selected from the dropdown, switch to that LGA's tab.
+// When the category dropdown changes while an LGA is active, switch to the LGA tab
+// (which will re-filter by the current nswView/lens).
+let _activeLGA = '';
+
+function setLGA(lga) {
+    _activeLGA = lga || '';
+    if (lga) {
+        // Switch to the LGA tab (sydney or cv)
+        switchTab(lga);
+    } else {
+        // "All NSW" — go back to the current lens on the NSW overview
+        const lens = document.getElementById('lens-select');
+        switchTab(lens ? lens.value : 'overview');
+    }
+}
+
+// Override the lens-select onchange to preserve LGA selection
+(function() {
+    const origOnChange = function(val) {
+        if (_activeLGA) {
+            // Update the lens (nswView) directly without switching away from the LGA tab.
+            // This avoids the zoom-out-then-back-in that switchTab(val) would cause.
+            nswView = (val === 'overview') ? 'all' : val;
+            // Sync the lens dropdown display
+            const sel = document.getElementById('lens-select');
+            if (sel) sel.value = val;
+            // Re-render the LGA view with the new lens applied (road styling uses nswView)
+            if (_activeLGA === 'cv') { refreshCV(); showCV(); }
+            else if (_activeLGA === 'sydney') { refreshSydney(); showSydney(); }
+            renderMapLegend();
+        } else {
+            switchTab(val);
+        }
+    };
+    // Attach after DOM ready
+    document.addEventListener('DOMContentLoaded', function() {
+        const sel = document.getElementById('lens-select');
+        if (sel) sel.onchange = function() { origOnChange(this.value); };
+    });
+})();
+
 function switchTab(tab) {
     if (tab === 'detail' && currentTab !== 'detail') lastViewTab = currentTab;   // remember where to return
     if (tab !== 'detail' && typeof clearSelectedRoad === 'function') clearSelectedRoad();
+    // Keep LGA dropdown in sync
+    const lgaSel = document.getElementById('lga-select');
+    if (lgaSel) {
+        if (tab === 'sydney' || tab === 'cv') lgaSel.value = tab;
+        else if (tab !== 'detail' && !_activeLGA) lgaSel.value = '';
+    }
     if (typeof traceCode === 'function') traceCode(
         'Tab switch: ' + tab,
         tab === 'detail'

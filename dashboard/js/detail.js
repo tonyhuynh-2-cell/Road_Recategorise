@@ -1,6 +1,29 @@
 // detail.js — the Road Detail panel (showRoadDetail).
 
+// Store last shown road properties + source for cross-test re-rendering
+let _lastDetailP = null, _lastDetailSource = null;
+
+// Cross-test: re-render the current road detail against a different category's criteria
+// _detailCrossMode stores the active per-road cross-test: 'natsig', 'state', 'regional', or null (own)
+let _detailCrossMode = null;
+let _crossTestRerender = false;
+
+function applyCrossTest(mode) {
+    if (!_lastDetailP || !_lastDetailSource) return;
+    _detailCrossMode = mode || null;
+    _crossTestRerender = true;
+    showRoadDetail(_lastDetailP, _lastDetailSource);
+    _crossTestRerender = false;
+    // Restore dropdown selection
+    const sel = document.getElementById('detail-crosstest-select');
+    if (sel) sel.value = mode || '';
+}
+
 function showRoadDetail(p, source) {
+    _lastDetailP = p;
+    _lastDetailSource = source;
+    // Reset cross-test mode when a new road is clicked (not when re-rendering from dropdown)
+    if (!_crossTestRerender) _detailCrossMode = null;
     if (typeof traceCode === 'function') traceCode(
         'Open road detail: ' + roadName(p),
         '`p` is the road object passed in by the click handler. `source` is the string passed beside it, usually "nsw", telling the detail panel which evidence collection to read.',
@@ -11,6 +34,19 @@ function showRoadDetail(p, source) {
     document.getElementById('detail-empty').style.display = 'none';
     document.getElementById('detail-content').style.display = 'block';
     detailLayout('road');
+    // Reset cross-test dropdown when opening a new road — show the road's own category as default
+    const _xtSel = document.getElementById('detail-crosstest-select');
+    if (_xtSel) {
+        _xtSel.value = '';
+        // Update the default option text to show the road's actual category
+        const ownLabel = p.admin_class === 'S' ? 'State Road (current)' : 'Regional Road (current)';
+        _xtSel.options[0].textContent = ownLabel;
+        // Hide the option that duplicates the road's own category (it's already the first entry)
+        const ownValue = p.admin_class === 'S' ? 'state' : 'regional';
+        for (let i = 1; i < _xtSel.options.length; i++) {
+            _xtSel.options[i].hidden = (_xtSel.options[i].value === ownValue);
+        }
+    }
     // Selected-road distance readout (bottom-right, above the scale). _len is the road length in km.
     if (typeof showRoadDistance === 'function') showRoadDistance(typeof p._len === 'number' ? p._len : null);
 
@@ -338,6 +374,10 @@ function showRoadDetail(p, source) {
         critItem(!!p._nltn, 'On the National Land Transport Network', p._nltn ? 'Carries segment(s) of the national freight network' : 'Not on the NLTN') +
         critItem(connCentres, 'Connects centres', evCent.length ? (evCent.length + ' named above') : (connCentres ? 'Per assessment' : 'None within range')) +
         critItem(connDest, 'Connects hospitals / ports / airports', nFac ? (nFac + ' named above') : (connDest ? 'Per assessment' : 'None within range'));
+
+    // Copy traffic data into the collapsible "Additional data" section
+    const extraTraffic = document.getElementById('detail-traffic-extra');
+    if (extraTraffic) extraTraffic.innerHTML = document.getElementById('detail-traffic').innerHTML;
 }
 
 // The active cross-test mode for a Road Detail: the lens this detail was opened from (or the
@@ -345,6 +385,8 @@ function showRoadDetail(p, source) {
 // lenses carry cross-tests; a detail opened from anywhere else (Overview, Sydney, CV, Flagged,
 // search on another tab) renders the road's own criteria. false = own criteria.
 function detailXtMode(source) {
+    // Per-road cross-test dropdown takes priority over the tab-level lens
+    if (_detailCrossMode) return _detailCrossMode;
     if (source !== 'nsw' || typeof xLens === 'undefined') return false;
     const lens = (currentTab === 'detail') ? lastViewTab : currentTab;
     if (lens === 'state') return xLens.state || false;
@@ -362,11 +404,14 @@ function detailLayout(mode) {
         if (title) { const h = card.querySelector('h3'); if (h) h.textContent = title; }
     };
     const nltn = mode === 'nltn';
-    set('detail-card-traffic', true, nltn ? 'Determination route' : 'Traffic data');
+    // For regular roads: hide standalone traffic/vehicle/connectivity (they're in the collapsible card)
+    // For NLTN: show traffic (as "Determination route") and hide the collapsible extra card
+    set('detail-card-traffic', nltn, nltn ? 'Determination route' : 'Traffic data');
     set('detail-card-mandatory', true, nltn ? 'National significance criteria (S-01–S-05)' : 'Mandatory criteria');
     set('detail-card-optional', true, nltn ? 'Mandatory criteria' : 'Optional criteria (must meet ≥2)');
-    set('detail-card-vehicle', !nltn, 'Vehicle access');
-    set('detail-card-connectivity', !nltn, 'Connectivity');
+    set('detail-card-vehicle', false);
+    set('detail-card-connectivity', false);
+    set('detail-card-extra', !nltn, 'Additional data');
 }
 
 // Road Detail for an NLTN 2020 line (the Nationally Significant lens). Graded by the national
