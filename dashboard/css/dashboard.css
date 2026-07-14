@@ -216,6 +216,16 @@
         /* Note — same full 1.5px surround as the cards, in mid-GREY (var(--muted) reads on both
            themes; padding compensates so the box geometry stays put) */
         .data-note { margin-top: 16px; background: var(--bg-soft); border: 1.5px solid var(--muted); border-radius: 12px; padding: 12.5px 14.5px; }
+
+        /* Collapsible card (Additional data: traffic + vehicle access + connectivity) */
+        .collapsible-card .collapsible-header { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+        .collapsible-card .collapse-chevron { transition: transform .2s ease; font-size: 14px; color: var(--muted); }
+        .collapsible-card.collapsed .collapse-chevron { transform: rotate(-90deg); }
+        .collapsible-card.collapsed .collapsible-body { display: none; }
+        .collapsible-card .collapsible-body { margin-top: 10px; }
+        .extra-section { margin-bottom: 14px; }
+        .extra-section:last-child { margin-bottom: 0; }
+        .extra-section-title { font: 600 10px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line-soft); }
         .data-note .note-label { font: 600 9.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); display: block; margin-bottom: 7px; }
         .data-note p { font: 400 11.5px/1.55 var(--sans); color: var(--muted); }
         .data-note strong { color: var(--ink-soft); font-weight: 600; }

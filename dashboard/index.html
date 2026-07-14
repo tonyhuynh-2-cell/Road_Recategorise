@@ -91,9 +91,9 @@
             </select>
             <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:10px 0 4px; display:block;">LGA</label>
             <div class="tab-row" style="gap:8px;">
-                <select class="tab-btn tab-select tab-g3" aria-label="LGA view"
-                        onchange="if(this.value) switchTab(this.value); this.value='';">
-                    <option value="" selected disabled>Select LGA...</option>
+                <select id="lga-select" class="tab-btn tab-select tab-g3" aria-label="LGA view"
+                        onchange="setLGA(this.value)">
+                    <option value="" selected>All NSW</option>
                     <option value="sydney">Sydney</option>
                     <option value="cv">Clarence Valley</option>
                 </select>
@@ -345,13 +345,25 @@
             </div>
             <div id="detail-content" style="display:none;">
                 <button class="detail-back" onclick="backFromDetail()">← Back</button>
-                <div class="stat-card">
+                <div class="stat-card" style="position:relative;">
                     <h3>Road information</h3>
+                    <!-- ⚑ flag/pin toggle — positioned top-right of the card -->
+                    <div id="detail-flag-wrap" style="position:absolute; top:12px; right:14px;"></div>
                     <div id="detail-road-name" style="font-size:1.25rem; font-weight:600; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em;"></div>
                     <div id="detail-road-number" style="font-size:0.78rem; color:var(--faint); margin-bottom:5px;"></div>
-                    <div id="detail-admin-class" style="font-size:0.85rem; color:var(--ink-soft);"></div>
-                    <!-- ⚑ flag/pin toggle (js/flagged.js) — a UI pin only, never touches the verdict -->
-                    <div id="detail-flag-wrap"></div>
+                    <div id="detail-admin-class" style="font-size:0.85rem; color:var(--ink-soft); margin-bottom:10px;"></div>
+                    <!-- Cross-test dropdown: assess this road against a different category's criteria -->
+                    <div id="detail-crosstest-wrap" style="display:flex; align-items:center; gap:8px;">
+                        <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); white-space:nowrap;">Criteria:</label>
+                        <select id="detail-crosstest-select" class="tab-btn tab-select"
+                                style="display:block; width:100%; padding:8px 28px 8px 10px; font-size:12px; font-weight:500; border-color:var(--muted);"
+                                onchange="applyCrossTest(this.value)">
+                            <option value="">Own category</option>
+                            <option value="natsig">Nationally Significant</option>
+                            <option value="state">State Road</option>
+                            <option value="regional">Regional Road</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="stat-card">
@@ -375,14 +387,25 @@
                     <div id="detail-optional"></div>
                 </div>
 
-                <div class="stat-card" id="detail-card-vehicle">
-                    <h3>Vehicle access</h3>
-                    <div id="detail-vehicle-access"></div>
-                </div>
-
-                <div class="stat-card" id="detail-card-connectivity">
-                    <h3>Connectivity</h3>
-                    <div id="detail-connectivity"></div>
+                <div class="stat-card collapsible-card" id="detail-card-extra">
+                    <h3 class="collapsible-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        Additional data
+                        <span class="collapse-chevron">▾</span>
+                    </h3>
+                    <div class="collapsible-body">
+                        <div class="extra-section">
+                            <h4 class="extra-section-title">Traffic</h4>
+                            <div id="detail-traffic-extra"></div>
+                        </div>
+                        <div class="extra-section">
+                            <h4 class="extra-section-title">Vehicle access</h4>
+                            <div id="detail-vehicle-access"></div>
+                        </div>
+                        <div class="extra-section">
+                            <h4 class="extra-section-title">Connectivity</h4>
+                            <div id="detail-connectivity"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
