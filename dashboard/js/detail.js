@@ -113,16 +113,24 @@ function showRoadDetail(p, source) {
         else parPass = null;                    // own AADT known, but no partner key → partner AADT unavailable
     } else parPass = par === false ? true : null;
     const bdPass = bd === true ? true : bd === false ? false : !!p.has_bdouble;
-    const trafficPass = ad ? ad.aadt > adtThr : null;
+    const aadtPass = ad ? ad.aadt > adtThr : null;
+    const hvPass = ad && ad.hv_pct != null ? ad.hv_pct > hvThr : null;
+    const trafficPass = ad
+        ? (aadtPass === true && hvPass === true ? true : (aadtPass === false || hvPass === false ? false : null))
+        : null;
     const roadTrainPass = nh.roadtrain === true ? true : nh.roadtrain === false ? false : null;
     const twoStatePass = rx.two_state === true ? true : rx.two_state === false ? false : null;
     // Clickable criterion shortcuts (own-criteria view): each non-passing criterion becomes a chip
     // that scrolls to its row below (scrollToCriterion, utils.js). Own-criteria only — under a
     // cross-test the cards re-render against the target category, so the anchors don't apply.
-    const criterionRefs = [];
-    const addCriterionRef = function (state, code, anchor, label) {
+    const mandatoryRefs = [], optionalRefs = [];
+    let ownOptionalPasses = null;
+    const addCriterionRef = function (refs, state, code, anchor, label) {
         if (state === true) return;
-        criterionRefs.push({ state: state, code: code, anchor: anchor, label: label });
+        refs.push({ state: state, code: code, anchor: anchor, label: label });
+    };
+    const countPasses = function (states) {
+        return states.reduce(function (n, state) { return n + (state === true ? 1 : 0); }, 0);
     };
     const chipsHtml = function (heading, refs) {
         if (!refs.length) return '';
@@ -134,25 +142,33 @@ function showRoadDetail(p, source) {
     };
     if (source === 'nsw' && c && !xtMode) {
         if (isState) {
-            addCriterionRef(pbs1, 'S-09', 'crit-mand-pbs1', 'PBS Level 1 vehicle access');
-            addCriterionRef(parPass, 'Parallel', 'crit-mand-parallel', 'Does not closely parallel an existing State Road unless it has similar traffic volumes');
-            addCriterionRef(c.opt.centres, urbanArea ? 'S-10' : 'S-07', 'crit-opt-centres', 'Connects qualifying centres');
-            if (!urbanArea) addCriterionRef(c.opt.ldr, 'LDR', 'crit-opt-ldr', 'Long-distance rural route');
-            addCriterionRef(c.opt.dest, urbanArea ? 'S-11' : 'S-08', 'crit-opt-dest', 'Connects major facilities / employment centres');
-            addCriterionRef(trafficPass, 'Traffic', 'crit-opt-traffic', 'Meets traffic volume + heavy-vehicle thresholds');
+            const optionalStates = [c.opt.centres, c.opt.dest, trafficPass];
+            if (!urbanArea) optionalStates.push(c.opt.ldr);
+            ownOptionalPasses = countPasses(optionalStates);
+            addCriterionRef(mandatoryRefs, pbs1, 'S-09', 'crit-mand-pbs1', 'PBS Level 1 vehicle access');
+            addCriterionRef(mandatoryRefs, parPass, 'Parallel', 'crit-mand-parallel', 'Does not closely parallel an existing State Road unless it has similar traffic volumes');
+            addCriterionRef(optionalRefs, c.opt.centres, urbanArea ? 'S-10' : 'S-07', 'crit-opt-centres', 'Connects qualifying centres');
+            if (!urbanArea) addCriterionRef(optionalRefs, c.opt.ldr, 'LDR', 'crit-opt-ldr', 'Long-distance rural route');
+            addCriterionRef(optionalRefs, c.opt.dest, urbanArea ? 'S-11' : 'S-08', 'crit-opt-dest', 'Connects major facilities / employment centres');
+            addCriterionRef(optionalRefs, trafficPass, 'Traffic', 'crit-opt-traffic', 'Meets traffic volume + heavy-vehicle thresholds');
         } else {
-            addCriterionRef(bdPass, 'R-04', 'crit-mand-bdouble', 'GML/CML 19m B-double access');
-            addCriterionRef(c.opt.centres, urbanArea ? 'R-05' : 'R-01', 'crit-opt-centres', 'Connects qualifying centres');
-            addCriterionRef(c.opt.dest, urbanArea ? 'R-06' : 'R-02', 'crit-opt-dest', 'Connects facilities / employment centres');
+            const optionalStates = [c.opt.centres, c.opt.dest, trafficPass];
+            addCriterionRef(mandatoryRefs, bdPass, 'R-04', 'crit-mand-bdouble', 'GML/CML 19m B-double access');
+            addCriterionRef(optionalRefs, c.opt.centres, urbanArea ? 'R-05' : 'R-01', 'crit-opt-centres', 'Connects qualifying centres');
+            addCriterionRef(optionalRefs, c.opt.dest, urbanArea ? 'R-06' : 'R-02', 'crit-opt-dest', 'Connects facilities / employment centres');
             // R-03 (road train) and Links-two-State-Roads apply to regional & remote Regional roads
             // only — urban / metropolitan Regional roads are assessed on the R-05 / R-06 set instead.
             if (!urbanArea) {
-                addCriterionRef(roadTrainPass, 'R-03', 'crit-opt-roadtrain', 'On the road train network');
-                addCriterionRef(twoStatePass, 'Two State', 'crit-opt-two-state', 'Links two State Roads');
+                optionalStates.push(roadTrainPass, twoStatePass);
+                addCriterionRef(optionalRefs, roadTrainPass, 'R-03', 'crit-opt-roadtrain', 'On the road train network');
+                addCriterionRef(optionalRefs, twoStatePass, 'Two State', 'crit-opt-two-state', 'Links two State Roads');
             }
-            addCriterionRef(trafficPass, 'Traffic', 'crit-opt-traffic', 'Meets traffic volume + heavy-vehicle thresholds');
+            ownOptionalPasses = countPasses(optionalStates);
+            addCriterionRef(optionalRefs, trafficPass, 'Traffic', 'crit-opt-traffic', 'Meets traffic volume + heavy-vehicle thresholds');
         }
     }
+    const optionalQuotaMet = ownOptionalPasses !== null && ownOptionalPasses >= 2;
+    const criterionRefs = mandatoryRefs.concat(optionalQuotaMet ? [] : optionalRefs);
 
     // Result — graded by the road's own category criteria (no forced pass for being on the NLTN);
     // under an active cross-test, by the road's REAL verdict against the target category (buildXtest).
@@ -191,7 +207,12 @@ function showRoadDetail(p, source) {
         }
         else if (p.status === 'orange') {
             resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY MEETS</span></span>';
-            reasonEl.innerHTML = 'Would fully meet if enough missing criteria below were satisfied.' + chipsHtml('To fully meet', criterionRefs);
+            const reason = optionalQuotaMet && mandatoryRefs.length
+                ? 'Would fully meet if the mandatory review below were satisfied.'
+                : criterionRefs.length
+                    ? 'Would fully meet if enough missing criteria below were satisfied.'
+                    : 'Would fully meet if the remaining unavailable assessment data confirmed the result.';
+            reasonEl.innerHTML = reason + chipsHtml('To fully meet', criterionRefs);
         }
         else {
             resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>';
@@ -216,16 +237,16 @@ function showRoadDetail(p, source) {
             '<div class="criteria-item"><span class="criteria-icon">' + (p.hv_pct && p.hv_pct > cvHvThr ? ICON.pass : p.hv_pct ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (p.hv_pct ? p.hv_pct.toFixed(1) + '%' : 'No data') + '</div><div class="criteria-value">Threshold: >' + cvHvThr + '%</div></div></div>';
     } else if (ad) {
         // Statewide AADT now available for this road (TfNSW count station).
-        const hvOk = ad.hv_pct != null ? ad.hv_pct > hvThr : null;
-        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (ad.aadt > adtThr ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + adtThr.toLocaleString() + ' (' + (urbanArea ? 'urban' : 'rural') + ' ' + (effState ? 'State' : 'Regional') + (xtMode ? ' — cross-test' : '') + ') · TfNSW count, ' + ad.year + '</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">' + (hvOk === true ? ICON.pass : hvOk === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · busiest of ' + ad.stations + ' stations' : '') + '</div></div></div>';
+        trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (aadtPass ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + adtThr.toLocaleString() + ' (' + (urbanArea ? 'urban' : 'rural') + ' ' + (effState ? 'State' : 'Regional') + (xtMode ? ' — cross-test' : '') + ') · TfNSW count, ' + ad.year + '</div></div></div>' +
+            '<div class="criteria-item"><span class="criteria-icon">' + (hvPass === true ? ICON.pass : hvPass === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · busiest of ' + ad.stations + ' stations' : '') + '</div></div></div>';
     } else {
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">No TfNSW count station on this road · ' + (effState ? 'State threshold >' + adtThr.toLocaleString() : 'Regional threshold >' + adtThr.toLocaleString()) + (xtMode ? ' (cross-test)' : '') + '</div></div></div>';
     }
     // Shared traffic-volume criterion row — real AADT vs threshold when we have it, else "not available".
     const trafficCrit = ad
-        ? critItem(ad.aadt > adtThr, 'Meets traffic volume + heavy-vehicle thresholds',
-            'AADT ' + ad.aadt.toLocaleString() + ' (' + ad.year + ')' + (ad.hv_pct != null ? ' · ' + ad.hv_pct + '% HV' : '') + ' vs >' + adtThr.toLocaleString(), 'crit-opt-traffic')
+        ? critItem(trafficPass, 'Meets traffic volume + heavy-vehicle thresholds',
+            'AADT ' + ad.aadt.toLocaleString() + ' (' + ad.year + ') vs >' + adtThr.toLocaleString() +
+            (ad.hv_pct != null ? ' · HV ' + ad.hv_pct + '% vs >' + hvThr + '%' : ' · HV% not classified at this station (needs >' + hvThr + '%)'), 'crit-opt-traffic')
         : critItem(null, 'Meets traffic volume + heavy-vehicle thresholds', 'ADT not available for this road', 'crit-opt-traffic');
 
     // Mandatory — under a cross-test these are the TARGET category's gates, populated with the
