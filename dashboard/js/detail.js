@@ -122,6 +122,80 @@ function showRoadDetail(p, source) {
     const twoStatePass = (c && c.opt && c.opt.two_state === true) ? true
         : (c && c.opt && c.opt.two_state === false) ? false
             : rx.two_state === true ? true : rx.two_state === false ? false : null;
+    const stateLdrPass = (c && c.opt && c.opt.ldr === true) ? true
+        : (c && c.opt && c.opt.ldr === false) ? false
+            : (c && c.stateOpt && c.stateOpt.ldr === true) ? true
+                : (c && c.stateOpt && c.stateOpt.ldr === false) ? false : null;
+    const stateLdrInfo = (c && c.stateOpt) || {};
+    const regionalDestPass = (c && c.regionalOpt && c.regionalOpt.dest === true) ? true
+        : (c && c.regionalOpt && c.regionalOpt.dest === false) ? false
+            : (c && c.opt && c.opt.dest === true) ? true
+                : (c && c.opt && c.opt.dest === false) ? false : null;
+    const regionalDestInfo = (c && c.regionalOpt) || {};
+    const ldrLabel = 'Unnumbered State criterion: Long-distance rural centre-to-town route';
+    const fmtKm = function (km) {
+        return typeof km === 'number' ? km.toLocaleString() + ' km' : null;
+    };
+    const nameList = function (items, fallback) {
+        if (!items || !items.length) return fallback;
+        const shown = items.slice(0, 3).join(', ');
+        return shown + (items.length > 3 ? ' +' + (items.length - 3) + ' more' : '');
+    };
+    const regionalDestValue = function () {
+        const componentKm = fmtKm(regionalDestInfo.dest_component_km);
+        const centres = regionalDestInfo.dest_centre_names || [];
+        const facilities = regionalDestInfo.dest_facility_names || [];
+        const allCentres = regionalDestInfo.dest_all_centre_names || centres;
+        const allFacilities = regionalDestInfo.dest_all_facility_names || facilities;
+        const components = regionalDestInfo.dest_component_count || 0;
+        const target = urbanArea ? 'Major Urban Centre or Major Town' : 'Town/Urban Centre';
+        const bits = [];
+        if (regionalDestPass === true) {
+            bits.push('Connected component' + (componentKm ? ' ' + componentKm : ''));
+            bits.push(nameList(facilities, 'qualifying facility/employment centre') + ' to ' + nameList(centres, target));
+            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            return bits.join(' · ');
+        }
+        if (regionalDestPass === false) {
+            if (allFacilities.length && allCentres.length) {
+                bits.push('No connected component contains both a qualifying facility/employment centre and a ' + target);
+            } else {
+                if (!allFacilities.length) bits.push('needs a named facility or Regional/Major employment centre');
+                if (!allCentres.length) bits.push('needs a ' + target + ' connection');
+            }
+            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            return bits.join(' · ');
+        }
+        return 'Not assessed under this test — Regional facility connectivity has not been derived for this road';
+    };
+    const stateLdrValue = function () {
+        const totalKm = fmtKm(stateLdrInfo.ldr_km);
+        const compKm = fmtKm(stateLdrInfo.ldr_component_km);
+        const sources = stateLdrInfo.ldr_source_centres || [];
+        const towns = stateLdrInfo.ldr_town_centres || [];
+        const allSources = stateLdrInfo.ldr_all_source_centres || sources;
+        const allTowns = stateLdrInfo.ldr_all_town_centres || towns;
+        const components = stateLdrInfo.ldr_component_count || 0;
+        const bits = [];
+        if (stateLdrPass === true) {
+            bits.push('Connected component ' + (compKm || totalKm || 'unknown length') + ' vs ≥25 km');
+            if (totalKm && compKm && totalKm !== compKm) bits.push('total road geometry ' + totalKm);
+            bits.push(nameList(sources, 'qualifying centre') + ' to ' + nameList(towns, 'Town Centre'));
+            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            return bits.join(' · ');
+        }
+        if (stateLdrPass === false) {
+            if (totalKm) bits.push('Total route length ' + totalKm + '; length alone is not enough');
+            if (allSources.length && allTowns.length) bits.push('No connected component contains both a qualifying centre and a Town Centre');
+            else {
+                if (!allSources.length) bits.push('needs a Metro / Regional City / Major Town / Major Urban Centre');
+                if (!allTowns.length) bits.push('needs a Town Centre connection');
+            }
+            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            return bits.join(' · ');
+        }
+        return 'Not assessed under this test — LDR criterion has not been derived for this road';
+    };
     // Clickable criterion shortcuts (own-criteria view): each non-passing criterion becomes a chip
     // that scrolls to its row below (scrollToCriterion, utils.js). Own-criteria only — under a
     // cross-test the cards re-render against the target category, so the anchors don't apply.
@@ -145,19 +219,19 @@ function showRoadDetail(p, source) {
     if (source === 'nsw' && c && !xtMode) {
         if (isState) {
             const optionalStates = [c.opt.centres, c.opt.dest, trafficPass];
-            if (!urbanArea) optionalStates.push(c.opt.ldr);
+            if (!urbanArea) optionalStates.push(stateLdrPass);
             ownOptionalPasses = countPasses(optionalStates);
             addCriterionRef(mandatoryRefs, pbs1, 'S-09', 'crit-mand-pbs1', 'PBS Level 1 vehicle access');
             addCriterionRef(mandatoryRefs, parPass, 'Parallel', 'crit-mand-parallel', 'Does not closely parallel an existing State Road unless it has similar traffic volumes');
             addCriterionRef(optionalRefs, c.opt.centres, urbanArea ? 'S-10' : 'S-07', 'crit-opt-centres', 'Connects qualifying centres');
-            if (!urbanArea) addCriterionRef(optionalRefs, c.opt.ldr, 'LDR', 'crit-opt-ldr', 'Long-distance rural route');
+            if (!urbanArea) addCriterionRef(optionalRefs, stateLdrPass, 'LDR', 'crit-opt-ldr', 'Unnumbered State long-distance rural centre-to-town route');
             addCriterionRef(optionalRefs, c.opt.dest, urbanArea ? 'S-11' : 'S-08', 'crit-opt-dest', 'Connects major facilities / employment centres');
             addCriterionRef(optionalRefs, trafficPass, 'Traffic', 'crit-opt-traffic', 'Meets traffic volume + heavy-vehicle thresholds');
         } else {
-            const optionalStates = [c.opt.centres, c.opt.dest, trafficPass];
+            const optionalStates = [c.opt.centres, regionalDestPass, trafficPass];
             addCriterionRef(mandatoryRefs, bdPass, 'R-04', 'crit-mand-bdouble', 'GML/CML 19m B-double access');
             addCriterionRef(optionalRefs, c.opt.centres, urbanArea ? 'R-05' : 'R-01', 'crit-opt-centres', 'Connects qualifying centres');
-            addCriterionRef(optionalRefs, c.opt.dest, urbanArea ? 'R-06' : 'R-02', 'crit-opt-dest', 'Connects facilities / employment centres');
+            addCriterionRef(optionalRefs, regionalDestPass, urbanArea ? 'R-06' : 'R-02', 'crit-opt-dest', 'Connects facilities / employment centres');
             // R-03 (road train) and Links-two-State-Roads apply to regional & remote Regional roads
             // only — urban / metropolitan Regional roads are assessed on the R-05 / R-06 set instead.
             if (!urbanArea) {
@@ -334,12 +408,13 @@ function showRoadDetail(p, source) {
             ? 'S-10: Connects Metro Centres / Regional Cities / Major Urban Centres / Major Towns'
             : 'S-07: Connects Metro Centres / Regional Cities / Major Towns to each other';
         html += critItem(!!c.opt.centres, cLabel, centresVal(!!c.opt.centres, evCent), 'crit-opt-centres') + evCentres(evCent);
-        // ldr under a cross-test renders tri-state — null must read "not assessed", never a fail.
+        // LDR is an unnumbered State optional criterion. It needs a connected long-distance
+        // component joining a State-tier centre to a Town Centre, not just route length.
         if (!urbanArea) html += xtMode
-            ? critItem(c.opt.ldr === true ? true : c.opt.ldr === false ? false : null,
-                'Connects a centre to town centres along a long-distance rural route',
-                c.opt.ldr == null ? 'Not assessed under this test — data unavailable' : undefined)
-            : critItem(!!c.opt.ldr, 'Connects a centre to town centres along a long-distance rural route', null, 'crit-opt-ldr');
+            ? critItem(stateLdrPass,
+                ldrLabel,
+                stateLdrValue())
+            : critItem(stateLdrPass, ldrLabel, stateLdrValue(), 'crit-opt-ldr');
         const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / Airports / Employment Centres';
         html += critItem(!!c.opt.dest, dLabel, destVal(!!c.opt.dest, evDests, evHosps, evEmploy), 'crit-opt-dest') + facilityRows;
         html += trafficCrit;
@@ -353,9 +428,9 @@ function showRoadDetail(p, source) {
             : 'R-01: Connects Urban Centres and Town Centres to each other';
         const rDest = urbanArea
             ? 'R-06: Connects Major/Regional Hospitals / Major Ports / Intermodals / Airports / Employment Centres to Major Urban Centres or Major Towns'
-            : 'R-02: Connects Major/Regional Hospitals / Ports / Airports / Employment Centres';
+            : 'R-02: Connects Major/Regional Hospitals / Ports / Airports / Employment Centres to Town/Urban Centres';
         html += critItem(!!c.opt.centres, rCentres, centresVal(!!c.opt.centres, evCent), 'crit-opt-centres') + evCentres(evCent);
-        html += critItem(!!c.opt.dest, rDest, destVal(!!c.opt.dest, evDests, evHosps, evEmploy), 'crit-opt-dest') + facilityRows;
+        html += critItem(regionalDestPass, rDest, regionalDestValue(), 'crit-opt-dest') + facilityRows;
         // Rural-only optional criteria — hidden for urban Regional roads (R-05/R-06 set).
         if (!urbanArea) html += roadTrainRow + twoStateRow;
         html += trafficCrit;
@@ -391,7 +466,7 @@ function showRoadDetail(p, source) {
     // Connectivity — a plain-language summary derived from the SAME source as the optional criteria
     // above (c.opt) so the two cards can never contradict. NLTN membership is a separate factual tag.
     const connCentres = c ? !!c.opt.centres : (!!p.connects_major_town || !!p.connects_regional_city);
-    const connDest = c ? !!c.opt.dest : !!p.connects_hospital;
+    const connDest = c ? (isState ? !!c.opt.dest : regionalDestPass === true) : !!p.connects_hospital;
     const nFac = evDests.length + evHosps.length;
     document.getElementById('detail-connectivity').innerHTML =
         critItem(!!p._nltn, 'On the National Land Transport Network', p._nltn ? 'Carries segment(s) of the national freight network' : 'Not on the NLTN') +
