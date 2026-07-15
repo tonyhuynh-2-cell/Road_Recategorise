@@ -382,17 +382,17 @@
         .town-popup .tp-meta { color: var(--muted); font: 400 11.5px var(--sans); margin-top: 2px; }
 
         /* Connectivity evidence list in the Road Detail panel — the named entities a criterion connects */
-        .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 3px; }
-        .ev-item { display: flex; align-items: center; gap: 7px; font: 400 11.5px/1.3 var(--sans); color: var(--ink-soft); cursor: pointer; }
+        .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 5px; }
+        .ev-item { display: flex; align-items: baseline; gap: 7px; font: 400 11.5px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; flex-wrap: wrap; }
         .ev-item:hover .ev-name { text-decoration: underline; }
-        .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; position: relative; top: -1px; }
         .ev-dot.ev-town { background: #1d4ed8; }
         .ev-dot.ev-sua { background: #1d4ed8; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #1d4ed8; }   /* urban area = ringed dot */
         .ev-dot.ev-hosp { background: #dc2626; }
         .ev-dot.ev-dest { background: #7c3aed; }
         .ev-dot.ev-employ { background: #0f766e; }
-        .ev-name { font-weight: 600; color: var(--ink); }
-        .ev-meta { color: var(--faint); font-size: 10.5px; margin-left: auto; white-space: nowrap; padding-left: 8px; }
+        .ev-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
+        .ev-meta { color: var(--faint); font-size: 10.5px; white-space: normal; word-break: break-word; }
 
         /* Map highlights: rings + labels for the entities the selected road connects */
         .conn-icon { background: none !important; border: none !important; }
