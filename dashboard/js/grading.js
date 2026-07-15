@@ -1,5 +1,71 @@
 // grading.js — criteria→colour styling and lens membership (nswStyle / cvStyle / nswInView).
 
+// --- Orange split mode (combined B+C) ---
+// When the user toggles the "Meets 1 of 2" stat card, the map enters split mode:
+//   - Green and red roads hide
+//   - Orange roads split into 3 distinct colours by which criterion they pass
+//   - The 3 sub-boxes become toggleable to show/hide each sub-category
+const ORANGE_COLORS = {
+    orange_centres: '#2563eb',     // blue — connects towns/cities
+    orange_facilities: '#7c3aed',  // purple — connects hospital/port/airport/employment
+    orange_other: '#f472b6'        // light pink — HV / topology (road train, links two State Roads)
+};
+
+// Classify an orange road by its single passing optional criterion.
+function orangeSubStatus(roadKey) {
+    const c = (window.NSW_CRIT || {})[roadKey];
+    if (!c || c.verdict !== 'orange') return 'orange';
+    const opt = c.opt || {};
+    if (opt.centres === true) return 'orange_centres';
+    if (opt.dest === true) return 'orange_facilities';
+    if (opt.hv === true || opt.two_state === true || opt.ldr === true) return 'orange_other';
+    return 'orange';
+}
+
+// Split-mode state
+let orangeSplitActive = false;
+let orangeSubToggles = { orange_centres: true, orange_facilities: true, orange_other: true };
+
+function toggleOrangeSplit() {
+    orangeSplitActive = !orangeSplitActive;
+    // Reset sub-toggles when entering split mode
+    if (orangeSplitActive) {
+        orangeSubToggles = { orange_centres: true, orange_facilities: true, orange_other: true };
+    }
+    // Restyle the map + control layer visibility (hides NLTN when split active)
+    if (typeof applyLegend === 'function') applyLegend();
+    else if (nswLayer) nswLayer.setStyle(nswStyle);
+    // Update UI
+    syncOrangeSplitUI();
+    renderMapLegend();
+}
+
+function toggleOrangeSub(sub) {
+    if (!orangeSplitActive) return;
+    orangeSubToggles[sub] = !orangeSubToggles[sub];
+    if (nswLayer) nswLayer.setStyle(nswStyle);
+    if (typeof cvClipLayer !== 'undefined' && cvClipLayer && map.hasLayer(cvClipLayer)) cvClipLayer.setStyle(nswStyle);
+    syncOrangeSplitUI();
+    renderMapLegend();
+}
+
+function syncOrangeSplitUI() {
+    // Toggle the stat card active state
+    const card = document.getElementById('ov-orange-card');
+    if (card) card.classList.toggle('osplit-on', orangeSplitActive);
+    // Grey out green and red cards when split is active
+    const greenCard = document.getElementById('ov-green-card');
+    const redCard = document.getElementById('ov-red-card');
+    if (greenCard) greenCard.classList.toggle('osplit-dimmed', orangeSplitActive);
+    if (redCard) redCard.classList.toggle('osplit-dimmed', orangeSplitActive);
+    // Enable/disable sub-boxes
+    document.querySelectorAll('.osplit-sub').forEach(function (el) {
+        el.classList.toggle('osplit-sub-disabled', !orangeSplitActive);
+        const sub = el.dataset.sub;
+        if (sub) el.classList.toggle('osplit-sub-off', orangeSplitActive && !orangeSubToggles[sub]);
+    });
+}
+
 // Style functions
 // The NSW road layer is shown through lenses (tabs): 'state' (all State roads, State criteria),
 // 'regional' (Regional roads, Regional criteria), 'all' (Overview, both). Each road is coloured by
@@ -51,6 +117,14 @@ function nswStyle(feature) {
     else if (currentTab === 'regional' && xLens.regional) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = x.asState; }
     if (!legendToggles[v]) return HIDDEN_STYLE;                       // verdict colour toggled off
     if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;    // route-numbered roads toggled off
+    // Orange split mode: when active, hide green/red and colour orange roads by sub-status
+    if (orangeSplitActive) {
+        if (v !== 'orange') return HIDDEN_STYLE;   // hide green and red
+        const sub = orangeSubStatus(roadKeyOf(p));
+        if (!orangeSubToggles[sub]) return HIDDEN_STYLE;   // this sub-category toggled off
+        const drawColor = ORANGE_COLORS[sub] || ROAD_COLORS.orange;
+        return { stroke: true, color: drawColor, weight: (p._w || 2) + (inFlaggedScope() ? 1 : 0), opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
+    }
     // Flagged view: the pins keep their normal verdict colour, one weight bolder for focus.
     return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: (p._w || 2) + (inFlaggedScope() ? 1 : 0), opacity: v === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }

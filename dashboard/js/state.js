@@ -229,7 +229,7 @@ function ensureMaskShown() {
 // towns = town/city pins; boundary = CV LGA outline.
 // verdict colours + dashed/towns/boundary, plus the "Highlights" group: c_centre/c_hosp/c_dest/
 // c_employ = the on-select connection rings. clip = CV tab only, hide roads outside the LGA outline.
-let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
+let legendToggles = { green: true, orange: true, orange_centres: true, orange_facilities: true, orange_other: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
     bypass: false, local: true, c_centre: true, c_hosp: true, c_dest: true, c_employ: true };
 
 // Cross-criteria (reclassification) test — folded into the State / Regional / Local tabs (there is

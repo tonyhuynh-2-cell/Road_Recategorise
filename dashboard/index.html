@@ -113,20 +113,41 @@
              Order: the three verdict cards lead; the network-total hero card sits below them. -->
         <div class="tab-content active" id="tab-overview">
             <div class="stat-grid">
-                <div class="stat-card acc-green">
+                <div class="stat-card acc-green" id="ov-green-card">
                     <h3>Meets criteria</h3>
                     <div class="stat-value green" id="ov-green">–</div>
                     <div class="stat-sub" id="ov-green-pct"></div>
                 </div>
-                <div class="stat-card acc-orange">
+                <div class="stat-card acc-orange osplit-card" id="ov-orange-card" onclick="toggleOrangeSplit()">
                     <h3>Meets 1 of 2</h3>
                     <div class="stat-value orange" id="ov-orange">–</div>
                     <div class="stat-sub" id="ov-orange-pct"></div>
+                    <div class="osplit-slider"><div class="osplit-slider-track"><div class="osplit-slider-thumb"></div></div></div>
                 </div>
-                <div class="stat-card acc-red">
+                <div class="stat-card acc-red" id="ov-red-card">
                     <h3>Does not meet</h3>
                     <div class="stat-value red" id="ov-red">–</div>
                     <div class="stat-sub" id="ov-red-pct"></div>
+                </div>
+            </div>
+            <div class="stat-grid osplit-subs" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="stat-card osplit-sub osplit-sub-disabled" data-sub="orange_centres" onclick="toggleOrangeSub('orange_centres')">
+                    <h3 style="color:#2563eb">Connects centres</h3>
+                    <div class="stat-value" style="color:#2563eb" id="ov-orange-centres">–</div>
+                    <div class="stat-sub" id="ov-orange-centres-pct"></div>
+                    <div class="stat-sub">Blue on map</div>
+                </div>
+                <div class="stat-card osplit-sub osplit-sub-disabled" data-sub="orange_facilities" onclick="toggleOrangeSub('orange_facilities')">
+                    <h3 style="color:#7c3aed">Connects facilities</h3>
+                    <div class="stat-value" style="color:#7c3aed" id="ov-orange-facilities">–</div>
+                    <div class="stat-sub" id="ov-orange-facilities-pct"></div>
+                    <div class="stat-sub">Purple on map</div>
+                </div>
+                <div class="stat-card osplit-sub osplit-sub-disabled" data-sub="orange_other" onclick="toggleOrangeSub('orange_other')">
+                    <h3 style="color:#f472b6">Other (HV / topology)</h3>
+                    <div class="stat-value" style="color:#f472b6" id="ov-orange-other">–</div>
+                    <div class="stat-sub" id="ov-orange-other-pct"></div>
+                    <div class="stat-sub">Pink on map</div>
                 </div>
             </div>
             <div class="stat-card hero">

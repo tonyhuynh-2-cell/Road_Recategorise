@@ -191,7 +191,7 @@ function applyLegend(opts) {
     if (nltnLayer) {
         // Shown on the Nat. Significant lens, the Overview AND the Sydney tab (which IS the Overview,
         // just framed on Sydney): the green/orange national network drawn alongside the road overlays.
-        const onNltnTab = (currentTab === 'nsr' || currentTab === 'overview' || currentTab === 'sydney') && legendToggles.nltn;
+        const onNltnTab = (currentTab === 'nsr' || currentTab === 'overview' || currentTab === 'sydney') && legendToggles.nltn && !orangeSplitActive;
         // Flagged view: show the national network too, but only when a national route is pinned — its
         // style (nltnFeatureStyle) then hides every unpinned route, so ONLY the pins draw.
         const onFlagged = typeof inFlaggedScope === 'function' && inFlaggedScope() && typeof anyNltnFlagged === 'function' && anyNltnFlagged();
@@ -283,9 +283,15 @@ function renderMapLegend() {
         else h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     } else {   // overview + detail
-        h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
-        h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
+        if (orangeSplitActive) {
+            h += li('orange_centres', sw('#2563eb'), 'Connects centres (blue)');
+            h += li('orange_facilities', sw('#7c3aed'), 'Connects facilities (purple)');
+            h += li('orange_other', sw('#f472b6'), 'Other — HV / topology (pink)');
+        } else {
+            h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
+            h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
+            h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
+        }
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     }
@@ -328,7 +334,7 @@ function toggleBypassIsolate(on) {
 // Legend keys that are INPUTS to the road style (nswStyle/cvStyle): the verdict colours, the dashed
 // route-number treatment, and the clip layer swap. Toggling any other key (towns, boundary, bypass,
 // nltn, the c_* highlight rings) cannot change a road's style, so the road repaint is skipped.
-const ROADSTYLE_KEYS = { green: 1, orange: 1, red: 1, dashed: 1, clip: 1 };
+const ROADSTYLE_KEYS = { green: 1, orange: 1, orange_centres: 1, orange_facilities: 1, orange_other: 1, red: 1, dashed: 1, clip: 1 };
 
 // Clicking a legend swatch toggles that category on/off across the map.
 function toggleLegendItem(key) {
@@ -525,7 +531,22 @@ function scopeCounts(scope) {
         if (v === 'green') g++; else if (v === 'orange') o++; else r++;
         grp[group][v]++; grp[group].total++;
     }
-    return (_scopeCounts[scope] = { g: g, o: o, r: r, grp: grp });
+    // Count orange sub-categories
+    let oc = 0, of_ = 0, oo = 0;
+    for (const k in NSW_AGG) {
+        const a = NSW_AGG[k];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        if (scope === 'cv' && !a._inCV) continue;
+        if (scope === 'syd' && !a._inSyd) continue;
+        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
+        const v = (cr && cr.verdict) || a.status;
+        if (v !== 'orange') continue;
+        const sub = orangeSubStatus(k);
+        if (sub === 'orange_centres') oc++;
+        else if (sub === 'orange_facilities') of_++;
+        else oo++;
+    }
+    return (_scopeCounts[scope] = { g: g, o: o, r: r, oc: oc, of_: of_, oo: oo, grp: grp });
 }
 
 // CV / Sydney tab stats — the Overview breakdown filtered to one region (roads touching the Clarence
@@ -735,6 +756,15 @@ function refreshOverview() {
     document.getElementById('ov-green').textContent = g.toLocaleString(); document.getElementById('ov-green-pct').textContent = pct(g);
     document.getElementById('ov-orange').textContent = o.toLocaleString(); document.getElementById('ov-orange-pct').textContent = pct(o);
     document.getElementById('ov-red').textContent = r.toLocaleString(); document.getElementById('ov-red-pct').textContent = pct(r);
+    // Orange sub-counts
+    const { oc, of_, oo } = scopeCounts('all');
+    const ocEl = document.getElementById('ov-orange-centres'); if (ocEl) ocEl.textContent = oc.toLocaleString();
+    const ofEl = document.getElementById('ov-orange-facilities'); if (ofEl) ofEl.textContent = of_.toLocaleString();
+    const ooEl = document.getElementById('ov-orange-other'); if (ooEl) ooEl.textContent = oo.toLocaleString();
+    const opct = n => o ? (n / o * 100).toFixed(0) + '% of orange' : '';
+    const ocPct = document.getElementById('ov-orange-centres-pct'); if (ocPct) ocPct.textContent = opct(oc);
+    const ofPct = document.getElementById('ov-orange-facilities-pct'); if (ofPct) ofPct.textContent = opct(of_);
+    const ooPct = document.getElementById('ov-orange-other-pct'); if (ooPct) ooPct.textContent = opct(oo);
     // Map restyle is owned by the follow-up showNSW()->applyLegend() in switchTab/init (avoids styling
     // all ~17k paths twice per tab switch); this panel refresher only updates the stats.
 }

@@ -100,6 +100,23 @@
         .stat-card.acc-green h3 { color: #15803d; }
         .stat-card.acc-orange { border-color: var(--muted); background: var(--bg-soft); }
         .stat-card.acc-orange h3 { color: #b45309; }
+
+        /* Orange split-mode: toggle card + sub-boxes */
+        .osplit-card { cursor: pointer; position: relative; transition: border-color .2s ease, box-shadow .2s ease; }
+        .osplit-card:hover { border-color: #f59e0b; }
+        .osplit-card.osplit-on { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,.25); }
+        /* Slider indicator beneath the % text */
+        .osplit-slider { margin-top: 6px; display: flex; justify-content: center; }
+        .osplit-slider-track { width: 28px; height: 14px; border-radius: 7px; background: #e7e5e4; position: relative; transition: background .2s ease; }
+        .osplit-slider-thumb { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: #a8a29e; transition: left .2s ease, background .2s ease; }
+        .osplit-on .osplit-slider-track { background: #f59e0b; }
+        .osplit-on .osplit-slider-thumb { left: 16px; background: #fff; }
+        /* Sub-boxes: disabled (greyed out) by default */
+        .osplit-sub { cursor: pointer; transition: opacity .2s ease, border-color .2s ease, transform .15s ease; }
+        .osplit-sub:hover { transform: translateY(-1px); }
+        .osplit-sub-disabled { opacity: 0.35; pointer-events: none; filter: grayscale(0.8); }
+        .osplit-sub-off { opacity: 0.3; border-style: dashed; }
+        .osplit-dimmed { opacity: 0.3; filter: grayscale(0.6); transition: opacity .2s ease, filter .2s ease; }
         .stat-grid .stat-card.acc-red { border-color: var(--muted); background: var(--bg-soft); }
         .stat-grid .stat-card.acc-red h3 { color: #b91c1c; }
         .stat-card.acc-red { border-color: var(--muted); }
