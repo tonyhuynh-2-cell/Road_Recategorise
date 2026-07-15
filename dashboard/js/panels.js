@@ -402,7 +402,7 @@ function showNSW() {
     applyLegend();
     // Frame NSW only when arriving from a different context (or first load) — switching among the
     // NSW lens tabs preserves the user's current pan/zoom.
-    if (mapContext !== 'nsw' && nswLayer) map.fitBounds(nswLayer.getBounds().pad(0.05));
+    if (mapContext !== 'nsw') map.setView([-32.0, 149.5], 6);
     mapContext = 'nsw';
 }
 

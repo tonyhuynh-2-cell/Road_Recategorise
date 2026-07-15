@@ -436,11 +436,18 @@ What the code does:
 
 `buildXtest()` recomputes optional counts and mandatory gates for the target category. It does not force a result; it regrades using the available data.
 
+For Regional roads tested as State roads, the State-only long-distance rural route criterion is read from `stateOpt.ldr`. That keeps the road's own Regional `optMet` clean while still allowing the State cross-test to score the unnumbered State LDR criterion.
+
+The LDR criterion is not a length-only shortcut. The rebuild checks that a non-urban road has a connected geometry component of at least 25 km, with evidence for both a State-tier source centre and a Town Centre on that same component.
+
+For urban State roads, LDR is cleared as not applicable because the urban criteria table uses S-10, S-11, traffic and mandatory PBS/parallel checks, not the rural LDR item.
+
 Key files:
 
 - `dashboard/js/grading.js`
 - `dashboard/js/config.js`
 - `dashboard/js/detail.js`
+- `dashboard/rebuild_state_ldr_optional.py`
 
 Snippet:
 
@@ -454,7 +461,11 @@ function buildXtest() {
 
     for (const k in crit) {
         const c = crit[k];
-        const asStateOptMet = countOpt(c, ['centres', 'dest', 'ldr', 'traffic']);
+        const ldrOpt = c.area !== 'urban' && (
+            (c.opt && c.opt.ldr === true) ||
+            (c.stateOpt && c.stateOpt.ldr === true)
+        );
+        const asStateOptMet = countOpt(c, ['centres', 'dest', 'traffic']) + (ldrOpt ? 1 : 0);
         const twoStateOpt = c.area !== 'urban' && (
             (c.opt && c.opt.two_state === true) ||
             (roadExt[k] && roadExt[k].two_state === true)
@@ -469,6 +480,49 @@ function buildXtest() {
     return X;
 }
 ```
+
+The LDR value is generated from length, centre evidence and connected geometry:
+
+```python
+qualifying = [
+    comp for comp in comps
+    if comp["km"] >= 25.0 and comp["source"] and comp["town"]
+]
+
+info = {
+    "ldr": bool(qualifying),
+    "ldr_km": round(total_km, 1),
+    "ldr_component_km": round(best_component_km, 1),
+    "ldr_source_centres": sorted(best_source_centres),
+    "ldr_town_centres": sorted(best_town_centres),
+}
+```
+
+Regional facility connectivity is assessed separately from the State facility
+criterion. R-02/R-06 can use named hospitals, ports, airports and intermodals,
+as well as Regional- or Major-tier commercial, industrial and employment
+centres. A Local-tier site does not qualify. The rebuild requires a qualifying
+facility and a qualifying centre to occur on the same connected road component,
+so a disconnected road-number group cannot earn the criterion by combining
+evidence from different pieces of geometry.
+
+```python
+qualifying = [
+    component for component in components
+    if component["centres"] and component["facilities"]
+]
+
+info = {
+    "dest": bool(qualifying),
+    "dest_centre_names": sorted(best_component["centres"]),
+    "dest_facility_names": sorted(best_component["facilities"]),
+}
+```
+
+The result is stored in `regionalOpt.dest`. Regional roads use it as their own
+R-02/R-06 result; State roads use it only when the Regional cross-test is
+active. This prevents the State and Regional facility thresholds from being
+mixed together.
 
 ## 13. Links Two State Roads Topology Feature
 
@@ -1010,6 +1064,8 @@ Key files:
 - `dashboard/rebuild_r01_rural_centres.py`
 - `dashboard/rebuild_r03_roadtrain_optional.py`
 - `dashboard/rebuild_r05_urban_centres.py`
+- `dashboard/rebuild_regional_facility_optional.py`
+- `dashboard/rebuild_state_ldr_optional.py`
 - `dashboard/rebuild_two_state_optional.py`
 
 Snippet:
@@ -1100,4 +1156,3 @@ source data
   -> Leaflet map layers + sidebar panels
   -> search/detail/export/local-road workflows
 ```
-
