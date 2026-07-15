@@ -456,16 +456,16 @@
         <!-- Data-refresh pill (top-centre): shown while road vectors reload — showMapRefresh() in state.js -->
         <div class="map-refresh" id="map-refresh" role="status"><span class="mr-spin" aria-hidden="true"></span><span id="map-refresh-text">Refreshing network…</span></div>
         <!-- Live code trace: a learning overlay that prints the code path behind interactions. -->
-        <section id="code-trace" class="code-trace" aria-label="Live code trace">
+        <section id="code-trace" class="code-trace ct-bubble" aria-label="Live code trace">
             <div class="ct-head">
                 <div>
                     <h3>Live code trace</h3>
                     <span><b id="code-trace-count">0</b> events</span>
                 </div>
                 <div class="ct-actions">
-                    <button type="button" onclick="pauseCodeTrace(this)">Pause</button>
-                    <button type="button" onclick="clearCodeTrace()">Clear</button>
-                    <button type="button" onclick="toggleCodeTrace()" aria-label="Collapse code trace">−</button>
+                    <button type="button" onclick="pauseCodeTrace(this);event.stopPropagation();">Resume</button>
+                    <button type="button" onclick="clearCodeTrace();event.stopPropagation();">Clear</button>
+                    <button type="button" onclick="collapseTraceBubble();event.stopPropagation();" aria-label="Collapse code trace">−</button>
                 </div>
             </div>
             <div id="code-trace-feed" class="ct-feed"></div>
