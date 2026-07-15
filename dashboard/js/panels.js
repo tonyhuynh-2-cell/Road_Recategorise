@@ -73,10 +73,15 @@ function switchTab(tab) {
 
     if (NSW_MAP_TABS.includes(tab)) {
         nswView = (tab === 'overview') ? 'all' : tab;
-        if (tab === 'overview') refreshOverview(); else refreshNswView();
+        if (tab === 'overview') refreshOverview(); else if (tab === 'fresh') refreshFresh(); else refreshNswView();
         showNSW();
-    } else if (tab === 'cv') { refreshCV(); showCV(); }
-    else if (tab === 'sydney') { refreshSydney(); showSydney(); }
+    } else if (tab === 'cv' || tab === 'sydney') {
+        // LGA focus keeps the category lens (nswInView filters by nswView there). Align nswView with
+        // the dropdown — it can lag when the previous tab didn't drive it (e.g. the Local tab).
+        const lens = document.getElementById('lens-select');
+        if (lens && lens.value && lens.value !== '__hold__') nswView = (lens.value === 'overview') ? 'all' : lens.value;
+        if (tab === 'cv') { refreshCV(); showCV(); } else { refreshSydney(); showSydney(); }
+    }
     else if (tab === 'flagged') { refreshFlagged(); showFlagged(); }   // ⚑ pinned roads (flagged.js)
     else if (tab === 'local') { refreshLocal(); showLocal(); }
     renderMapLegend();   // rebuild the floating legend for this view (also re-syncs the toggle dimming)
@@ -89,14 +94,15 @@ function backFromDetail() { switchTab(lastViewTab || 'overview'); }
 
 // The five map lenses that live in the sidebar's ONE dropdown control (#lens-select, index.html);
 // the other views (Sydney / Clarence Valley / Flagged / Detail) stay individual buttons.
-const LENS_SELECT_TABS = ['overview', 'nsr', 'state', 'regional', 'local'];
+const LENS_SELECT_TABS = ['overview', 'nsr', 'state', 'regional', 'local', 'fresh'];
 
 // Keep the lens dropdown in step with EVERY tab change, however it was driven (its own change
 // event, a tab button, boot, a road-detail open, a search jump…). Called by switchTab right after
-// the .tab-btn active sweep: on one of the five lens tabs the dropdown takes that value + the
-// active pill look (mirroring how the old buttons lit up); on any other view (sydney / cv /
-// flagged / detail) it KEEPS showing the last lens but drops the active styling — exactly like an
-// unselected tab button.
+// the .tab-btn active sweep: on one of the lens tabs the dropdown takes that value + the active
+// pill look (mirroring how the old buttons lit up). Inside an LGA focus (sydney / cv) the lens
+// stays FUNCTIONAL — it filters the roads within the LGA (see nswInView) — so it keeps the active
+// look and its current value. On flagged / detail it KEEPS showing the last lens but drops the
+// active styling — exactly like an unselected tab button.
 function syncLensSelect(tab) {
     const sel = document.getElementById('lens-select');
     if (!sel) return;
@@ -106,6 +112,8 @@ function syncLensSelect(tab) {
     if (LENS_SELECT_TABS.includes(tab)) {
         sel.value = tab;
         sel.classList.add('active');
+    } else if (tab === 'cv' || tab === 'sydney') {
+        sel.classList.add('active');      // LGA focus: lens still drives the road filter — stays lit
     } else {
         sel.classList.remove('active');   // sweep already stripped it; keep this explicit + idempotent
     }
@@ -148,7 +156,7 @@ function syncLensSelect(tab) {
 // g1 = Overview · g2 = Nat.Significant / State / Regional / Local / Flagged (red — matches the ⚑
 // red-flag motif) · g3 = Sydney / Clarence Valley.
 function tabGroup(tab) {
-    if (tab === 'nsr' || tab === 'state' || tab === 'regional' || tab === 'local' || tab === 'flagged') return 'g2';
+    if (tab === 'nsr' || tab === 'state' || tab === 'regional' || tab === 'local' || tab === 'flagged' || tab === 'fresh') return 'g2';
     if (tab === 'sydney' || tab === 'cv') return 'g3';
     return 'g1';   // overview + detail
 }
@@ -170,13 +178,16 @@ function applyLegend(opts) {
     // Local tab → hide the State/Regional overlay entirely, so only the green local roads show.
     // Nat. Significant lens → nswInView hides EVERY road there (its subject is the NLTN layer), so take
     // the layer OFF the map instead of drawing 17.6k invisible paths: zoom/pan then skip re-projecting
-    // them entirely. Mirrors nswInView's precedence: CV/Sydney show roads even if nswView is stale 'nsr';
-    // the detail view keeps whatever lens it came from (nswView is unchanged there).
+    // them entirely. The lens applies INSIDE an LGA focus too (CV / Sydney keep the category dropdown
+    // functional — see nswInView); the detail view keeps whatever lens it came from (nswView unchanged).
     const cvClip = currentTab === 'cv' && legendToggles.clip;
+    const lgaTab = currentTab === 'cv' || currentTab === 'sydney';
     // Flagged view: the ⚑ pins are drawn by this SAME overlay (nswStyle hides the unpinned roads),
-    // so a stale 'nsr' nswView must not take the layer off the map there (inFlaggedScope, flagged.js).
-    const nsrLens = currentTab !== 'cv' && currentTab !== 'sydney' && !inFlaggedScope() && nswView === 'nsr';
-    const hideNsw = cvClip || currentTab === 'local' || nsrLens;
+    // so an 'nsr' nswView must not take the layer off the map there (inFlaggedScope, flagged.js).
+    const nsrLens = !inFlaggedScope() && nswView === 'nsr';
+    // Local lens in an LGA mirrors the Local tab's map treatment: the S/R overlay comes off (street
+    // labels appear once zoomed in; the full council-road assessment lives on the Local tab).
+    const hideNsw = cvClip || currentTab === 'local' || nsrLens || (lgaTab && nswView === 'local');
     if (nswLayer) {
         if (hideNsw) map.removeLayer(nswLayer);
         else { const wasOn = map.hasLayer(nswLayer); map.addLayer(nswLayer); if (restyleRoads || !wasOn) nswLayer.setStyle(nswStyle); }
@@ -189,9 +200,12 @@ function applyLegend(opts) {
     // NLTN national network: the SUBJECT of the Nat. Significant lens only — graded green/orange.
     // Hidden on every other tab, incl. CV (it is no longer a reference underlay).
     if (nltnLayer) {
-        // Shown on the Nat. Significant lens, the Overview AND the Sydney tab (which IS the Overview,
-        // just framed on Sydney): the green/orange national network drawn alongside the road overlays.
-        const onNltnTab = (currentTab === 'nsr' || currentTab === 'overview' || currentTab === 'sydney') && legendToggles.nltn;
+        // Shown on the Nat. Significant lens, the Overview, AND inside an LGA focus when the lens is
+        // Overview (Sydney only — its Overview always drew it) or Nat. Sig (both LGAs — the lens's
+        // subject): the green/orange national network drawn alongside / instead of the road overlay.
+        const onNltnTab = (currentTab === 'nsr' || currentTab === 'overview'
+            || (currentTab === 'sydney' && (nswView === 'all' || nswView === 'nsr'))
+            || (currentTab === 'cv' && nswView === 'nsr')) && legendToggles.nltn;
         // Flagged view: show the national network too, but only when a national route is pinned — its
         // style (nltnFeatureStyle) then hides every unpinned route, so ONLY the pins draw.
         const onFlagged = typeof inFlaggedScope === 'function' && inFlaggedScope() && typeof anyNltnFlagged === 'function' && anyNltnFlagged();
@@ -244,21 +258,32 @@ function renderMapLegend() {
     const townSw = '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>';
     const vkeys = ['green', 'orange', 'red'];
     let h = '<h3>Map legend</h3>';
-    if (currentTab === 'cv') {
-        h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
-        h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
-        h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
-        h += li('towns', townSw, 'Town centres / POIs');
-        h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', 'LGA boundary (outline)');
-        h += li('clip', '<div class="legend-color" style="background:transparent; border:1.5px solid #1c1917; height:11px; border-radius:2px"></div>', 'Show only roads inside the LGA');
-    } else if (currentTab === 'sydney') {
-        h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
-        h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
-        h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
-        h += li('towns', townSw, 'Town / City — pin size scales with population');
-        h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', 'Sydney outline');
+    if (currentTab === 'cv' || currentTab === 'sydney') {
+        // LGA focus: the verdict / category rows follow the ACTIVE lens — the two sidebar dropdowns
+        // are orthogonal (category picks the rows; the LGA adds its outline / clip extras below).
+        if (nswView === 'fresh') {
+            FRESH_CATS.forEach(k => { h += li(k, sw(FRESH_META[k].color), FRESH_META[k].label); });
+            h += liStatic(dashSw, 'Dashed — provisional: gate passed, 1 of 2 optional');
+        } else if (nswView === 'nsr') {
+            NSW_VIEW_META.nsr.legend.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
+            h += liStatic('<div class="legend-color" style="background:#16a34a; opacity:0.45"></div>', 'Proposed corridor — not yet built (translucent)');
+        } else if (nswView === 'local') {
+            h += liStatic('<div class="legend-color" style="background:#9a938c; height:2px"></div>', 'Local streets — names label once zoomed in; the full council-road assessment is on the Local tab');
+        } else {
+            // State / Regional lens rows from NSW_VIEW_META; Overview ('all') keeps the generic rows.
+            const m = NSW_VIEW_META[nswView];
+            const rows = m ? m.legend : [
+                ['#16a34a', 'Meets its criteria (≥2 optional)'],
+                ['#f59e0b', 'Meets 1 optional — may pass with ADT'],
+                ['#dc2626', 'Does not meet (→ downgrade)']
+            ];
+            rows.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
+            h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
+        }
+        h += li('towns', townSw, currentTab === 'cv' ? 'Town centres / POIs' : 'Town / City — pin size scales with population');
+        h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', currentTab === 'cv' ? 'LGA boundary (outline)' : 'Sydney outline');
+        if (currentTab === 'cv')
+            h += li('clip', '<div class="legend-color" style="background:transparent; border:1.5px solid #1c1917; height:11px; border-radius:2px"></div>', 'Show only roads inside the LGA');
     } else if (currentTab === 'local') {
         // Verdict rows follow the ACTIVE local cross-test mode (own = plain green, no verdicts).
         const lm = (typeof xLens !== 'undefined') ? xLens.local : false;
@@ -272,6 +297,14 @@ function renderMapLegend() {
             h += li('orange', sw('#f59e0b'), 'Tested: 1 centre nearby');
             h += li('red', sw('#dc2626'), 'Tested: no ≥2-centre link');
         }
+        h += li('towns', townSw, 'Town / City — pin size scales with population');
+    } else if (currentTab === 'fresh' || (currentTab === 'detail' && nswView === 'fresh' && !inFlaggedScope())) {
+        // Best fit lens: the map encodes CATEGORY (blank-slate re-bin), not verdict — four
+        // toggleable bins in the fresh palette + a static row explaining the dashed "likely" tier.
+        // A Road Detail opened from this lens keeps the fresh map colours (nswStyle), so its
+        // legend must keep these rows too — not the generic verdict rows below.
+        FRESH_CATS.forEach(k => { h += li(k, sw(FRESH_META[k].color), FRESH_META[k].label); });
+        h += liStatic(dashSw, 'Dashed — provisional: gate passed, 1 of 2 optional');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     } else if (NSW_LENSES.includes(currentTab) && NSW_VIEW_META[nswView]) {
         const m = NSW_VIEW_META[nswView];
@@ -291,7 +324,7 @@ function renderMapLegend() {
     }
     // Local roads & street names (basemap label overlay) — a toggle on the road-map tabs; the labels
     // switch on once zoomed in (LOCAL_ZOOM), naming the local roads already drawn on the base map.
-    if (['overview', 'state', 'regional', 'sydney', 'cv', 'local'].indexOf(currentTab) !== -1)
+    if (['overview', 'state', 'regional', 'sydney', 'cv', 'local', 'fresh'].indexOf(currentTab) !== -1)
         h += li('local', '<div class="legend-color" style="background:#9a938c; height:2px"></div>', 'Local roads & street names · zoom in');
     h += hiliteLegendHTML();
     el.innerHTML = h;
@@ -328,7 +361,7 @@ function toggleBypassIsolate(on) {
 // Legend keys that are INPUTS to the road style (nswStyle/cvStyle): the verdict colours, the dashed
 // route-number treatment, and the clip layer swap. Toggling any other key (towns, boundary, bypass,
 // nltn, the c_* highlight rings) cannot change a road's style, so the road repaint is skipped.
-const ROADSTYLE_KEYS = { green: 1, orange: 1, red: 1, dashed: 1, clip: 1 };
+const ROADSTYLE_KEYS = { green: 1, orange: 1, red: 1, dashed: 1, clip: 1, fnat: 1, fstate: 1, freg: 1, flocal: 1 };
 
 // Clicking a legend swatch toggles that category on/off across the map.
 function toggleLegendItem(key) {
@@ -713,6 +746,44 @@ function refreshNswView() {
     // Map restyle is owned by switchTab's follow-up showNSW()->applyLegend() (which styles nswLayer and,
     // on the nsr lens, nltnLayer). toggleCrossLens is the only caller without that follow-up, so it
     // restyles explicitly. This removes the second full-layer setStyle per NSW tab switch.
+}
+
+// Fresh assessment panel: blank-slate category counts + movement vs today's standing.
+// Category per road comes from buildFresh (grading.js) — the current class is never an input to the
+// grading; it is only used HERE, to report how many roads would move tier if the fresh bins stood.
+function refreshFresh() {
+    if (typeof traceCode === 'function') traceCode(
+        'Refresh Best fit bins',
+        'Every State & Regional road is re-binned from scratch by the criteria alone (national → State → Regional → Local waterfall); the panel counts the bins and compares them with today\'s classification.',
+        "function refreshFresh() {\n  const F = buildFresh();   // { roadKey: { cat, tier } } — blank-slate category per road\n  count roads per category; compare with today's Nat.Sig/State/Regional standing;\n}",
+        'source: buildXtest (asNat / asState / asReg) — earned criteria only'
+    );
+    const F = buildFresh();
+    const RANK = { fnat: 3, fstate: 2, freg: 1, flocal: 0 };
+    const counts = { fnat: 0, fstate: 0, freg: 0, flocal: 0 };
+    let total = 0, keep = 0, up = 0, down = 0, likely = 0;
+    for (const k in NSW_AGG) {
+        const a = NSW_AGG[k];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        const f = F[k]; if (!f) continue;
+        total++;
+        counts[f.cat]++;
+        if (f.tier === 'likely') likely++;
+        // Today's standing: Nat. Significant tab membership (_nsr), else the administrative class.
+        const cur = a._nsr ? 'fnat' : (a.admin_class === 'S' ? 'fstate' : 'freg');
+        const d = RANK[f.cat] - RANK[cur];
+        if (d === 0) keep++; else if (d > 0) up++; else down++;
+    }
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    const pct = n => total ? (n / total * 100).toFixed(0) + '% of the network' : '';
+    set('fresh-total', total.toLocaleString());
+    set('fresh-nat', counts.fnat.toLocaleString());   set('fresh-nat-sub', pct(counts.fnat));
+    set('fresh-state', counts.fstate.toLocaleString()); set('fresh-state-sub', pct(counts.fstate));
+    set('fresh-reg', counts.freg.toLocaleString());   set('fresh-reg-sub', pct(counts.freg));
+    set('fresh-local', counts.flocal.toLocaleString()); set('fresh-local-sub', pct(counts.flocal));
+    set('fresh-move', keep.toLocaleString() + ' roads keep their current tier · ' +
+        up.toLocaleString() + ' would move up · ' + down.toLocaleString() + ' would move down · ' +
+        likely.toLocaleString() + ' of the ' + total.toLocaleString() + ' are provisional (dashed — 1 of 2 optional)');
 }
 
 // Overview panel: whole network graded by own-category criteria, plus a per-group breakdown.

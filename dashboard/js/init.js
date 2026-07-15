@@ -101,15 +101,20 @@ Promise.all([
             color: '#000000', weight: 0.8, opacity: 1, fill: false, interactive: false   // thin, fully-black NSW border
         }).addTo(map);
     })();
-    // Town/centre points [lon,lat] — used by the Cross-test tab's simplified "local road → Regional"
-    // proximity test (a Regional road connects ≥2 urban/town centres).
-    window.NSW_TOWN_PTS = ((nswTowns && nswTowns.features) || []).map(function (f) { return f.geometry && f.geometry.coordinates; }).filter(Boolean);
-    // State-tier centres only (Regional Cities incl. the metros, Major Towns) — the Local tab's
-    // "test as State" centre set (xtStateCentrePts, local.js). Same source, filtered by town_type.
-    window.NSW_TOWN_PTS_MAJOR = ((nswTowns && nswTowns.features) || []).filter(function (f) {
-        const t = f.properties && f.properties.town_type;
-        return t === 'Regional City' || t === 'Major Town';
-    }).map(function (f) { return f.geometry && f.geometry.coordinates; }).filter(Boolean);
+    // NAMED town/centre points ({name, type, pt:[lon,lat]}) — the Local tab's cross-tests
+    // (xtCentrePts / xtStateCentrePts, local.js) count DISTINCT named centres, so a town that is
+    // also a Significant Urban Area (Grafton…) counts ONCE, never twice. Types: 'Regional City' /
+    // 'Major Town' / 'Town Centre' (the State test keeps only the first two).
+    window.NSW_TOWNS_NAMED = ((nswTowns && nswTowns.features) || []).filter(function (f) { return f.geometry && f.geometry.coordinates; })
+        .map(function (f) {
+            const p = f.properties || {};
+            return { name: p.name || 'Centre', type: p.town_type || '', pt: f.geometry.coordinates };
+        });
+    // Bare coordinate lists derived from the named set (kept for any plain proximity consumer).
+    window.NSW_TOWN_PTS = window.NSW_TOWNS_NAMED.map(function (t) { return t.pt; });
+    window.NSW_TOWN_PTS_MAJOR = window.NSW_TOWNS_NAMED.filter(function (t) {
+        return t.type === 'Regional City' || t.type === 'Major Town';
+    }).map(function (t) { return t.pt; });
     NSW_SEG_TOTAL = (nswRoads.features || []).length;   // total road segments (e.g. 17,691)
     // Manual overrides (data/ref_overrides.json) win over the auto OSM join.
     // Key by road_number: "B76" forces a shield, "" removes it. By road_name (UPPER) as fallback.
@@ -138,7 +143,7 @@ Promise.all([
     // === Build Map Layers ===
 
     // NSW Roads — aggregate per road so a click selects the whole road
-    const NSW_BOOLS = ['has_pbs1', 'has_bdouble', 'is_key_freight_route', 'connects_major_town', 'connects_hospital'];
+    const NSW_BOOLS = ['has_pbs1', 'has_pbs2b', 'has_bdouble', 'is_key_freight_route', 'connects_major_town', 'connects_hospital'];
     const nswRoadAgg = {}, nswRoadLayers = {};
     nswRoads.features.forEach(f => {
         const k = roadKeyOf(f.properties); if (!k) return;
@@ -277,15 +282,23 @@ Promise.all([
             const k = roadKeyOf(feature.properties);
             if (k) (nswRoadLayers[k] || (nswRoadLayers[k] = [])).push(layer);
             const group = () => (k && nswRoadLayers[k]) ? nswRoadLayers[k] : [layer];
-            layer.bindTooltip(roadLabel(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
+            layer.bindTooltip(roadTooltip(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
             layer.on('click', function(e) {
                 if (!nswInView(feature.properties)) return;   // ignore roads hidden in the active lens
                 L.DomEvent.stopPropagation(e);
                 // Shift+click routes to the export menu's custom selection (export.js) — normal
                 // click-select below is untouched.
                 if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
-                highlightRoad(group(), nswLayer);
-                const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
+                // The clicked segment's name titles the detail panel (a road can span several named
+                // sections) — but ONLY when it has one: a blank segment must not clobber the
+                // aggregate's backfilled name (421 roads carry some unnamed segments).
+                const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
+                    ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
+                // Highlight the SECTION the title names (the segments sharing its name) — the whole
+                // road only when the road carries a single/blank name.
+                const secSegs = group().filter(l => String(l.feature.properties.road_name || '').trim() === String(segName || '').trim());
+                highlightRoad(secSegs.length ? secSegs : group(), nswLayer);
+                const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                 if (typeof traceCode === 'function') traceCode(
                     'Road clicked: ' + roadName(agg),
                     'The road key `k` is created when Leaflet builds each feature layer. The click handler closes over that key, so later it can find every segment belonging to the same road.',
@@ -294,8 +307,10 @@ Promise.all([
                 );
                 showRoadDetail(agg, 'nsw');
             });
-            layer.on('mouseover', function() { if (!nswInView(feature.properties)) return; if (!isSelected(layer)) group().forEach(l => l.setStyle({ weight: 5, opacity: 1 })); });
-            layer.on('mouseout', function() { if (!isSelected(layer)) group().forEach(l => nswLayer.resetStyle(l)); });
+            // Per-layer isSelected guard: a selection can now be a SECTION of the road, so hovering an
+            // unselected sibling segment must not restyle/reset the highlighted ones.
+            layer.on('mouseover', function() { if (!nswInView(feature.properties)) return; if (!isSelected(layer)) group().forEach(l => { if (!isSelected(l)) l.setStyle({ weight: 5, opacity: 1 }); }); });
+            layer.on('mouseout', function() { if (!isSelected(layer)) group().forEach(l => { if (!isSelected(l)) nswLayer.resetStyle(l); }); });
         }
     });
 
@@ -379,13 +394,17 @@ Promise.all([
                 const k = roadKeyOf(feature.properties);
                 if (k) (cvClipLayers[k] || (cvClipLayers[k] = [])).push(layer);
                 const group = () => (k && cvClipLayers[k]) ? cvClipLayers[k] : [layer];
-                layer.bindTooltip(roadLabel(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
+                layer.bindTooltip(roadTooltip(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
                 layer.on('click', function (e) {
                     L.DomEvent.stopPropagation(e);
                     // Shift+click = export custom-selection pick (same branch as the main overlay).
                     if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
-                    highlightRoad(group(), cvClipLayer);
-                    const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: feature.properties.road_name }) : feature.properties;
+                    // Same blank-segment guard + section-level highlight as the main overlay above.
+                    const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
+                        ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
+                    const secSegs = group().filter(l => String(l.feature.properties.road_name || '').trim() === String(segName || '').trim());
+                    highlightRoad(secSegs.length ? secSegs : group(), cvClipLayer);
+                    const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                     if (typeof traceCode === 'function') traceCode(
                         'Clipped CV road clicked: ' + roadName(agg),
                         'The clipped Clarence Valley layer also creates `k` before the click handler. The geometry is clipped to the LGA, but the lookup still uses the same statewide road key.',
@@ -394,8 +413,9 @@ Promise.all([
                     );
                     showRoadDetail(agg, 'nsw');
                 });
-                layer.on('mouseover', function () { if (!isSelected(layer)) group().forEach(l => l.setStyle({ weight: 5, opacity: 1 })); });
-                layer.on('mouseout', function () { if (!isSelected(layer)) group().forEach(l => cvClipLayer.resetStyle(l)); });
+                // Per-layer isSelected guard — see the main overlay's hover handlers above.
+                layer.on('mouseover', function () { if (!isSelected(layer)) group().forEach(l => { if (!isSelected(l)) l.setStyle({ weight: 5, opacity: 1 }); }); });
+                layer.on('mouseout', function () { if (!isSelected(layer)) group().forEach(l => { if (!isSelected(l)) cvClipLayer.resetStyle(l); }); });
             }
         });
     })();
@@ -519,7 +539,7 @@ Promise.all([
             const k = roadKeyOf(feature.properties);
             if (k) (cvRoadLayers[k] || (cvRoadLayers[k] = [])).push(layer);
             const group = () => (k && cvRoadLayers[k]) ? cvRoadLayers[k] : [layer];
-            layer.bindTooltip(roadLabel(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
+            layer.bindTooltip(roadTooltip(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
             layer.on('click', function(e) {
                 L.DomEvent.stopPropagation(e);
                 highlightRoad(group(), cvLayer);
