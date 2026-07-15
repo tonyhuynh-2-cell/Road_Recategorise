@@ -119,7 +119,9 @@ function showRoadDetail(p, source) {
         ? (aadtPass === true && hvPass === true ? true : (aadtPass === false || hvPass === false ? false : null))
         : null;
     const roadTrainPass = nh.roadtrain === true ? true : nh.roadtrain === false ? false : null;
-    const twoStatePass = rx.two_state === true ? true : rx.two_state === false ? false : null;
+    const twoStatePass = (c && c.opt && c.opt.two_state === true) ? true
+        : (c && c.opt && c.opt.two_state === false) ? false
+            : rx.two_state === true ? true : rx.two_state === false ? false : null;
     // Clickable criterion shortcuts (own-criteria view): each non-passing criterion becomes a chip
     // that scrolls to its row below (scrollToCriterion, utils.js). Own-criteria only — under a
     // cross-test the cards re-render against the target category, so the anchors don't apply.
@@ -309,8 +311,8 @@ function showRoadDetail(p, source) {
         'R-03: On the road train network',
         nh.roadtrain === true ? 'NHVR Road Train (32m) approved route' : nh.roadtrain === false ? 'Not on the NHVR road train network' : 'NHVR status unavailable', 'crit-opt-roadtrain');
     // Links two State Roads — real geometry topology (a Regional road that joins two State Roads).
-    const twoStateRow = critItem(rx.two_state === true ? true : rx.two_state === false ? false : null,
-        'Links two State Roads', rx.two_state === true ? 'Both ends meet a State Road' : rx.two_state === false ? 'Does not link two State Roads' : 'Not assessed', 'crit-opt-two-state');
+    const twoStateRow = critItem(twoStatePass,
+        'Links two State Roads', twoStatePass === true ? 'Both ends meet a State Road' : twoStatePass === false ? 'Does not link two State Roads' : 'Not assessed', 'crit-opt-two-state');
     if (xtMode === 'natsig') {
         // Nat. Sig. mandatory block (mirrors the NLTN detail): S-06 PBS 2B is only computed for
         // NLTN determination routes, so for an overlay road it is honestly "not assessed".

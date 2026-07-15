@@ -91,12 +91,13 @@ function xverdict(optMet, mandPass) { return !mandPass ? 'red' : optMet >= 2 ? '
 
 function buildXtest() {
     if (window.XTEST) return window.XTEST;
-    const X = {}, crit = window.NSW_CRIT || {}, nhvr = window.NHVR || {};
+    const X = {}, crit = window.NSW_CRIT || {}, nhvr = window.NHVR || {}, roadExt = window.ROAD_EXT || {};
     const countOpt = (c, keys) => keys.reduce((n, key) => n + (c.opt && c.opt[key] === true ? 1 : 0), 0);
     for (const k in crit) {
         const c = crit[k]; if (!c || !c.opt) continue;
         const asStateOptMet = countOpt(c, ['centres', 'dest', 'ldr', 'traffic']);
-        const asRegionalOptMet = countOpt(c, ['centres', 'dest', 'hv']);
+        const twoStateOpt = c.area !== 'urban' && ((c.opt && c.opt.two_state === true) || (roadExt[k] && roadExt[k].two_state === true));
+        const asRegionalOptMet = countOpt(c, ['centres', 'dest', 'hv']) + (twoStateOpt ? 1 : 0);
         const optMet = c.cls === 'Regional' ? asRegionalOptMet : asStateOptMet;
         const pbs1 = !!(c.mand && c.mand.pbs1 === true);        // PBS-1 access (State mandatory gate)
         const bd = !!(nhvr[k] && nhvr[k].bdouble19 === true);   // 19m B-double access (Regional gate)
