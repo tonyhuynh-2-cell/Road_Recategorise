@@ -224,8 +224,7 @@ function refreshFlagged() {
 function showFlagged() {
     if (typeof cvLayer !== 'undefined' && cvLayer) map.removeLayer(cvLayer);
     applyLegend();   // adds + restyles nswLayer (one setStyle pass — the standard tab-switch cost)
-    const b = flaggedBounds();
-    if (b) map.fitBounds(b.pad(0.12), { maxZoom: 14 });   // frame the pins on entry; skip when empty
+    map.setView([-32.0, 149.5], 6);   // reset to default NSW-wide view
     mapContext = 'flagged';
 }
 
