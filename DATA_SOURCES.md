@@ -52,6 +52,24 @@ tagged `admin_class` = **S**tate / **R**egional (Local roads are filtered out).
 - Underlying service (per `data_requirements.md`): NSW Spatial Portal
   `NSW_Transport_Theme/FeatureServer` — RoadSegment / RoadNameExtent layers, field
   `functionhierarchy`.
+- **Gazetted-class corrections (July 2026):** every numbered road was cross-checked
+  against the **TfNSW Schedule of Classified Roads and Unclassified Regional Roads,
+  Version 18 (March 2026, SF2013/159234)** — the legal record of each road's
+  administrative category. Ten roads carried segments mis-classed in the extract
+  (8 single stray segments, e.g. one "Regional" segment on the Hume; 25 Regional
+  segments on the Pacific; and two whole roads, Iluka Rd `0007731` and Old Pacific
+  Hwy Taree `0007776`, classed State where the 7000 series is Regional by
+  definition). Corrected by `dashboard/apply_schedule_fixes.py` (dry-run/--apply,
+  `*.preSchedFix.bak` backups); the two re-classed roads' verdicts were re-earned
+  under the Regional rule (Iluka Rd fails the 19m B-double gate → red).
+- **Known source gaps:** the extract is missing stretches of a few roads the
+  Schedule gazettes as continuous — MR241 Gunning–Boorowa–Young–Temora (~41 km),
+  Old Northern Rd MR160 (~3.5 km), Olympic Hwy MR78 (~2.6 km), Mitchell Hwy HW7
+  (~2.5 km), and RR7784's Frome St leg in Moree (~0.8 km, Jones Ave → Newell Hwy —
+  the extract carries only the Edward St + Jones Ave legs). The live NSW Spatial services expose no gazetted road number, so these
+  cannot be re-fetched authoritatively; the drawn breaks reflect the source data.
+  (Roads the Schedule itself describes in discontinuous sections — e.g. Mid Western,
+  Snowy Mountains, Sturt at Narrandera — and freeway interleaves are NOT gaps.)
 
 **Route shields (A / B / D / M numbers)** — `nsw_refs.json`, `cv_refs.json`, with
 manual fixes in `ref_overrides.json`. Sourced from an OpenStreetMap route join.

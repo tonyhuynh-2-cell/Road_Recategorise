@@ -33,16 +33,27 @@ function setOrangeSubFilter(value) {
 // its category verdict; roads outside the active lens are hidden. The 'nsr' (Nationally Significant)
 // lens hides the road overlay entirely — its subject is the NLTN network layer (see nltnFeatureStyle).
 function nswInView(p) {
-    // The CV tab is the Overview, geographically focused on the Clarence Valley LGA (+ its outline).
-    // The 'clip' toggle swaps the full road overlay for a copy clipped to the LGA polygon (so nothing
-    // leaks past the outline) — handled by the layer swap in applyLegend, not here.
-    // CV and Sydney tabs show the full State + Regional network (they add a region outline on top).
-    if (currentTab === 'cv' || currentTab === 'sydney') return p.admin_class === 'S' || p.admin_class === 'R';
+    // The CV / Sydney tabs are an LGA FOCUS, not a lens: the category dropdown (nswView) keeps
+    // filtering the roads while the LGA supplies the frame, the outline and the region stats — the
+    // two dropdowns are orthogonal. The 'clip' toggle swaps the full road overlay for a copy clipped
+    // to the LGA polygon (handled by the layer swap in applyLegend, not here); the clipped copy
+    // styles through this same function, so the lens filter applies to it too.
+    if (currentTab === 'cv' || currentTab === 'sydney') {
+        if (nswView === 'state') return p.admin_class === 'S' && !p._nsr;
+        if (nswView === 'regional') return p.admin_class === 'R';
+        // Nat. Significant / Local lenses: their subjects are OTHER layers (the NLTN network layer /
+        // the council-road machinery on the Local tab) — the S/R overlay hides (see applyLegend).
+        if (nswView === 'nsr' || nswView === 'local') return false;
+        return p.admin_class === 'S' || p.admin_class === 'R';   // Overview + Fresh: every candidate
+    }
     // Flagged tab (and a Road Detail opened from it): ONLY the user-pinned roads — a pure UI filter
     // over the same overlay. Verdicts, criteria and every other tab's counts are untouched (flagged.js).
     if (inFlaggedScope()) return (p.admin_class === 'S' || p.admin_class === 'R') && isRoadFlagged(roadKeyOf(p));
     // Local tab shows ONLY the green council roads — the S/R overlay is removed entirely (see applyLegend).
     if (currentTab === 'local') return false;
+    // Fresh assessment: EVERY State + Regional road is a candidate — current class only decides
+    // membership of the overlay, never the colour (that comes from buildFresh, see nswStyle).
+    if (nswView === 'fresh') return p.admin_class === 'S' || p.admin_class === 'R';
     // Overview: show EVERY State + Regional road. Nationally significant routes get the green/orange
     // NLTN network drawn ON TOP (see applyLegend), so M5 etc. read as nationally significant — WITHOUT
     // hiding any road. (Hiding by _nsr deleted State roads the drawn NLTN layer doesn't cover, e.g. A44
@@ -68,6 +79,18 @@ function nswStyle(feature) {
     // setStyle() MERGES options, so `stroke` must be set explicitly in BOTH branches — otherwise a
     // road hidden in one lens (stroke:false) keeps stroke:false when it returns to view and vanishes.
     if (!nswInView(p)) return HIDDEN_STYLE;   // hidden in this lens
+    // Fresh assessment lens: colour by the BLANK-SLATE category (buildFresh) — the road's current
+    // class is ignored. Solid = meets that category's criteria outright; dashed = provisional (gate
+    // passed, 1 of 2 optional). Category legend rows toggle whole bins. Applies inside an LGA focus
+    // too (CV / Sydney keep the lens, per nswInView above); only the Flagged view overrides it (the
+    // ⚑ pins keep verdict colours). A Road Detail opened FROM the fresh lens keeps the fresh colours.
+    if (nswView === 'fresh' && !inFlaggedScope()) {
+        const f = buildFresh()[roadKeyOf(p)];
+        if (!f || !legendToggles[f.cat]) return HIDDEN_STYLE;
+        return { stroke: true, color: FRESH_META[f.cat].color, weight: p._w || 2,
+                 opacity: f.tier === 'likely' ? 0.9 : 1, lineCap: 'round', lineJoin: 'round',
+                 dashArray: f.tier === 'likely' ? '6 5' : null };
+    }
     // Every road grades by its own category criteria (State / Regional). National significance is a
     // property of the NLTN network (its own lens + green layer), not a re-grade of the road overlay.
     let v = p._roadStatus || p.status;
@@ -148,9 +171,45 @@ function buildXtest() {
         // the data, never forced.
         const natMet = (c.natOptMet != null) ? c.natOptMet
             : (c.natCrit ? Object.keys(c.natCrit).reduce((n, key) => n + (c.natCrit[key] === true ? 1 : 0), 0) : 0);
-        const asNat = c.nat || (natMet >= 2 ? 'green' : natMet === 1 ? 'orange' : 'red');
-        X[k] = { cls: c.cls, optMet: optMet, asState: xverdict(asStateOptMet, pbs1), asReg: xverdict(asRegionalOptMet, bd), asNat: asNat, real: c.verdict };
+        // S-06 mandatory gate: PBS Level 2B access, rolled up from the road's segments (ANY segment
+        // on the NHVR PBS 2B approved network — the same rollup rule the pipeline uses for pbs1).
+        // A road meeting ≥2 national criteria but failing the gate is NOT nationally significant —
+        // red, exactly like the PBS-1 (State) and 19m B-double (Regional) gates. Earned, not forced.
+        const pbs2b = !!(typeof NSW_AGG !== 'undefined' && NSW_AGG[k] && NSW_AGG[k].has_pbs2b);
+        const asNat = !pbs2b ? 'red' : (c.nat || (natMet >= 2 ? 'green' : natMet === 1 ? 'orange' : 'red'));
+        X[k] = { cls: c.cls, optMet: optMet, asState: xverdict(asStateOptMet, pbs1), asReg: xverdict(asRegionalOptMet, bd), asNat: asNat, natMet: natMet, natGate: pbs2b, real: c.verdict };
     }
     window.XTEST = X;
     return X;
+}
+
+// --- Fresh assessment (blank-slate re-binning) ---
+// Ignore each road's current administrative class entirely and ask: which category does the DATA
+// earn? Waterfall, highest category first, everything from already-earned criteria (buildXtest +
+// the precomputed national grades in nsw_criteria.json):
+//   Nationally Significant — passes the PBS Level 2B gate (S-06, mandatory) + meets >=2 national
+//     criteria (asNat green: NLTN S-01, metro/urban centres S-02·S-03, port/airport/intermodal
+//     S-04·S-05);
+//   State    — passes the PBS Level 1 gate + >=2 shared optional criteria (asState green);
+//   Regional — passes the 19m B-double gate + >=2 optional (asReg green);
+//   likely tier — no green anywhere but a gate passed with exactly 1 optional: prefer the LOWER
+//     category (asReg orange), falling back to asState orange for PBS-1 roads without B-double
+//     access. Drawn dashed — provisional, could confirm with traffic data;
+//   Local    — earns nothing above. Verdicts earned from data, never forced.
+function buildFresh() {
+    if (window.FRESH) return window.FRESH;
+    const F = {}, X = buildXtest();
+    for (const k in X) {
+        const x = X[k];
+        let cat, tier = 'meets';
+        if (x.asNat === 'green') cat = 'fnat';
+        else if (x.asState === 'green') cat = 'fstate';
+        else if (x.asReg === 'green') cat = 'freg';
+        else if (x.asReg === 'orange') { cat = 'freg'; tier = 'likely'; }
+        else if (x.asState === 'orange') { cat = 'fstate'; tier = 'likely'; }
+        else cat = 'flocal';
+        F[k] = { cat: cat, tier: tier };
+    }
+    window.FRESH = F;
+    return F;
 }
