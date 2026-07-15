@@ -122,7 +122,7 @@
         /* KPI grid */
         .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
         .stat-grid .stat-card { margin-bottom: 0; padding: 13.5px 12.5px; }
-        .stat-grid .stat-card h3 { font-size: 9.5px; margin-bottom: 9px; letter-spacing: .04em; }
+        .stat-grid .stat-card h3 { font-size: 9.5px; margin-bottom: 9px; letter-spacing: .04em; min-height: 2.6em; }
         .stat-grid .stat-value { font-size: 23px; }
         .stat-grid .stat-sub { font-size: 10.5px; margin-top: 6px; line-height: 1.35; }
 
@@ -819,7 +819,7 @@
         .flag-row-ico { flex: none; display: inline-flex; align-items: center; }
         /* The flag/unflag toggle in the Road Detail panel — neutral chrome; the red flag icon +
            label carry the state (unflagged: outline + "Flag road" · flagged: solid + "Unflag"). */
-        .flag-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 12px;
+        .flag-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
             border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink-soft);
             font: 500 12px var(--sans); cursor: pointer; transition: all .15s; }
         .flag-btn:hover { border-color: var(--red); color: var(--ink); }

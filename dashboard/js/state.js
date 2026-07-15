@@ -280,6 +280,8 @@ function clearSelectedRoad() {
 
 function deselect() {
     clearSelectedRoad();
+    // Return to the regular sidebar stats instead of showing the empty detail placeholder
+    if (currentTab === 'detail') { backFromDetail(); return; }
     const c = document.getElementById('detail-content'); if (c) c.style.display = 'none';
     const e = document.getElementById('detail-empty'); if (e) e.style.display = '';
 }

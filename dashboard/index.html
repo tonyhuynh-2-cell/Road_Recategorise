@@ -80,26 +80,32 @@
             <!-- Overview / Nat. Sig. / State / Regional / Local share ONE dropdown lens control.
                  It carries .tab-btn so switchTab's active-class sweep treats it like the buttons it
                  replaced; syncLensSelect (panels.js) re-syncs its value + active look per switch. -->
-            <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:4px; display:block;">Category</label>
-            <select id="lens-select" class="tab-btn tab-select tab-g1 active" aria-label="Network view"
-                    onchange="switchTab(this.value)">
-                <option value="overview" selected>Overview</option>
-                <option value="nsr">Nat. Sig.</option>
-                <option value="state">State</option>
-                <option value="regional">Regional</option>
-                <option value="local">Local</option>
-            </select>
-            <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:10px 0 4px; display:block;">LGA</label>
-            <div class="tab-row" style="gap:8px;">
-                <select id="lga-select" class="tab-btn tab-select tab-g3" aria-label="LGA view"
-                        onchange="setLGA(this.value)">
-                    <option value="" selected>All NSW</option>
-                    <option value="sydney">Sydney</option>
-                    <option value="cv">Clarence Valley</option>
-                </select>
-                <!-- ⚑ Flagged roads — rightmost in the row; red (tab-g2 family + its own tab-flag
-                     tint/lift/pulse styling, see the Flagged CSS section) rather than the row's teal -->
-                <button class="tab-btn tab-g2 tab-flag" onclick="switchTab('flagged')">Flagged roads</button>
+            <div style="display:flex; gap:12px; align-items:flex-start;">
+                <div style="flex:1;">
+                    <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:4px; padding-left:12px; display:block; text-align:left;">Category</label>
+                    <select id="lens-select" class="tab-btn tab-select tab-g1 active" aria-label="Network view"
+                            onchange="switchTab(this.value)">
+                        <option value="overview" selected>Overview</option>
+                        <option value="nsr">Nat. Sig.</option>
+                        <option value="state">State</option>
+                        <option value="regional">Regional</option>
+                        <option value="local">Local</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:4px; padding-left:12px; display:block; text-align:left;">LGA</label>
+                    <select id="lga-select" class="tab-btn tab-select tab-g3" aria-label="LGA view"
+                            onchange="setLGA(this.value)">
+                        <option value="" selected>All NSW</option>
+                        <option value="sydney">Sydney</option>
+                        <option value="cv">Clarence Valley</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top:8px;">
+                <!-- ⚑ Flagged roads — red (tab-g2 family + its own tab-flag
+                     tint/lift/pulse styling, see the Flagged CSS section) -->
+                <button class="tab-btn tab-g2 tab-flag" style="width:100%;" onclick="switchTab('flagged')">Flagged roads</button>
             </div>
         </div>
 
@@ -345,10 +351,12 @@
             </div>
             <div id="detail-content" style="display:none;">
                 <button class="detail-back" onclick="backFromDetail()">← Back</button>
-                <div class="stat-card" style="position:relative;">
-                    <h3>Road information</h3>
-                    <!-- ⚑ flag/pin toggle — positioned top-right of the card -->
-                    <div id="detail-flag-wrap" style="position:absolute; top:12px; right:14px;"></div>
+                <div class="stat-card">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:11px;">
+                        <h3 style="margin-bottom:0;">Road information</h3>
+                        <!-- ⚑ flag/pin toggle — inline with the heading -->
+                        <div id="detail-flag-wrap"></div>
+                    </div>
                     <div id="detail-road-name" style="font-size:1.25rem; font-weight:600; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em;"></div>
                     <div id="detail-road-number" style="font-size:0.78rem; color:var(--faint); margin-bottom:5px;"></div>
                     <div id="detail-admin-class" style="font-size:0.85rem; color:var(--ink-soft); margin-bottom:10px;"></div>
