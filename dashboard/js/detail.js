@@ -61,7 +61,9 @@ function showRoadDetail(p, source) {
     showConnections({ centres: evCent, hospitals: evHosps, dests: evDests, employment: evEmploy });   // ring/outline + label on the map
 
     document.getElementById('detail-road-name').innerHTML = roadLabel(p);
-    document.getElementById('detail-road-number').textContent = isHighSpeed(p) ? 'Motorway / freeway' : '';
+    const roadId = (p.road_number && String(p.road_number).trim()) ? String(p.road_number).trim() : '';
+    const hwLabel = isHighSpeed(p) ? 'Motorway / freeway' : '';
+    document.getElementById('detail-road-number').textContent = roadId ? ('Road ID: ' + roadId + (hwLabel ? '  ·  ' + hwLabel : '')) : hwLabel;
     const isState = p.admin_class === 'S';
     const zone = (source === 'nsw' && window.ZONE) ? window.ZONE[roadKeyOf(p)] : null;
     const zoneLabel = { urban: 'Urban', regional: 'Regional', remote: 'Remote (west of Newell Hwy)' }[zone];
