@@ -105,7 +105,7 @@
             <div style="margin-top:8px;">
                 <!-- ⚑ Flagged roads — red (tab-g2 family + its own tab-flag
                      tint/lift/pulse styling, see the Flagged CSS section) -->
-                <button class="tab-btn tab-g2 tab-flag" style="width:100%;" onclick="switchTab('flagged')">Flagged roads</button>
+                <button class="tab-btn tab-g2 tab-flag" style="width:100%;" onclick="switchTab(currentTab==='flagged' ? (document.getElementById('lens-select').value || 'overview') : 'flagged')">Flagged roads</button>
             </div>
         </div>
 
