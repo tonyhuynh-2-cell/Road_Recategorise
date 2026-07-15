@@ -1,6 +1,6 @@
 // trace.js — live learning overlay. Prints the code path behind user actions.
 
-let CODE_TRACE_PAUSED = false;
+let CODE_TRACE_PAUSED = true;   // start paused — resumes when the user expands the bubble
 const CODE_TRACE_POS_KEY = 'codeTracePosition';
 
 function _traceEsc(s) {
@@ -47,6 +47,27 @@ function toggleCodeTrace() {
         panel.classList.toggle('ct-collapsed');
         _placeTracePanel(panel.offsetLeft, panel.offsetTop, true);
     }
+}
+
+// Bubble mode: the panel starts as a small pill. Clicking it expands to the full trace panel.
+// Trace stays PAUSED until the user explicitly hits Resume.
+function expandTraceBubble() {
+    const panel = _tracePanel();
+    if (!panel || !panel.classList.contains('ct-bubble')) return;
+    panel.classList.remove('ct-bubble');
+}
+
+function collapseTraceBubble() {
+    const panel = _tracePanel();
+    if (!panel) return;
+    // If already in bubble mode, just expand it
+    if (panel.classList.contains('ct-bubble')) {
+        expandTraceBubble();
+        return;
+    }
+    // Otherwise collapse to bubble and pause
+    panel.classList.add('ct-bubble');
+    CODE_TRACE_PAUSED = true;
 }
 
 function clearCodeTrace() {
@@ -100,6 +121,7 @@ function enableTraceDrag() {
     const head = panel && panel.querySelector('.ct-head');
     if (!panel || !head || !window.PointerEvent) return;
     let drag = null;
+    let didDrag = false;   // true if pointer moved during this press — suppresses the expand click
     head.addEventListener('pointerdown', function (ev) {
         if (ev.button !== 0 || ev.target.closest('.ct-actions')) return;
         const pr = panel.parentElement.getBoundingClientRect();
@@ -107,12 +129,14 @@ function enableTraceDrag() {
             dx: ev.clientX - pr.left - panel.offsetLeft,
             dy: ev.clientY - pr.top - panel.offsetTop
         };
+        didDrag = false;
         panel.classList.add('ct-dragging');
         head.setPointerCapture(ev.pointerId);
         ev.preventDefault();
     });
     head.addEventListener('pointermove', function (ev) {
         if (!drag) return;
+        didDrag = true;
         const pr = panel.parentElement.getBoundingClientRect();
         _placeTracePanel(ev.clientX - pr.left - drag.dx, ev.clientY - pr.top - drag.dy, false);
     });
@@ -126,18 +150,22 @@ function enableTraceDrag() {
     };
     head.addEventListener('pointerup', finish);
     head.addEventListener('pointercancel', finish);
+    // Click on the panel (not a drag) expands the bubble
+    panel.addEventListener('click', function (ev) {
+        if (didDrag) { didDrag = false; return; }   // was a drag, not a click — ignore
+        if (!panel.classList.contains('ct-bubble')) return;   // already expanded
+        if (ev.target.closest('.ct-actions')) return;   // action button handles itself
+        expandTraceBubble();
+    });
     window.addEventListener('resize', function () {
         _placeTracePanel(panel.offsetLeft, panel.offsetTop, true);
     });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    const panel = _tracePanel();
+    // Start in bubble mode (paused + collapsed as a small pill)
+    if (panel) panel.classList.add('ct-bubble');
     _restoreTracePosition();
     enableTraceDrag();
-    traceCode(
-        'Trace ready',
-        'This panel will print the key JavaScript path whenever you use the dashboard. Drag its header to move it away from the search box.',
-        "traceCode('Action name', 'Plain-English explanation', 'small code snippet');",
-        'Tip: use Pause/Clear/Collapse if the feed gets busy.'
-    );
 });

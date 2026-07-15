@@ -205,6 +205,13 @@
         .ct-entry code { color: #f5f5f4; font: 500 11px/1.45 var(--mono); white-space: pre; letter-spacing: 0; }
         .code-trace.ct-collapsed { max-height: 43px; }
         .code-trace.ct-collapsed .ct-feed { display: none; }
+        /* Bubble mode — small pill that expands to the full panel on click */
+        .code-trace.ct-bubble { width: auto; max-width: none; max-height: none; border-radius: 22px;
+            padding: 0; cursor: pointer; transition: width .3s ease, border-radius .3s ease, box-shadow .3s ease; }
+        .code-trace.ct-bubble .ct-head { padding: 8px 14px; border-bottom: none; cursor: pointer; }
+        .code-trace.ct-bubble .ct-head > div:first-child span { display: none; }
+        .code-trace.ct-bubble .ct-actions { display: none; }
+        .code-trace.ct-bubble .ct-feed { display: none; }
         @media (max-width: 920px) {
             .code-trace { left: 8px; top: 60px; width: calc(100% - 16px); max-height: 38vh; }
         }
