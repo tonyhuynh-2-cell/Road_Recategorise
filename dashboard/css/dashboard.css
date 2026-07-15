@@ -166,6 +166,13 @@
         .map-legend .legend-item { margin-bottom: 8px; font-size: 12px; }
         .map-legend .legend-item:last-child { margin-bottom: 0; }
         @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
+        /* Orange sub-filter — "Why orange?" button group inside the floating legend */
+        .osf-group { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 4px 0 10px 33px; }
+        .osf-label { font: 600 9.5px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-right: 2px; }
+        .osf-btn { border: 1px solid var(--line); background: var(--bg-soft); color: var(--ink-soft);
+            border-radius: 6px; padding: 3px 8px; font: 500 10.5px var(--sans); cursor: pointer; transition: all .12s ease; }
+        .osf-btn:hover { border-color: #f59e0b; color: var(--ink); }
+        .osf-btn.osf-active { background: #f59e0b; border-color: #f59e0b; color: #fff; font-weight: 600; }
         /* NSW spotlight (init.js): the mask + border outline. Light theme uses the layer's own white
            wash; dark theme swaps to a dark wash (the tile pane is inverted, so a white wash would glare)
            and a lighter border. CSS overrides the SVG presentation attributes Leaflet sets. */

@@ -231,6 +231,22 @@ function hiliteLegendHTML() {
     return h;
 }
 
+// Orange sub-filter legend row — shows a "Why orange?" expandable group of buttons that
+// highlight/dim orange roads by which criterion they pass. Only shown when orange is toggled on.
+function orangeSubLegendHTML() {
+    if (!legendToggles.orange) return '';
+    const btn = (val, label) => {
+        const active = orangeSubFilter === val ? ' osf-active' : '';
+        return '<button class="osf-btn' + active + '" onclick="event.stopPropagation();setOrangeSubFilter(\'' + val + '\')">' + label + '</button>';
+    };
+    return '<div class="osf-group">' +
+        '<span class="osf-label">Why orange?</span>' +
+        btn('centres', 'Connects centres') +
+        btn('facilities', 'Connects facilities') +
+        btn('other', 'Other (HV / topology)') +
+        '</div>';
+}
+
 // The single floating legend (top-right of the map). Rebuilt for the current view: verdict colours +
 // route/town rows + the tab-specific rows (CV boundary/clip, Nat. Significant proposed note) + the
 // shared Highlights block. All rows are data-legend-key toggles handled by toggleLegendItem.
@@ -247,6 +263,7 @@ function renderMapLegend() {
     if (currentTab === 'cv') {
         h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
         h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
+        h += orangeSubLegendHTML();
         h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town centres / POIs');
@@ -255,6 +272,7 @@ function renderMapLegend() {
     } else if (currentTab === 'sydney') {
         h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
         h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
+        h += orangeSubLegendHTML();
         h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
@@ -279,12 +297,14 @@ function renderMapLegend() {
         const xm = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional) || false;
         const legendRows = (xm && XT_MODE_LEGEND[xm]) ? XT_MODE_LEGEND[xm] : m.legend;
         legendRows.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
+        h += orangeSubLegendHTML();
         if (nswView === 'nsr') h += liStatic('<div class="legend-color" style="background:#16a34a; opacity:0.45"></div>', 'Proposed corridor — not yet built (translucent)');
         else h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     } else {   // overview + detail
         h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
         h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
+        h += orangeSubLegendHTML();
         h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
