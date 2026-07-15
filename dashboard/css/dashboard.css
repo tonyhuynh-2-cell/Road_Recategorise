@@ -61,8 +61,9 @@
         .export-caret { font-size: 11px; transition: transform .18s ease; }
         .export-caret-btn[aria-expanded="true"] .export-caret { transform: rotate(180deg); }
 
-        .detail-back { background: none; border: none; color: var(--muted); font: 500 12px var(--sans); cursor: pointer; padding: 0; margin-bottom: 12px; display: inline-flex; align-items: center; gap: 5px; }
-        .detail-back:hover { color: var(--ink); }
+        .detail-back { background: none; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font: 500 12px/1.2 var(--sans); cursor: pointer; padding: 7px 11px; margin-bottom: 10px; margin-top: -8px; display: inline-flex; align-items: center; gap: 5px; transition: border-color .15s ease, color .15s ease, background .15s ease; }
+        .detail-back svg { flex-shrink: 0; width: 12px; height: 12px; }
+        .detail-back:hover { color: var(--ink); border-color: var(--ink-soft); background: var(--bg-soft); }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -839,12 +840,12 @@
            lift) → active darkens again and adds a white inset ring so selection still reads.
            These out-rank the shared tab-g2 outline rules by source order (rest/hover) and by the
            later .active rule below. Interaction-only motion: nothing animates at rest or on load. */
-        .tab-btn.tab-flag { transition: all .15s, transform .18s var(--ease-out);
-            background: #dc2626; border-color: #dc2626; color: #fff; }
-        .tab-btn.tab-flag:hover:not(.active) { background: #b91c1c; border-color: #b91c1c; color: #fff; transform: translateY(-1px); }
-        .tab-btn.tab-flag.active { background: #991b1b; border-color: #991b1b; color: #fff;
+        .tab-btn.tab-flag { transition: all .15s;
+            background: #991b1b; border-color: #991b1b; color: #fff; }
+        .tab-btn.tab-flag:hover:not(.active) { background: #7f1d1d; border-color: #7f1d1d; color: #fff; }
+        .tab-btn.tab-flag.active { background: #7f1d1d; border-color: #7f1d1d; color: #fff;
             box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.55), 0 1px 3px rgba(220,38,38,.4); }
-        .tabs .tab-btn.tab-flag:active { transform: scale(.97); }   /* press beats the hover lift */
+        .tabs .tab-btn.tab-flag:active { transform: scale(.97); }   /* press */
         @keyframes flagPulse { 0% { transform: scale(1); } 35% { transform: scale(1.07); } 70% { transform: scale(.98); } 100% { transform: scale(1); } }
         .tab-btn.flag-pulse { animation: flagPulse .5s var(--ease-out); }
         @media (prefers-reduced-motion: reduce) {
