@@ -93,10 +93,49 @@ function destGlyph(ftype) {
 }
 function connMarker(e, kind) {
     const glyph = kind === 'dest' ? destGlyph(e.ftype) : CONN_STYLE[kind].glyph;
+    const gap = kind === 'employ'
+        ? '<span class="conn-gap">' + (e.relation === 'intersects' ? 'intersects road' : formatGap(e.distance_m)) + '</span>'
+        : '';
     const html = '<span class="conn-pin">' + (glyph ? '<span class="conn-glyph">' + glyph + '</span>' : '') +
-        '<span class="conn-name">' + e.name + '</span></span>';
+        '<span class="conn-name">' + e.name + '</span>' + gap + '</span>';
     return L.marker([e.lat, e.lon], { pane: 'connPane', keyboard: false,
         icon: L.divIcon({ className: 'conn-icon conn-' + kind, html: html, iconSize: null, iconAnchor: [0, 0] }) });
+}
+function formatGap(distanceM) {
+    const metres = Math.max(0, Math.round(+distanceM || 0));
+    return metres < 1000 ? metres + ' m gap' : (metres / 1000).toFixed(1) + ' km gap';
+}
+function drawEmploymentZone(e) {
+    const outline = (window.EMPLOYMENT_OUTLINES || {})[e.zoneId];
+    const intersects = e.relation === 'intersects';
+    if (outline && outline.geometry) {
+        L.geoJSON(outline.geometry, {
+            pane: 'connPane',
+            renderer: connRenderer,
+            interactive: false,
+            style: {
+                color: intersects ? '#0f766e' : '#64748b',
+                weight: intersects ? 2.4 : 1.7,
+                opacity: 0.9,
+                dashArray: intersects ? null : '5 4',
+                fillColor: '#0f766e',
+                fillOpacity: intersects ? 0.16 : 0.05
+            }
+        }).addTo(connLayer);
+    }
+    if (!intersects && e.link && e.link.length === 2) {
+        L.polyline(e.link.map(function (point) { return [point[1], point[0]]; }), {
+            pane: 'connPane', renderer: connRenderer, color: '#475569', weight: 2,
+            opacity: 0.9, dashArray: '3 4', interactive: false
+        }).addTo(connLayer);
+        e.link.forEach(function (point) {
+            L.circleMarker([point[1], point[0]], {
+                pane: 'connPane', renderer: connRenderer, radius: 3,
+                color: '#475569', weight: 1.5, fillColor: '#fff', fillOpacity: 1,
+                interactive: false
+            }).addTo(connLayer);
+        });
+    }
 }
 // Draw a Significant Urban Area boundary (the "town perimeter") from its decimated rings. No fill
 // so the roads underneath stay visible; big metros (Sydney) render lighter so they don't dominate.
@@ -137,7 +176,8 @@ function showConnections(ev) {
         const items = kind === 'hosp' ? ev.hospitals : kind === 'dest' ? ev.dests : ev.employment;
         const s = CONN_STYLE[kind];
         (items || []).forEach(function (e) {
-            L.circle([e.lat, e.lon], { pane: 'connPane', renderer: connRenderer, radius: s.radius, color: s.color, weight: 1.5,
+            if (kind === 'employ') drawEmploymentZone(e);
+            else L.circle([e.lat, e.lon], { pane: 'connPane', renderer: connRenderer, radius: s.radius, color: s.color, weight: 1.5,
                 opacity: 0.65, fillColor: s.color, fillOpacity: 0.07, interactive: false }).addTo(connLayer);
             connMarker(e, kind).addTo(connLayer);
         });
@@ -154,6 +194,15 @@ function fitToSua(suaId) {
     if (!su) return;
     if (su.bbox) map.fitBounds([[su.bbox[1], su.bbox[0]], [su.bbox[3], su.bbox[2]]], { padding: [40, 40], maxZoom: 12 });
     else if (su.centroid) map.panTo([su.centroid[1], su.centroid[0]], { animate: true });
+}
+function fitToEmployment(zoneId, link) {
+    const outline = (window.EMPLOYMENT_OUTLINES || {})[zoneId];
+    const points = [];
+    if (outline && outline.bbox) {
+        points.push([outline.bbox[1], outline.bbox[0]], [outline.bbox[3], outline.bbox[2]]);
+    }
+    (link || []).forEach(function (point) { points.push([point[1], point[0]]); });
+    if (points.length) map.fitBounds(points, { padding: [48, 48], maxZoom: 16 });
 }
 
 // --- Town/city labelled pins: dedicated pane + one-shot boot fade-in ------------------------------

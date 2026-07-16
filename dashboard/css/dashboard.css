@@ -391,8 +391,14 @@
         .ev-dot.ev-hosp { background: #dc2626; }
         .ev-dot.ev-dest { background: #7c3aed; }
         .ev-dot.ev-employ { background: #0f766e; }
+        .ev-dot.ev-employ.is-nearby { background: #fff; border: 1.5px dashed #64748b; }
+        .ev-dot.ev-employ.is-qualifying { box-shadow: 0 0 0 2px #ccfbf1; }
         .ev-name { font-weight: 600; color: var(--ink); }
         .ev-meta { color: var(--faint); font-size: 10.5px; margin-left: auto; white-space: nowrap; padding-left: 8px; }
+        .ev-review-item { align-items: flex-start; padding: 2px 0; }
+        .ev-review-item .ev-meta { max-width: 54%; white-space: normal; text-align: right; }
+        .ev-copy { display: flex; min-width: 0; flex-direction: column; }
+        .ev-status { color: var(--muted); font-size: 10px; }
 
         /* Map highlights: rings + labels for the entities the selected road connects */
         .conn-icon { background: none !important; border: none !important; }
@@ -406,6 +412,7 @@
         .conn-dest .conn-glyph { background: #7c3aed; }
         .conn-employ .conn-glyph { background: #0f766e; }
         .conn-employ .conn-name { color: #0f766e; }
+        .conn-gap { color: #64748b; font-size: 9.5px; font-weight: 500; padding-left: 4px; }
         .conn-town .conn-name { color: #1d4ed8; }
         .conn-sua .conn-name { color: #1d4ed8; }
         .conn-sua .conn-pin { border-color: #1d4ed8; }

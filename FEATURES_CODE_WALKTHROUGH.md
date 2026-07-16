@@ -1209,31 +1209,51 @@ The dashboard only mentions separate components when qualifying source and town
 evidence exists but is split between those components. It does not present every
 small geometry break as a reason the road failed.
 
-## 32. Network-Backed State Facility Connectivity (S-08)
+## 32. Network-Backed State Facility Connectivity (S-08/S-11)
 
 What it is:
 
-S-08 tests whether a non-urban State road connects a qualifying major facility
-or commercial/industrial/employment area to another centre type. Nearby map
-items alone do not pass the criterion; both sides must be on the same connected
-NSW road-network component.
+S-08 tests non-urban State roads and S-11 applies the equivalent test to urban
+State roads. Each asks whether a qualifying major facility or employment area
+connects to another centre type. Nearby map items alone do not pass the criterion;
+both sides must be on the same connected NSW road-network component.
 
 What the code does:
 
 `rebuild_state_facility_optional.py` reuses the cached NSW Road Segment corridor,
 assigns ABS UCL/SUA centres and eligible facility evidence to each component, and
-passes S-08 when one component contains both. Employment land uses the guide's
-Remote 5 ha or Regional 15 ha threshold. The dashboard discloses that the separate
-economic-value threshold is unavailable. For road numbers containing several
-named sections, the detail panel selects evidence for the section that was clicked.
+passes the criterion when one component contains both. Employment land must
+intersect the selected road geometry and meet the guide's Remote 5 ha, Regional
+15 ha or Urban 40 ha threshold. The dashboard discloses that the separate
+economic-value threshold is unavailable.
+
+`rebuild_employment_centres.py` derives the actual zoning polygons from the NSW
+Planning EPI layer. `rebuild_road_units.py` measures each polygon boundary against
+the selected road. `state.js` renders the real outline; a non-intersecting polygon
+is dashed and linked to the road by the exact shortest measured gap. This keeps
+context visible without presenting a near miss as a connection.
+
+For road numbers divided into several assessment units, `rebuild_road_units.py`
+assigns every matched physical road segment to its nearest compatible unit and
+reruns the same component test for each unit. Urban road identifiers are rerun as
+well so S-11 uses the same evidence rules. The matching ABS centres and
+facilities are written into that unit's evidence. This avoids both failure modes:
+dropping centres that were absent from the older evidence file, and copying a
+road-wide pass to an unrelated section.
 
 Key files:
 
 - `dashboard/rebuild_state_facility_optional.py`
+- `dashboard/rebuild_employment_centres.py`
+- `dashboard/rebuild_road_units.py`
 - `dashboard/network_connectivity.py`
 - `dashboard/data/network_state_facility_comparison.json`
 - `dashboard/data/nsw_criteria.json`
+- `dashboard/data/nsw_unit_criteria.json`
+- `dashboard/data/nsw_unit_evidence.json`
+- `dashboard/data/employment_centre_outlines.json`
 - `dashboard/js/detail.js`
+- `dashboard/js/state.js`
 - `dashboard/js/grading.js`
 
 Snippet:
@@ -1251,6 +1271,31 @@ result = {
 }
 ```
 
+Employment areas first earn candidate status from their exact geometry:
+
+```python
+if item["relation"] == "intersects" and item["ha"] >= minimum_hectares:
+    candidates.append({**item, "facility_kind": "employment"})
+
+zone_point, road_point = nearest_points(zone_geometry, road_geometry)
+item["link"] = [to_lonlat(zone_point), to_lonlat(road_point)]
+```
+
+For split road identifiers, the unit rebuild uses that evaluator again:
+
+```python
+unit_matches = assign_network_segments(source_matches, units)
+
+for unit in units:
+    result = evaluate_state_dest(
+        unit_route,
+        unit_matches[unit["key"]],
+        unit_zone,
+        centres,
+        evidence,
+    )
+```
+
 ## 33. Connected Road Assessment Units
 
 What it is:
@@ -1266,9 +1311,11 @@ connects endpoints within 200 m, bridges modest compatible source gaps, and give
 each resulting corridor a stable unit key. Disconnected components under 350 m
 are marked as source fragments instead of becoming standalone assessments when a
 larger component exists for that identifier. Evidence is assigned to nearby
-units; split units are reassessed independently. Values that only exist at the
-old road-number level are left unavailable instead of being copied across
-corridors.
+units; split units are reassessed independently. S-08/S-11 is rerun from the
+cached physical road segments, ABS centres, exact employment polygons and
+facility evidence for every urban road identifier and every split non-urban
+identifier. Values that only exist at the old road-number level are left
+unavailable instead of being copied across corridors.
 
 `roadKeyOf()` prefers `road_unit`, so map highlighting, search, details, pins,
 cross-tests and exports all use the same identity. A click strongly highlights
