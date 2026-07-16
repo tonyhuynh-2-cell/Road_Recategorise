@@ -141,8 +141,33 @@ excluded.
   `POI/Census_Population/2021Census_G01_NSW_*.csv`.
 - **Significant Urban Areas** (`sua_outlines.json`) — **ABS SUA 2021**
   (`POI/SUA_NSW_2021.shp`); the perimeters used to say what a city road "connects".
+- **Suburbs & Localities (SAL 2021)** — **ABS ASGS Edition 3, Non-ABS Structures
+  GeoPackage** (`dashboard/Newfile/ASGS_Ed3_Non_ABS_Structures_GDA2020_updated_2025.gpkg`,
+  layer `SAL_2021_AUST_GDA2020`; ~1 GB, NOT in git — auto-extracted from the
+  sibling .zip), joined to `2021Census_G01_NSW_SAL.csv` populations. **Urban
+  centres re-score (July 2026):** S-10 / R-05 for urban roads is computed at
+  suburb granularity by `dashboard/rebuild_sal_urban_centres.py` — a qualifying
+  centre is a SAL with ≥7,000 people (the Major Town floor) the road runs
+  through, and the criterion needs **≥2 distinct** qualifying SALs. Previously
+  urban centres resolved to the whole Significant Urban Area, so every road
+  inside the metro saw ONE centre ("Sydney") and the connects-centres-to-each-
+  other test was undecidable there. Urban roads' `nsw_evidence.json` centres[]
+  lists the actual suburbs (kind `sal`).
 - **Major hospitals** — `POI/Major_Hospitals_NSW.geojson` (NSW Health / AIHW
   MyHospitals), tiered by beds: Urban 400+, Regional 100+, Remote 15+.
+- **State facility criterion S-08 / S-11 (July 2026 re-score):** the guide
+  wording is two-legged — the facility must connect **to other centre types**.
+  A qualifying facility (major hospital; Major Port / Major Intermodal /
+  **International** Airport — Regional Airports qualify for R-02 only;
+  qualifying commercial-industrial-employment centre) must share a connected
+  road component with a qualifying centre. Two sibling rebuilds own it:
+  **rural S-08** — `rebuild_state_facility_optional.py` (NSW Road Segment
+  network components, corridor-matched, coverage-gated); **urban S-11** —
+  `rebuild_state_facility_urban.py` (road-geometry components against the
+  SAL suburb centres evidence, `dest_method: sal_evidence_components`).
+  Results live in `stateOpt.dest*` (cross-tests) and drive `opt.dest` for
+  State roads. Previously the criterion passed on mere buffer proximity to a
+  hospital / port / airport, with no centre leg and no employment centres.
 - **Ports / airports / intermodals** —
   `POI/Key_Destinations_Ports_Intermodals_Airports.geojson` (known major-facility
   locations: Port Botany/Kembla/Newcastle, Moorebank/Enfield/Parkes, international &
