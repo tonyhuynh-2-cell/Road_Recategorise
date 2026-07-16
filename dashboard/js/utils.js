@@ -122,6 +122,9 @@ function popK(n) {
 function evMeta(e, kind) {
     if (kind === 'centre') {
         if (e.kind === 'sua') return 'Significant Urban Area · ' + popK(e.pop) + ' · within';
+        // ABS SAL suburbs (rebuild_sal_urban_centres.py): the road runs THROUGH the suburb,
+        // so a km distance would always read 0 — say what the relationship is instead.
+        if (e.kind === 'sal') return 'Suburb (SAL 2021) · ' + popK(e.pop) + ' · runs through';
         const tail = e.endpoint ? 'route terminus' : (e.km + ' km');
         return (e.type || 'Centre') + ' · ' + popK(e.pop) + ' · ' + tail;
     }

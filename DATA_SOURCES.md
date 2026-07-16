@@ -108,6 +108,18 @@ via `scratchpad/gen_evidence2.py`).
   `POI/Census_Population/2021Census_G01_NSW_*.csv`.
 - **Significant Urban Areas** (`sua_outlines.json`) — **ABS SUA 2021**
   (`POI/SUA_NSW_2021.shp`); the perimeters used to say what a city road "connects".
+- **Suburbs & Localities (SAL 2021)** — **ABS ASGS Edition 3, Non-ABS Structures
+  GeoPackage** (`dashboard/Newfile/ASGS_Ed3_Non_ABS_Structures_GDA2020_updated_2025.gpkg`,
+  layer `SAL_2021_AUST_GDA2020`; ~1 GB, NOT in git — auto-extracted from the
+  sibling .zip), joined to `2021Census_G01_NSW_SAL.csv` populations. **Urban
+  centres re-score (July 2026):** S-10 / R-05 for urban roads is computed at
+  suburb granularity by `dashboard/rebuild_sal_urban_centres.py` — a qualifying
+  centre is a SAL with ≥7,000 people (the Major Town floor) the road runs
+  through, and the criterion needs **≥2 distinct** qualifying SALs. Previously
+  urban centres resolved to the whole Significant Urban Area, so every road
+  inside the metro saw ONE centre ("Sydney") and the connects-centres-to-each-
+  other test was undecidable there. Urban roads' `nsw_evidence.json` centres[]
+  lists the actual suburbs (kind `sal`).
 - **Major hospitals** — `POI/Major_Hospitals_NSW.geojson` (NSW Health / AIHW
   MyHospitals), tiered by beds: Urban 400+, Regional 100+, Remote 15+.
 - **Ports / airports / intermodals** —

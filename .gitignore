@@ -30,3 +30,6 @@ Prompt/
 
 # Raw source shapefile (the derived dashboard/data/nltn_2020_road.geojson IS tracked)
 dashboard/data/nltn_2020_road/
+
+# ABS ASGS boundary bundles (~1.4 GB zips + extracted gpkg) - source data for rebuild_sal_urban_centres.py, far over GitHub limits
+dashboard/Newfile/
