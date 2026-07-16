@@ -273,19 +273,21 @@
         .criteria-modal.cm-split { border-left: 1px solid var(--line); }
 
         /* Criteria reference content styling */
-        .cref h2 { font: 600 14px var(--sans); color: var(--ink); margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+        .cref h2 { font: 700 16px var(--sans); color: var(--ink); margin: 30px 0 14px; padding-bottom: 10px; border-bottom: 2px solid #2563eb; }
         .cref h2:first-child { margin-top: 0; }
-        .cref h3 { font: 600 12px var(--sans); color: var(--ink-soft); margin: 16px 0 8px; }
-        .cref p { font: 400 12px/1.5 var(--sans); color: var(--muted); margin: 0 0 10px; }
-        .cref .cref-rule { font: 500 11.5px var(--sans); color: var(--ink-soft); margin: 14px 0 8px;
-            padding: 6px 10px; background: var(--bg-soft); border-radius: 6px; border-left: 3px solid #2563eb; }
-        .cref-table { width: 100%; border-collapse: collapse; font: 400 11.5px/1.45 var(--sans); margin-bottom: 14px; table-layout: fixed; }
-        .cref-table th { text-align: left; font-weight: 600; color: var(--ink-soft); padding: 7px 10px;
-            background: var(--bg-soft); border-bottom: 1px solid var(--line); font-size: 10.5px;
-            text-transform: uppercase; letter-spacing: .04em; word-wrap: break-word; }
-        .cref-table td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); color: var(--ink-soft); vertical-align: top; word-wrap: break-word; }
+        .cref h3 { font: 600 13.5px var(--sans); color: #1d4ed8; margin: 20px 0 10px; }
+        .cref p { font: 400 13px/1.55 var(--sans); color: var(--muted); margin: 0 0 12px; }
+        .cref .cref-rule { font: 600 12.5px var(--sans); color: #1e40af; margin: 18px 0 10px;
+            padding: 8px 12px; background: #eff6ff; border-radius: 7px; border-left: 4px solid #2563eb; }
+        .cref-table { width: 100%; border-collapse: collapse; font: 400 12.5px/1.5 var(--sans); margin-bottom: 18px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+        .cref-table th { text-align: left; font-weight: 700; color: #fff; padding: 9px 12px;
+            background: #44403c; border-bottom: 1px solid var(--line); font-size: 11px;
+            text-transform: uppercase; letter-spacing: .05em; }
+        .cref-table td { padding: 10px 12px; border-bottom: 1px solid var(--line-soft); color: var(--ink-soft); vertical-align: top; }
+        .cref-table tr:nth-child(even) td { background: #fafaf9; }
         .cref-table tr:last-child td { border-bottom: none; }
-        .cref-table td strong { color: var(--ink); font-weight: 600; }
+        .cref-table tr:hover td { background: #f0f9ff; }
+        .cref-table td strong { color: var(--ink); font-weight: 700; }
         /* No black focus box when a road / green line is clicked (canvas + SVG interactive layers). */
         .leaflet-container:focus,
         .leaflet-container *:focus,
