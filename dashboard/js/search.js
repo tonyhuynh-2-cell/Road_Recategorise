@@ -5,7 +5,7 @@
 // calls initRoadSearch() once NSW_AGG + window.NSW_ROAD_LAYERS exist).
 
 let ROAD_INDEX = [];     // [{key, num, name, ref, cls}]
-let _rsResults = [];     // result keys currently shown (for keyboard nav)
+let _rsResults = [];     // [{key,name}] results currently shown (for keyboard nav)
 let _rsActive = -1;      // active row index
 let _rsTabStarted = false; // Tab-cycle: has Tab advanced past the top result yet
 
@@ -16,7 +16,6 @@ function initRoadSearch() {
         const a = agg[key];
         if (!a || (a.admin_class !== 'S' && a.admin_class !== 'R')) return;
         const num = (a.road_number != null && String(a.road_number).trim()) ? String(a.road_number).trim() : '';
-        const ref = a.ref ? String(a.ref).trim() : '';
         // Index EVERY distinct name the road carries — a single road_number can span several named sections
         // (e.g. 0000090 = The Bucketts Way + Wallanbah Rd), so any of its names should find it. One entry per
         // name (all sharing the key); the dropdown de-dupes by key and shows the best-matching name.
@@ -24,8 +23,12 @@ function initRoadSearch() {
         const primaryName = (a.road_name && String(a.road_name).trim()) ? String(a.road_name).trim() : '';
         if (primaryName && names.indexOf(primaryName) === -1) names.unshift(primaryName);
         if (!names.length) names = [''];
-        if (!num && !ref && !names.some(function (n) { return n; })) return;
-        names.forEach(function (nm) { ROAD_INDEX.push({ key: key, num: num, name: nm, ref: ref, cls: a.admin_class, pri: nm === primaryName }); });
+        const hasRef = !!a.ref || Object.keys(a._nameRefs || {}).length > 0;
+        if (!num && !hasRef && !names.some(function (n) { return n; })) return;
+        names.forEach(function (nm) {
+            const nameRef = a._nameRefs && a._nameRefs[nm] ? a._nameRefs[nm] : a.ref;
+            ROAD_INDEX.push({ key: key, num: num, name: nm, ref: nameRef ? String(nameRef).trim() : '', cls: a.admin_class, pri: nm === primaryName });
+        });
     });
 }
 
@@ -64,7 +67,7 @@ function onRoadSearchInput(val) {
         seenKeys[e.key] = 1;
         top.push(scored[i]);
     }
-    _rsResults = top.map(function (x) { return x[1].key; });
+    _rsResults = top.map(function (x) { return { key: x[1].key, name: x[1].name, ref: x[1].ref }; });
     _rsActive = top.length ? 0 : -1;
     _rsTabStarted = false;   // new result list — Tab restarts from the top result
     box.classList.add('rs-open');
@@ -74,8 +77,12 @@ function onRoadSearchInput(val) {
         const label = roadLabel({ road_name: e.name, ref: e.ref, admin_class: e.cls });
         const meta = (e.num ? 'ID ' + e.num : 'no ID') + ' &middot; ' + (e.cls === 'S' ? 'State' : 'Regional');
         const key = e.key.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        const name = e.name.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        const ref = e.ref.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
         return '<div class="rs-item' + (i === 0 ? ' rs-on' : '') + '" data-key="' + key + '"' +
-            ' onmousedown="event.preventDefault(); selectRoadFromSearch(this.getAttribute(\'data-key\'))"' +
+            ' data-name="' + name + '"' +
+            ' data-ref="' + ref + '"' +
+            ' onmousedown="event.preventDefault(); selectRoadFromSearch(this.getAttribute(\'data-key\'), this.getAttribute(\'data-name\'), this.getAttribute(\'data-ref\'))"' +
             ' onmouseenter="rsSetActive(' + i + ')">' +
             '<div class="rs-name">' + label + '</div><div class="rs-meta">' + meta + '</div></div>';
     }).join('');
@@ -112,7 +119,10 @@ function onRoadSearchKey(ev) {
         const nm = item && item.querySelector('.rs-name');
         if (inp && nm) inp.value = nm.textContent;
     }
-    else if (ev.key === 'Enter') { ev.preventDefault(); if (_rsActive >= 0) selectRoadFromSearch(_rsResults[_rsActive]); }
+    else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        if (_rsActive >= 0) selectRoadFromSearch(_rsResults[_rsActive].key, _rsResults[_rsActive].name, _rsResults[_rsActive].ref);
+    }
 }
 function _rsScrollActive() {
     const el = document.querySelectorAll('#rs-results .rs-item')[_rsActive];
@@ -128,27 +138,31 @@ function clearRoadSearch() {
 }
 
 // Jump to a road: ensure it's shown in the current lens, highlight it, frame it, open Road Detail.
-function selectRoadFromSearch(key) {
+function selectRoadFromSearch(key, matchedName, matchedRef) {
     const agg = (typeof NSW_AGG !== 'undefined' && NSW_AGG) || {};
     const a = agg[key];
     if (!a) return;
+    const selected = Object.assign({}, a, {
+        ref: matchedRef || null,
+        road_name: matchedName || a.road_name
+    });
     if (typeof traceCode === 'function') traceCode(
-        'Search selected road: ' + roadName(a),
+        'Search selected road: ' + roadName(selected),
         'Road search jumps to the stored road group, highlights its map layers, frames the map, then opens the same road detail path as a click.',
         "function selectRoadFromSearch(key) {\n  const a = NSW_AGG[key];\n  if (!nswInView(a)) switchTab('overview');\n  const layers = window.NSW_ROAD_LAYERS[key];\n  highlightRoad(layers, nswLayer);\n  map.fitBounds(L.featureGroup(layers).getBounds());\n  showRoadDetail(a, 'nsw');\n}",
         'road key=' + key
     );
     hideRoadResults();
     const inp = document.getElementById('rs-input');
-    if (inp) { inp.value = roadName({ road_name: a.road_name, admin_class: a.admin_class }); inp.blur(); }
+    if (inp) { inp.value = roadName(selected); inp.blur(); }
     // If the road is hidden in the active lens, drop to Overview (shows all State + Regional roads).
     if (typeof nswInView === 'function' && !nswInView(a)) switchTab('overview');
     const layers = (window.NSW_ROAD_LAYERS || {})[key] || [];
     if (layers.length) {
-        highlightRoad(layers, nswLayer);
+        highlightRoad(layers, nswLayer, matchedName);
         try { map.fitBounds(L.featureGroup(layers).getBounds().pad(0.25), { maxZoom: 13 }); } catch (e) { /* no bounds */ }
     }
-    showRoadDetail(Object.assign({}, a, { ref: a.ref, road_name: a.road_name }), 'nsw');
+    showRoadDetail(selected, 'nsw');
 }
 
 // Close the dropdown when clicking outside the search box.

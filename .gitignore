@@ -20,6 +20,8 @@ dashboard/data/geopackages/
 
 # Editor / working backups
 *.bak
+__pycache__/
+*.py[cod]
 
 # Local prompt notes / working material
 Prompt/
