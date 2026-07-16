@@ -370,7 +370,7 @@
 
             <!-- Per-road criteria view: opens when a local road is clicked (list row or map). -->
             <div id="local-road-detail" hidden>
-                <button class="detail-back" onclick="closeLocalRoad()">← Back to local roads</button>
+                <button class="detail-back" onclick="closeLocalRoad()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg> Back to local roads</button>
                 <div class="stat-card">
                     <h3>Road information</h3>
                     <div id="lrd-name" style="font-size:1.25rem; font-weight:600; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em;"></div>
@@ -399,15 +399,15 @@
                 <p>Select any road segment on the map to view its criteria assessment.</p>
             </div>
             <div id="detail-content" style="display:none;">
-                <button class="detail-back" onclick="backFromDetail()">← Back</button>
+                <button class="detail-back" onclick="backFromDetail()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg> Back</button>
                 <div class="stat-card">
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:11px;">
                         <h3 style="margin-bottom:0;">Road information</h3>
                         <!-- ⚑ flag/pin toggle — inline with the heading -->
                         <div id="detail-flag-wrap"></div>
                     </div>
-                    <div id="detail-road-name" style="font-size:1.25rem; font-weight:600; color:var(--ink); margin-bottom:6px; letter-spacing:-.01em;"></div>
-                    <div id="detail-road-number" style="font-size:0.78rem; color:var(--faint); margin-bottom:5px;"></div>
+                    <div id="detail-road-name" style="font-size:1.25rem; font-weight:600; color:var(--ink); margin-bottom:4px; letter-spacing:-.01em;"></div>
+                    <div id="detail-road-number" style="font-size:0.8rem; color:var(--muted); margin-bottom:8px; font-family:var(--mono); letter-spacing:.02em;"></div>
                     <div id="detail-admin-class" style="font-size:0.85rem; color:var(--ink-soft); margin-bottom:10px;"></div>
                     <!-- Named-sections dropdown: every named road the gazetted number spans (detail.js fills;
                          hidden for single-name roads). Picking one re-titles the card + frames that stretch. -->
