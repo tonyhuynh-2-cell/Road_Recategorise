@@ -294,10 +294,10 @@ Promise.all([
                 // aggregate's backfilled name (421 roads carry some unnamed segments).
                 const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                     ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                // Highlight the SECTION the title names (the segments sharing its name) — the whole
-                // road only when the road carries a single/blank name.
-                const secSegs = group().filter(l => String(l.feature.properties.road_name || '').trim() === String(segName || '').trim());
-                highlightRoad(secSegs.length ? secSegs : group(), nswLayer);
+                // Highlight the WHOLE gazetted road (every segment sharing the road key) — the
+                // clicked segment only picks the TITLE. Section-level highlighting stays available
+                // through the Sections dropdown (selectRoadSection, detail.js), an explicit pick.
+                highlightRoad(group(), nswLayer);
                 const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                 if (typeof traceCode === 'function') traceCode(
                     'Road clicked: ' + roadName(agg),
@@ -399,11 +399,10 @@ Promise.all([
                     L.DomEvent.stopPropagation(e);
                     // Shift+click = export custom-selection pick (same branch as the main overlay).
                     if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
-                    // Same blank-segment guard + section-level highlight as the main overlay above.
+                    // Same blank-segment guard + whole-road highlight as the main overlay above.
                     const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                         ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                    const secSegs = group().filter(l => String(l.feature.properties.road_name || '').trim() === String(segName || '').trim());
-                    highlightRoad(secSegs.length ? secSegs : group(), cvClipLayer);
+                    highlightRoad(group(), cvClipLayer);
                     const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                     if (typeof traceCode === 'function') traceCode(
                         'Clipped CV road clicked: ' + roadName(agg),
