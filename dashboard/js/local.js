@@ -97,31 +97,37 @@ function styleLocalX(f) {
 // --- Local cross-tests (Regional / State), connectivity-only and INDICATIVE -------------------
 // Neither mandatory gate (19m B-double for Regional, PBS-1 for State) is published for council
 // roads, so both tests grade the connectivity criteria alone — flagged as indicative in the panel.
-// Regional test (unchanged rule): count distinct town/urban centres within ~1.2km of the road —
-// ≥2 → green (a Regional road connects ≥2 centres), 1 → orange, 0 → red.
-// State test: two State-level optional criteria from the same evidence base — (a) connects ≥2
-// STATE-TIER centres (Regional Cities / Major Towns from the towns dataset + Significant Urban
-// Areas — S-07/S-10's centre classes), (b) connects ≥1 major facility (the major hospitals /
-// ports / airports / intermodals / Major-tier employment centres named in the statewide
-// assessment evidence). ≥2 met → green, 1 → orange, 0 → red — the standard "must meet ≥2
-// optional" rule. Verdicts are earned from the data, never forced.
+// BOTH tests use the standard "must meet ≥2 optional" rule (the same rule the real criteria
+// engine applies to every State/Regional road):
+//   (a) connects ≥2 DISTINCT named town/urban centres within ~1.2 km (R-01/R-05 for the Regional
+//       test; S-07/S-10 with State-tier centres only for the State test). Centres are the towns
+//       dataset PLUS the SUA centroids, de-duplicated by name tokens — 'Grafton' the town and
+//       'Grafton' the Significant Urban Area are ONE centre, and a compound SUA ('Albury -
+//       Wodonga') never re-counts a town it already contains;
+//   (b) connects ≥1 major facility — hospital / port / airport / intermodal / Major-tier
+//       employment centre from the statewide assessment evidence (R-02/R-06 / S-08/S-11).
+// ≥2 met → green, 1 → orange, 0 → red. Verdicts are earned from the data, never forced.
 
-// Centre points for the Regional test = the ~170 major towns PLUS the SUA centroids. Built once.
+// NAMED centre points for the Regional test = every town PLUS the SUA centroids. Built once.
 function xtCentrePts() {
     if (window._XT_CENTRES) return window._XT_CENTRES;
-    const c = (window.NSW_TOWN_PTS || []).slice();
-    (window.SUA_OUTLINES || []).forEach(function (s) { if (s && s.centroid) c.push(s.centroid); });
-    window._XT_CENTRES = c;
-    return c;
+    const pts = [], names = [];
+    (window.NSW_TOWNS_NAMED || []).forEach(function (t) { pts.push(t.pt); names.push(t.name); });
+    (window.SUA_OUTLINES || []).forEach(function (s) { if (s && s.centroid) { pts.push(s.centroid); names.push(s.name || 'Urban area'); } });
+    window._XT_CENTRES = { pts: pts, names: names };
+    return window._XT_CENTRES;
 }
-// State-tier centre points: Regional Cities + Major Towns (init.js filters the towns dataset by
-// town_type) plus the Significant Urban Area centroids (major urban centres).
+// State-tier centre points: Regional Cities + Major Towns only, plus the Significant Urban Area
+// centroids (major urban centres) — S-07/S-10's centre classes.
 function xtStateCentrePts() {
     if (window._XT_CENTRES_STATE) return window._XT_CENTRES_STATE;
-    const c = (window.NSW_TOWN_PTS_MAJOR || []).slice();
-    (window.SUA_OUTLINES || []).forEach(function (s) { if (s && s.centroid) c.push(s.centroid); });
-    window._XT_CENTRES_STATE = c;
-    return c;
+    const pts = [], names = [];
+    (window.NSW_TOWNS_NAMED || []).forEach(function (t) {
+        if (t.type === 'Regional City' || t.type === 'Major Town') { pts.push(t.pt); names.push(t.name); }
+    });
+    (window.SUA_OUTLINES || []).forEach(function (s) { if (s && s.centroid) { pts.push(s.centroid); names.push(s.name || 'Urban area'); } });
+    window._XT_CENTRES_STATE = { pts: pts, names: names };
+    return window._XT_CENTRES_STATE;
 }
 // Major facilities for the State test: the union of every named hospital / port / airport /
 // intermodal / Major-tier employment centre in the statewide assessment evidence
@@ -169,21 +175,27 @@ function _nearPtIdx(geoms, pts, R) {
 
 // Grade one local ROAD (group of ways/parts) against a cross-test mode; cached per mode on the
 // group, cleared whenever a new suburb loads (buildLocalGroups resets the objects).
+// Both modes grade the SAME two-criteria ≥2-optional rule; only the centre tier differs.
 function gradeLocalGroup(g, mode) {
     if (g.v[mode]) return g.v[mode];
     const geoms = g.feats.map(function (f) { return f.geometry; });
-    let res;
-    if (mode === 'state') {
-        const nc = _nearPtIdx(geoms, xtStateCentrePts(), 1.2).length;
-        const fac = xtFacilityPts();
-        const fIdx = _nearPtIdx(geoms, fac.pts, 1.2);
-        const met = (nc >= 2 ? 1 : 0) + (fIdx.length ? 1 : 0);
-        res = { v: met >= 2 ? 'green' : met === 1 ? 'orange' : 'red', centres: nc, nFac: fIdx.length,
-                facNames: fIdx.slice(0, 4).map(function (i) { return fac.names[i]; }) };
-    } else {
-        const n = _nearPtIdx(geoms, xtCentrePts(), 1.2).length;
-        res = { v: n >= 2 ? 'green' : n === 1 ? 'orange' : 'red', centres: n };
-    }
+    const cen = mode === 'state' ? xtStateCentrePts() : xtCentrePts();
+    const cIdx = _nearPtIdx(geoms, cen.pts, 1.2);
+    // DISTINCT centres by name tokens: 'Grafton' the town + 'Grafton' the SUA centroid is one
+    // centre, and a compound SUA ('Albury - Wodonga') never re-counts a town it contains.
+    const seen = {}, centreNames = [];
+    cIdx.forEach(function (i) {
+        const toks = String(cen.names[i]).toLowerCase().split(/\s+[-–]\s+/);
+        if (toks.some(function (t) { return seen[t]; })) return;
+        toks.forEach(function (t) { seen[t] = 1; });
+        centreNames.push(cen.names[i]);
+    });
+    const fac = xtFacilityPts();
+    const fIdx = _nearPtIdx(geoms, fac.pts, 1.2);
+    const met = (centreNames.length >= 2 ? 1 : 0) + (fIdx.length ? 1 : 0);
+    const res = { v: met >= 2 ? 'green' : met === 1 ? 'orange' : 'red',
+                  centres: centreNames.length, centreNames: centreNames.slice(0, 4),
+                  nFac: fIdx.length, facNames: fIdx.slice(0, 4).map(function (i) { return fac.names[i]; }) };
     g.v[mode] = res;
     return res;
 }
@@ -651,11 +663,12 @@ function renderLocalRoadDetail(g) {
         set('lrd-verdict-title', 'Assessment — tested as Regional (indicative)');
         set('lrd-criteria-title', 'Criteria — Regional Road test');
         vEl.innerHTML = res.v === 'green' ? line(ICON.pass, '#16a34a', 'WOULD MEET REGIONAL')
-            : res.v === 'orange' ? line(ICON.maybe, '#d97706', 'MEETS 1 CENTRE — 1 OF 2')
+            : res.v === 'orange' ? line(ICON.maybe, '#d97706', 'MEETS 1 OF 2 REGIONAL CRITERIA')
             : line(ICON.fail, '#dc2626', 'WOULD NOT MEET REGIONAL');
-        rEl.textContent = res.centres + ' town / urban centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km — a Regional road connects ≥2. Indicative: the mandatory 19m B-double gate is not published for council roads.';
+        rEl.textContent = res.centres + ' distinct town / urban centre' + (res.centres === 1 ? '' : 's') + ' and ' + res.nFac + ' major facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — a Regional road needs ≥2 optional criteria met. Indicative: the mandatory 19m B-double gate is not published for council roads.';
         cEl.innerHTML =
-            critItem(res.centres >= 2, 'R-01·R-05: Connects ≥2 town / urban centres', res.centres + ' centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km of the road') +
+            critItem(res.centres >= 2, 'R-01·R-05: Connects ≥2 distinct town / urban centres', res.centres ? (res.centres + ' centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km — ' + res.centreNames.join('; ')) : 'None within ~1.2 km') +
+            critItem(res.nFac >= 1, 'R-02·R-06: Connects a key destination / facility (hospital / port / airport / intermodal / major employment)', res.nFac ? (res.nFac + ' within ~1.2 km — ' + res.facNames.join('; ')) : 'None within ~1.2 km') +
             critItem(null, 'R-04: 19m B-double access (mandatory gate)', 'Not published for council-managed roads — not assessed') +
             critItem(null, 'Traffic volume thresholds', 'No TfNSW count data for local roads — not assessed');
     } else {
@@ -667,7 +680,7 @@ function renderLocalRoadDetail(g) {
             : line(ICON.fail, '#dc2626', 'WOULD NOT MEET STATE');
         rEl.textContent = res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' and ' + res.nFac + ' major facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — a State road needs ≥2 optional criteria. Indicative: the mandatory PBS Level 1 gate is not published for council roads.';
         cEl.innerHTML =
-            critItem(res.centres >= 2, 'S-07·S-10: Connects ≥2 State-tier centres (Regional Cities / Major Towns / urban areas)', res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km') +
+            critItem(res.centres >= 2, 'S-07·S-10: Connects ≥2 State-tier centres (Regional Cities / Major Towns / urban areas)', res.centres ? (res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km — ' + res.centreNames.join('; ')) : 'None within ~1.2 km') +
             critItem(res.nFac >= 1, 'S-08·S-11: Connects a major hospital / port / airport / intermodal / employment centre', res.nFac ? (res.nFac + ' within ~1.2 km — ' + res.facNames.join('; ')) : 'None within ~1.2 km') +
             critItem(null, 'S-09: PBS Level 1 access (mandatory gate)', 'Not published for council-managed roads — not assessed') +
             critItem(null, 'Traffic volume thresholds', 'No TfNSW count data for local roads — not assessed');
@@ -726,15 +739,15 @@ function localExportRows() {
         const v = res ? res.v : null;
         return {
             'Road Name': g.name || 'Unnamed local road',
-            'Connects To': (res && res.facNames && res.facNames.length) ? res.facNames.join('; ') : '—',
+            'Connects To': res ? (((res.centreNames || []).concat(res.facNames || [])).join('; ') || '—') : '—',
             'Categorisation': !m ? 'Local road (not graded)'
                 : v === 'green' ? ('Would meet ' + noun) : v === 'orange' ? 'Would meet 1 optional' : ('Would not meet ' + noun),
             'Why': !m ? 'Own criteria — local roads carry no State/Regional grading'
                 : m === 'state'
                     ? ('S-07·S-10  ' + (res.centres >= 2 ? 'met' : 'not met') + ' (' + res.centres + ' State-tier centres)\nS-08·S-11  ' + (res.nFac ? 'met (' + res.nFac + ' facilities)' : 'not met') + '\nS-09  not assessed (gate unpublished)')
-                    : ('R-01·R-05  ' + (res.centres >= 2 ? 'met' : 'not met') + ' (' + res.centres + ' centres)\nR-04  not assessed (gate unpublished)'),
+                    : ('R-01·R-05  ' + (res.centres >= 2 ? 'met' : 'not met') + ' (' + res.centres + ' distinct centres)\nR-02·R-06  ' + (res.nFac ? 'met (' + res.nFac + ' facilities)' : 'not met') + '\nR-04  not assessed (gate unpublished)'),
             'What (criteria tested)': m
-                ? (m === 'state' ? 'Connectivity to State-tier centres + major facilities (indicative cross-test)' : 'Connectivity to town / urban centres (indicative cross-test)')
+                ? (m === 'state' ? 'Connectivity to State-tier centres + major facilities (indicative cross-test)' : 'Connectivity to town / urban centres + major facilities (indicative cross-test)')
                 : 'None — local (council) road',
             'HV Networks (NHVR)': 'Not published for council roads',
             'AADT (TfNSW)': '—',

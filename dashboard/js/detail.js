@@ -8,9 +8,43 @@ let _lastDetailP = null, _lastDetailSource = null;
 let _detailCrossMode = null;
 let _crossTestRerender = false;
 
+// Named-sections dropdown context: the open road's key (set by showRoadDetail).
+let _sectionCtx = null;
+
+// Sections dropdown pick: re-open the SAME road titled by the chosen section, and frame that
+// section's segments on the map. Road-level data (verdict, criteria, evidence) is unchanged —
+// only the title and the map framing follow the section.
+function selectRoadSection(name) {
+    if (!_sectionCtx || typeof NSW_AGG === 'undefined') return;
+    const aggRec = NSW_AGG[_sectionCtx.key];
+    if (!aggRec) return;
+    if (typeof traceCode === 'function') traceCode(
+        'Section picked: ' + titleCase(name),
+        'The sections dropdown swaps which named section of the same gazetted road titles the panel, then frames that stretch on the map. Nothing is re-assessed.',
+        "function selectRoadSection(name) {\n  const agg = Object.assign({}, NSW_AGG[key], { road_name: name });\n  fitBounds(segments named `name`);\n  showRoadDetail(agg, 'nsw');\n}",
+        'road=' + _sectionCtx.key + ', section=' + name
+    );
+    // Frame AND highlight the chosen section's segments (whole road if none match).
+    const allSegs = (window.NSW_ROAD_LAYERS || {})[_sectionCtx.key] || [];
+    const segs = allSegs.filter(l => String(l.feature.properties.road_name || '').trim() === name);
+    if (segs.length && typeof map !== 'undefined') {
+        let b = segs[0].getBounds();
+        segs.forEach(l => { b = b.extend(l.getBounds()); });
+        map.fitBounds(b.pad(0.25), { maxZoom: 13 });   // short sections must not zoom to street level
+    }
+    if (typeof highlightRoad === 'function' && typeof nswLayer !== 'undefined')
+        highlightRoad(allSegs, nswLayer, name);
+    // The route shield belongs to the SECTION being shown, not to the segment originally clicked —
+    // a road can carry a shield on one stretch only (e.g. the motorway overlap of a Main Road).
+    const secRef = segs.length ? (segs[0].feature.properties.ref || null) : null;
+    showRoadDetail(Object.assign({}, aggRec, { ref: secRef, road_name: name }), 'nsw');
+}
+
 function applyCrossTest(mode) {
     if (!_lastDetailP || !_lastDetailSource) return;
-    _detailCrossMode = mode || null;
+    // '' = the "(current)" entry — pin own criteria explicitly so a lens-driven test (Best fit
+    // bin, State/Regional cross-test) doesn't resurface over the user's pick. Reset per road open.
+    _detailCrossMode = mode || 'own';
     _crossTestRerender = true;
     showRoadDetail(_lastDetailP, _lastDetailSource);
     _crossTestRerender = false;
@@ -61,17 +95,51 @@ function showRoadDetail(p, source) {
     showConnections({ centres: evCent, hospitals: evHosps, dests: evDests, employment: evEmploy });   // ring/outline + label on the map
 
     document.getElementById('detail-road-name').innerHTML = roadLabel(p);
-    const unitBits = [];
-    if (isHighSpeed(p)) unitBits.push('Motorway / freeway');
-    if (p.road_number) unitBits.push('Administrative road ' + p.road_number);
-    if (p.unit_count > 1) unitBits.push('connected assessment unit ' + (p.unit_ordinal || '?') + ' of ' + p.unit_count);
-    document.getElementById('detail-road-number').textContent = unitBits.join(' · ');
+    // Road number line: the gazetted series label only (HW/MR/SR/TO/RR per the Schedule's numbering
+    // key), with the source ID shown when it distinguishes several connected assessment units.
+    const noLbl = roadNoLabel(p);
+    const numBits = [];
+    if (noLbl && noLbl !== roadName(p)) numBits.push(noLbl);
+    if (isHighSpeed(p)) numBits.push('Motorway / freeway');
+    if (p.unit_count > 1 && p.road_number) numBits.push('administrative ID ' + p.road_number);
+    if (p.unit_count > 1) numBits.push('connected assessment unit ' + (p.unit_ordinal || '?') + ' of ' + p.unit_count);
+    document.getElementById('detail-road-number').textContent = numBits.join(' · ');
+    // Named-sections dropdown — one gazetted road can run through several named roads (e.g. MR152:
+    // Grafton · Maclean · Lawrence-Yamba · Yamba…). The clicked segment's section is pre-selected;
+    // picking another re-titles the card and frames that stretch (selectRoadSection below). Hidden
+    // for single-name roads. NSW_AGG is a top-level `let` (state.js) — a LEXICAL global, not window.*
+    const secWrap = document.getElementById('detail-sections-wrap');
+    if (secWrap) {
+        const aggRec = (source === 'nsw' && typeof NSW_AGG !== 'undefined') ? NSW_AGG[roadKeyOf(p)] : null;
+        const rawNames = (aggRec && aggRec._names) ? aggRec._names : [];
+        if (rawNames.length > 1) {
+            _sectionCtx = { key: roadKeyOf(p) };
+            const secSel = document.getElementById('detail-sections-select');
+            const curName = roadName(p);
+            secSel.innerHTML = rawNames.map(n =>
+                '<option value="' + String(n).replace(/"/g, '&quot;') + '"' + (titleCase(n) === curName ? ' selected' : '') + '>' +
+                titleCase(n) + '</option>').join('');
+            secWrap.style.display = 'flex';
+        } else {
+            secWrap.style.display = 'none';
+            _sectionCtx = null;
+        }
+    }
     const isState = p.admin_class === 'S';
     const zone = (source === 'nsw' && window.ZONE) ? window.ZONE[roadKeyOf(p)] : null;
     const zoneLabel = { urban: 'Urban', regional: 'Regional', remote: 'Remote (west of Newell Hwy)' }[zone];
+    // Under the Best fit lens the map colours by earned bin — say which bin this road earned,
+    // right next to the current class it would move from. FRESH_META labels are "Name — rule";
+    // only the name belongs here.
+    const freshBin = detailFreshBin(p, source);
+    const freshLine = freshBin
+        ? ' · Best fit: <strong style="color:' + FRESH_META[freshBin.cat].color + '">' + FRESH_META[freshBin.cat].label.split(' — ')[0] + '</strong>' +
+          (freshBin.tier === 'likely' ? ' <span style="color:var(--muted)">(provisional)</span>' : '')
+        : '';
     document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + '</strong>' +
         (zoneLabel ? ' <span style="color:var(--muted)">· ' + zoneLabel + ' zone</span>' : '') +
-        (p._nsr ? ' <span style="color:var(--muted)">· on the National Land Transport Network</span>' : '');
+        (p._nsr ? ' <span style="color:var(--muted)">· on the National Land Transport Network</span>' : '') +
+        freshLine;
 
     // ⚑ Flag/pin toggle (flagged.js) — a UI pin only: flagging never alters the verdict below, the
     // criteria, or any tab's counts. Only NSW-overlay roads (the ones the Flagged tab can draw) get it.
@@ -87,6 +155,10 @@ function showRoadDetail(p, source) {
     const xtX = xtMode ? (buildXtest()[roadKeyOf(p)] || null) : null;
     const xtShort = xtMode ? XT_MODES[xtMode].short : '';
     const xtNoun = xtMode ? XT_MODES[xtMode].noun : '';
+    // Keep the per-road Criteria dropdown honest: it must show the test the cards below actually
+    // render (a lens-driven cross-test / Best fit bin, not always "own"). Skipped on the dropdown's
+    // own re-render — applyCrossTest restores the picked value itself.
+    if (_xtSel && !_crossTestRerender) _xtSel.value = xtMode || '';
 
     // Computed, area-aware criteria for this connected road unit, keyed like the map rollup.
     const c = (source === 'nsw' && window.NSW_CRIT) ? window.NSW_CRIT[roadKeyOf(p)] : null;
@@ -322,7 +394,7 @@ function showRoadDetail(p, source) {
         if (xv === 'green') {
             resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">WOULD MEET ' + xtShort.toUpperCase() + '</span></span>';
             reasonEl.textContent = xtMode === 'natsig'
-                ? 'Meets ≥2 national criteria (NLTN membership · centre connections · port / airport / intermodal)'
+                ? 'Meets ≥2 national criteria (NLTN membership · centre connections · port / airport / intermodal) and the mandatory PBS Level 2B gate (S-06)'
                 : 'Meets ≥2 optional criteria and the ' + (xtMode === 'state' ? 'PBS Level 1' : '19m B-double') + ' mandatory gate — reclassification test';
         } else if (xv === 'orange') {
             resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">' + (xtMode === 'natsig' ? 'MEETS 1 NATIONAL CRITERION' : 'WOULD MEET 1 OF 2') + '</span></span>';
@@ -331,7 +403,9 @@ function showRoadDetail(p, source) {
                 : 'Passes the ' + (xtMode === 'state' ? 'PBS Level 1' : '19m B-double') + ' gate but meets only 1 optional criterion — would qualify with sufficient ADT';
         } else if (xv === 'red') {
             resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">WOULD NOT MEET ' + xtShort.toUpperCase() + '</span></span>';
-            if (xtMode === 'natsig') reasonEl.textContent = 'Meets none of the national criteria in the assessment data';
+            if (xtMode === 'natsig') reasonEl.textContent = (xtX && xtX.natGate === false)
+                ? 'Fails the mandatory PBS Level 2B gate (S-06)' + (xtX.natMet >= 1 ? ' — meets ' + xtX.natMet + ' national criteri' + (xtX.natMet > 1 ? 'a' : 'on') + ' otherwise' : '')
+                : 'Meets none of the national criteria in the assessment data';
             else {
                 const gateOk = xtMode === 'state' ? !!(c && c.mand && c.mand.pbs1) : nh.bdouble19 === true;
                 reasonEl.textContent = gateOk ? 'Meets no optional criterion at the ' + xtNoun + ' thresholds'
@@ -460,11 +534,16 @@ function showRoadDetail(p, source) {
     const twoStateRow = critItem(twoStatePass,
         'Links two State Roads', twoStatePass === true ? 'Both ends meet a State Road' : twoStatePass === false ? 'Does not link two State Roads' : 'Not assessed', 'crit-opt-two-state');
     if (xtMode === 'natsig') {
-        // Nat. Sig. mandatory block (mirrors the NLTN detail): S-06 PBS 2B is only computed for
-        // NLTN determination routes, so for an overlay road it is honestly "not assessed".
+        // Nat. Sig. mandatory block (mirrors the NLTN detail): S-06 is the MANDATORY gate of this
+        // test, so it is tested for real — the road's segment rollup against the NHVR PBS Level 2B
+        // approved network (has_pbs2b, ANY segment — the pipeline's pbs1/pbs2b rule). buildXtest
+        // gates asNat on the same value, so this row can never contradict the verdict above.
+        const pbs2b = p.has_pbs2b === undefined ? null : !!p.has_pbs2b;
         optEl.innerHTML =
-            critItem(null, 'S-06: PBS Level 2B vehicle access',
-                'Not assessed under this test — NHVR PBS 2B status is computed for NLTN determination routes only') +
+            critItem(pbs2b, 'S-06: PBS Level 2B vehicle access',
+                pbs2b === true ? 'On the NHVR PBS Level 2B approved network — mandatory gate passed'
+                    : pbs2b === false ? 'Not on the NHVR PBS Level 2B approved network — mandatory gate failed'
+                        : 'NHVR PBS 2B status unavailable') +
             critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant');
     } else if (xtMode && !c) {
         optEl.innerHTML = critItem(null, xtNoun + ' optional criteria', 'Not assessed under this test — no criteria data for this road');
@@ -551,17 +630,38 @@ function showRoadDetail(p, source) {
 }
 
 // The active cross-test mode for a Road Detail: the lens this detail was opened from (or the
-// lens on screen right now) with its cross-criteria mode, if any. Only the State / Regional
-// lenses carry cross-tests; a detail opened from anywhere else (Overview, Sydney, CV, Flagged,
-// search on another tab) renders the road's own criteria. false = own criteria.
+// lens on screen right now) with its cross-criteria mode, if any. The Best fit lens assesses each
+// road against its EARNED bin; the State / Regional lenses carry the cross-test control; a detail
+// opened from anywhere else (Overview, Sydney, CV, Flagged, search on another tab) renders the
+// road's own criteria. false = own criteria.
 function detailXtMode(source) {
-    // Per-road cross-test dropdown takes priority over the tab-level lens
-    if (_detailCrossMode) return _detailCrossMode;
+    // Per-road cross-test dropdown takes priority over the tab-level lens ('own' pins own criteria)
+    if (_detailCrossMode) return _detailCrossMode === 'own' ? false : _detailCrossMode;
     if (source !== 'nsw' || typeof xLens === 'undefined') return false;
+    // Best fit lens: assess against the bin the road earned (buildFresh) — fnat runs the national
+    // test, fstate / freg the State / Regional test. flocal shows the Regional test (the lowest
+    // classified tier — the card then explains why the road holds no category). A bin matching the
+    // road's own class renders the own-criteria view — same criteria, and it mirrors how the
+    // dropdown treats the own-category entry.
+    const f = detailFreshBin(_lastDetailP, source);
+    if (f) {
+        const mode = f.cat === 'fnat' ? 'natsig' : f.cat === 'fstate' ? 'state' : 'regional';
+        return mode === (_lastDetailP.admin_class === 'S' ? 'state' : 'regional') ? false : mode;
+    }
     const lens = (currentTab === 'detail') ? lastViewTab : currentTab;
     if (lens === 'state') return xLens.state || false;
     if (lens === 'regional') return xLens.regional || false;
     return false;
+}
+
+// Best fit lens context for a Road Detail: the lens tab itself, or an LGA focus (CV / Sydney)
+// with the Best fit lens picked in the category dropdown. Returns the road's blank-slate record
+// { cat, tier } from buildFresh, or null when the detail is not under that lens.
+function detailFreshBin(p, source) {
+    if (!p || source !== 'nsw' || typeof buildFresh !== 'function') return null;
+    const lens = (currentTab === 'detail') ? lastViewTab : currentTab;
+    const on = lens === 'fresh' || ((lens === 'cv' || lens === 'sydney') && typeof nswView !== 'undefined' && nswView === 'fresh');
+    return on ? (buildFresh()[roadKeyOf(p)] || null) : null;
 }
 
 // Configure which detail-panel sections show + their headings: 'road' (full criteria set) vs

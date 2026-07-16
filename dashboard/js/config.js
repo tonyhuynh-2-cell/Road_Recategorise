@@ -6,7 +6,23 @@ const ROAD_COLORS = { green: '#16a34a', orange: '#f59e0b', red: '#dc2626' };
 // Tab switching
 const NSW_LENSES = ['nsr', 'state', 'regional'];   // share the #tab-nsw panel
 
-const NSW_MAP_TABS = ['overview', 'nsr', 'state', 'regional'];   // all show the NSW road layer
+const NSW_MAP_TABS = ['overview', 'nsr', 'state', 'regional', 'fresh'];   // all show the NSW road layer
+
+// Fresh assessment lens: blank-slate categories (NOT the verdict palette — green/orange/red stay
+// reserved for criteria verdicts). Keys double as legendToggles keys; the map encodes CATEGORY here.
+// COMPLEMENTARY scheme: State (royal blue) vs Regional (golden yellow) are true colour-wheel
+// opposites — the two most-compared bins oppose maximally — and fuchsia (Nat.Sig) sits across from
+// the yellow too; Local is a dark neutral that recedes. The gold is deliberately YELLOWER than the
+// amber verdict tier (#f59e0b) so the two never read as one across tabs, and nothing shares the
+// blue selection-highlight (#2563eb, state.js). The stat cards in #tab-fresh (index.html) carry
+// the same colours inline — keep them in step.
+const FRESH_CATS = ['fnat', 'fstate', 'freg', 'flocal'];
+const FRESH_META = {
+    fnat:   { label: 'Nationally Significant — PBS 2B + ≥2 national criteria', color: '#c026d3' },
+    fstate: { label: 'State Road — PBS-1 + ≥2 optional', color: '#1d4ed8' },
+    freg:   { label: 'Regional Road — 19m B-double + ≥2 optional', color: '#eab308' },
+    flocal: { label: 'Local Road — meets no higher category', color: '#57534e' }
+};
 
 // Minimalist inline status icons for the Road Detail panel
 const ICON = {
@@ -53,7 +69,7 @@ const XT_MODES = {
 const XT_LENS_MODES = { state: ['regional', 'natsig'], regional: ['state'] };
 // Per-lens explainer under the segmented control.
 const XT_LENS_FINE = {
-    state: 'Regional swaps the mandatory gate (19m B-double access instead of PBS-1) and re-grades the shared connectivity criteria. Nat. Sig. counts the national criteria — NLTN membership (S-01), metro/urban centre connections (S-02·S-03) and port / airport / intermodal links (S-04·S-05). Verdicts are earned from the data, not forced.',
+    state: 'Regional swaps the mandatory gate (19m B-double access instead of PBS-1) and re-grades the shared connectivity criteria. Nat. Sig. counts the national criteria — NLTN membership (S-01), metro/urban centre connections (S-02·S-03) and port / airport / intermodal links (S-04·S-05) — behind the mandatory PBS Level 2B gate (S-06). Verdicts are earned from the data, not forced.',
     regional: 'Swaps the mandatory gate — State needs PBS-1 access instead of 19m B-double — and re-grades the shared connectivity criteria against the State thresholds. Verdicts are earned from the data, not forced.'
 };
 // Panel note per ACTIVE cross-test mode — describes the TARGET category's criteria (the ones the
@@ -61,13 +77,13 @@ const XT_LENS_FINE = {
 const XT_MODE_NOTES = {
     regional: 'Reclassification test — each road re-graded against the Regional Road criteria: connects urban / town centres (R-01·R-05); connects major hospitals / ports / airports / employment centres (R-02·R-06); behind the mandatory 19m B-double gate (R-04, NHVR network). Green = would meet ≥2 optional. Verdicts are earned from the data, not forced.',
     state: 'Reclassification test — each road re-graded against the State Road criteria: connects Metro Centres / Regional Cities / Major Towns (S-07·S-10); unnumbered long-distance rural centre-to-town route; connects major hospitals / ports / airports / intermodals / employment centres (S-08·S-11); behind the mandatory PBS Level 1 gate (S-09). Green = would meet ≥2 optional. Verdicts are earned from the data, not forced.',
-    natsig: 'Reclassification test — each road graded against the Nationally Significant criteria: comprises the NLTN (S-01), connects ≥2 metropolitan / urban centres (S-02·S-03), connects a Major Port, International Airport or Major Intermodal (S-04·S-05). Green = meets ≥2 national criteria; orange = 1; red = none. Verdicts are earned from the data, not forced.'
+    natsig: 'Reclassification test — each road graded against the Nationally Significant criteria: comprises the NLTN (S-01), connects ≥2 metropolitan / urban centres (S-02·S-03), connects a Major Port, International Airport or Major Intermodal (S-04·S-05); behind the mandatory PBS Level 2B gate (S-06, NHVR network). Green = passes the gate and meets ≥2 national criteria; orange = 1; red = none, or fails the gate. Verdicts are earned from the data, not forced.'
 };
 // Map-legend verdict labels per active cross-test mode (the target category's tiers).
 const XT_MODE_LEGEND = {
     regional: [['#16a34a', 'Would meet Regional (≥2 optional)'], ['#f59e0b', 'Meets 1 optional — may pass with ADT'], ['#dc2626', 'Would not meet Regional']],
     state:    [['#16a34a', 'Would meet State (≥2 optional)'], ['#f59e0b', 'Meets 1 optional — may pass with ADT'], ['#dc2626', 'Would not meet State']],
-    natsig:   [['#16a34a', 'Would be nationally significant (≥2 criteria)'], ['#f59e0b', 'Meets 1 national criterion'], ['#dc2626', 'Meets no national criterion']]
+    natsig:   [['#16a34a', 'Would be nationally significant (PBS 2B + ≥2 criteria)'], ['#f59e0b', 'Meets 1 national criterion'], ['#dc2626', 'No national criterion, or fails the PBS 2B gate']]
 };
 
 // State roads the NLTN spatial join (nsw_nltn.json) over-attributes as nationally significant but which

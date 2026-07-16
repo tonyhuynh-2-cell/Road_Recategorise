@@ -51,9 +51,24 @@ function scrollToCriterion(id) {
     el.classList.add('criteria-target');
 }
 
+// Gazetted road-number label, per the Schedule of Classified Roads' numbering key:
+// 1-31 Highway (HW), 51-707 Main Road (MR), 2001-2126 Secondary Road (SR), 4000-4058 Tourist
+// Road (TO), 7000 series unclassified Regional (RR), 8000s Transitway (TW). Null when the road
+// has no number (name-keyed roads).
+function roadNoLabel(p) {
+    const raw = (p.road_number != null) ? String(p.road_number).trim() : '';
+    if (!raw || !/^\d+$/.test(raw)) return null;
+    const n = parseInt(raw, 10);
+    const series = n <= 31 ? 'HW' : n <= 999 ? 'MR' : n <= 2999 ? 'SR' : n <= 4999 ? 'TO'
+        : (n >= 7000 && n <= 7999) ? 'RR' : n >= 8000 ? 'TW' : null;
+    return series ? series + ' ' + n : 'Road ' + n;
+}
+
 function roadName(p) {
     if (p.road_name && String(p.road_name).trim()) return titleCase(p.road_name);
-    return p.admin_class === 'S' ? 'State road' : 'Regional road';
+    // Unnamed in the TfNSW extract (21 roads have no name on ANY segment — many gazettals carry
+    // only a route description): show the gazetted number (e.g. "MR 198") over a class placeholder.
+    return roadNoLabel(p) || (p.admin_class === 'S' ? 'State road' : 'Regional road');
 }
 
 function roadRef(p) { return p.ref || null; }
@@ -62,6 +77,17 @@ function roadLabel(p) {
     const ref = roadRef(p);
     if (!ref) return roadName(p);
     return '<span class="rl-shield rl-' + ref[0] + '">' + ref + '</span> ' + roadName(p);
+}
+
+// Hover tooltip for one road SEGMENT: always the segment's OWN name (a road number can span many
+// named sections — Grafton / Maclean / Lawrence-Yamba…), with the gazetted road number appended as
+// faint context so a section name still reads as part of its road. No suffix when the name IS the
+// number (unnamed segments already fall back to it via roadName).
+function roadTooltip(p) {
+    const no = roadNoLabel(p);
+    const base = roadLabel(p);
+    if (!no || roadName(p) === no) return base;
+    return base + ' <span style="opacity:.55">· ' + no + '</span>';
 }
 
 // Label for an NLTN national-network road: route shield (M5 / A1 …, motorways green) + route name.

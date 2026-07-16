@@ -23291,7 +23291,7 @@
       "employment_only": false,
       "economic_value_assessed": false,
       "old_dest": false,
-      "classification": "State",
+      "classification": "Regional",
       "area": "rural",
       "zone": "regional",
       "road_names": [
@@ -24680,7 +24680,7 @@
       "employment_only": false,
       "economic_value_assessed": false,
       "old_dest": true,
-      "classification": "State",
+      "classification": "Regional",
       "area": "rural",
       "zone": "urban",
       "road_names": [

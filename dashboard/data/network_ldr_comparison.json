@@ -9077,7 +9077,7 @@
       "all_source_centres": [],
       "all_town_centres": [],
       "old_ldr": false,
-      "classification": "State",
+      "classification": "Regional",
       "area": "rural",
       "zone": "regional",
       "road_names": [
@@ -9607,7 +9607,7 @@
       ],
       "all_town_centres": [],
       "old_ldr": false,
-      "classification": "State",
+      "classification": "Regional",
       "area": "rural",
       "zone": "urban",
       "road_names": [
