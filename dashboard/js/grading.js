@@ -119,8 +119,9 @@ function buildXtest() {
     for (const k in crit) {
         const c = crit[k]; if (!c || !c.opt) continue;
         const ldrOpt = c.area !== 'urban' && ((c.opt && c.opt.ldr === true) || (c.stateOpt && c.stateOpt.ldr === true));
-        // S-08 is derived independently from NSW Road Segment components. Regional roads use
-        // stateOpt.dest when cross-tested as State rather than borrowing their R-02 result.
+        // S-08/S-11 is derived independently (rural: NSW Road Segment components; urban: SAL
+        // evidence components). Regional roads use stateOpt.dest when cross-tested as State
+        // rather than borrowing their R-02 result.
         const stateDestOpt = c.stateOpt && typeof c.stateOpt.dest === 'boolean'
             ? c.stateOpt.dest : c.opt.dest;
         const stateCentresOpt = c.stateOpt && typeof c.stateOpt.centres === 'boolean'

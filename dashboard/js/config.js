@@ -44,7 +44,7 @@ const NSW_VIEW_META = {
         title: 'State Roads', sub: 'State roads not on the national network, graded against the State Road criteria',
         gLabel: 'Meets criteria', oLabel: 'Meets 1 optional', rLabel: 'Does not meet',
         legend: [['#16a34a', 'Meets State criteria (≥2 optional)'], ['#f59e0b', 'Meets 1 optional — may pass with ADT'], ['#dc2626', 'Meets none — candidate to downgrade']],
-        note: 'State Roads must meet ≥2 optional criteria (connect centres; unnumbered long-distance rural centre-to-town route; connect major hospitals / ports / airports / employment; traffic volume + heavy-vehicle threshold) plus the mandatory criteria. Nationally significant State roads (predominantly on the National Land Transport Network — M1, M4, M5, Hume, etc.) are shown on the Nat. Significant tab, not here.'
+        note: 'State Roads must meet ≥2 optional criteria (connect centres; unnumbered long-distance rural centre-to-town route; connect major hospitals / Major Ports / Intermodals / International Airports / employment centres TO other centre types; traffic volume + heavy-vehicle threshold) plus the mandatory criteria. Nationally significant State roads (predominantly on the National Land Transport Network — M1, M4, M5, Hume, etc.) are shown on the Nat. Significant tab, not here.'
     },
     regional: {
         title: 'Regional Roads', sub: 'Graded against the Regional Road criteria',
@@ -76,7 +76,7 @@ const XT_LENS_FINE = {
 // roads are being re-graded against), replacing the lens's own-criteria note while the mode is on.
 const XT_MODE_NOTES = {
     regional: 'Reclassification test — each road re-graded against the Regional Road criteria: connects urban / town centres (R-01·R-05); connects major hospitals / ports / airports / employment centres (R-02·R-06); behind the mandatory 19m B-double gate (R-04, NHVR network). Green = would meet ≥2 optional. Verdicts are earned from the data, not forced.',
-    state: 'Reclassification test — each road re-graded against the State Road criteria: connects Metro Centres / Regional Cities / Major Towns (S-07·S-10); unnumbered long-distance rural centre-to-town route; connects major hospitals / ports / airports / intermodals / employment centres (S-08·S-11); behind the mandatory PBS Level 1 gate (S-09). Green = would meet ≥2 optional. Verdicts are earned from the data, not forced.',
+    state: 'Reclassification test — each road re-graded against the State Road criteria: connects Metro Centres / Regional Cities / Major Towns (S-07·S-10); unnumbered long-distance rural centre-to-town route; connects major hospitals / Major Ports / Intermodals / International Airports / employment centres to other centre types (S-08·S-11); behind the mandatory PBS Level 1 gate (S-09). Green = would meet ≥2 optional. Verdicts are earned from the data, not forced.',
     natsig: 'Reclassification test — each road graded against the Nationally Significant criteria: comprises the NLTN (S-01), connects ≥2 metropolitan / urban centres (S-02·S-03), connects a Major Port, International Airport or Major Intermodal (S-04·S-05); behind the mandatory PBS Level 2B gate (S-06, NHVR network). Green = passes the gate and meets ≥2 national criteria; orange = 1; red = none, or fails the gate. Verdicts are earned from the data, not forced.'
 };
 // Map-legend verdict labels per active cross-test mode (the target category's tiers).

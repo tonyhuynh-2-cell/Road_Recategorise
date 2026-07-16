@@ -578,7 +578,7 @@ function showRoadDetail(p, source) {
                 ldrLabel,
                 stateLdrValue())
             : critItem(stateLdrPass, ldrLabel, stateLdrValue(), 'crit-opt-ldr');
-        const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / Airports / Employment Centres';
+        const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / International Airports / Employment Centres to other centre types';
         html += critItem(stateDestPass, dLabel, stateDestValue(), 'crit-opt-dest') + stateEvidenceRows;
         html += trafficCrit;
         optEl.innerHTML = html;

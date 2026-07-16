@@ -301,7 +301,9 @@ Promise.all([
                 // aggregate's backfilled name (421 roads carry some unnamed segments).
                 const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                     ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                // Keep the full connected unit visible while making the clicked named section dominant.
+                // Highlight the WHOLE road (every segment of the connected unit) with the clicked
+                // named section drawn dominant. Section-only highlighting stays available through
+                // the Sections dropdown (selectRoadSection, detail.js), an explicit pick.
                 highlightRoad(group(), nswLayer, segName);
                 const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                 if (typeof traceCode === 'function') traceCode(
@@ -404,7 +406,7 @@ Promise.all([
                     L.DomEvent.stopPropagation(e);
                     // Shift+click = export custom-selection pick (same branch as the main overlay).
                     if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
-                    // Same blank-segment guard + section-level highlight as the main overlay above.
+                    // Same blank-segment guard + whole-road highlight as the main overlay above.
                     const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                         ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
                     highlightRoad(group(), cvClipLayer, segName);

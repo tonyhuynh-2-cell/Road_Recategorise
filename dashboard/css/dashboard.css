@@ -61,8 +61,9 @@
         .export-caret { font-size: 11px; transition: transform .18s ease; }
         .export-caret-btn[aria-expanded="true"] .export-caret { transform: rotate(180deg); }
 
-        .detail-back { background: none; border: none; color: var(--muted); font: 500 12px var(--sans); cursor: pointer; padding: 0; margin-bottom: 12px; display: inline-flex; align-items: center; gap: 5px; }
-        .detail-back:hover { color: var(--ink); }
+        .detail-back { background: none; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font: 500 12px/1.2 var(--sans); cursor: pointer; padding: 7px 11px; margin-bottom: 10px; margin-top: -8px; display: inline-flex; align-items: center; gap: 5px; transition: border-color .15s ease, color .15s ease, background .15s ease; }
+        .detail-back svg { flex-shrink: 0; width: 12px; height: 12px; }
+        .detail-back:hover { color: var(--ink); border-color: var(--ink-soft); background: var(--bg-soft); }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -238,8 +239,55 @@
         .data-note strong { color: var(--ink-soft); font-weight: 600; }
 
         /* Map */
-        .map-container { flex: 1; position: relative; background: #cfe0ee; }
-        #map { width: 100%; height: 100%; background: #cfe0ee; }
+        .map-container { flex: 1; position: relative; background: #cfe0ee; overflow: hidden; }
+        #map { width: 100%; height: 100%; background: #cfe0ee; transition: width .3s ease; }
+
+        /* Criteria button — far right of the title row */
+        .criteria-btn { width: 32px; height: 32px; border: 1px solid #e7e5e4; border-radius: 8px; background: #fafaf9;
+            display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #78716c;
+            transition: all .15s ease; flex-shrink: 0; }
+        .criteria-btn:hover { border-color: #a8a29e; color: #44403c; background: #f5f5f4; }
+        .criteria-btn:active { transform: scale(.95); }
+
+        /* Criteria modal — overlays the map area */
+        .criteria-modal { position: absolute; inset: 0; z-index: 700; display: flex; flex-direction: column;
+            background: rgba(255,255,255,.98); backdrop-filter: blur(4px); animation: cmFadeIn .2s ease; }
+        .criteria-modal[hidden] { display: none; }
+        @keyframes cmFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .cm-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
+            border-bottom: 1px solid var(--line); flex-shrink: 0; }
+        .cm-title { display: flex; align-items: center; gap: 8px; font: 600 12px var(--sans); color: var(--ink); }
+        .cm-actions { display: flex; align-items: center; gap: 6px; }
+        .cm-action-btn { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 7px;
+            background: var(--bg); color: var(--muted); display: inline-flex; align-items: center;
+            justify-content: center; cursor: pointer; transition: all .12s ease; text-decoration: none; }
+        .cm-action-btn:hover { border-color: #93b4d8; color: var(--ink); }
+        .cm-action-btn.cm-action-active { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .cm-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+        .cm-body::-webkit-scrollbar { width: 7px; }
+        .cm-body::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
+
+        /* Split view: criteria takes right half, map takes left half */
+        .cm-split-active #map { width: 50%; }
+        .cm-split-active .criteria-modal { left: 50%; }
+        .criteria-modal.cm-split { border-left: 1px solid var(--line); }
+
+        /* Criteria reference content styling */
+        .cref h2 { font: 700 16px var(--sans); color: var(--ink); margin: 30px 0 14px; padding-bottom: 10px; border-bottom: 2px solid #2563eb; }
+        .cref h2:first-child { margin-top: 0; }
+        .cref h3 { font: 600 13.5px var(--sans); color: #1d4ed8; margin: 20px 0 10px; }
+        .cref p { font: 400 13px/1.55 var(--sans); color: var(--muted); margin: 0 0 12px; }
+        .cref .cref-rule { font: 600 12.5px var(--sans); color: #1e40af; margin: 18px 0 10px;
+            padding: 8px 12px; background: #eff6ff; border-radius: 7px; border-left: 4px solid #2563eb; }
+        .cref-table { width: 100%; border-collapse: collapse; font: 400 12.5px/1.5 var(--sans); margin-bottom: 18px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+        .cref-table th { text-align: left; font-weight: 700; color: #fff; padding: 9px 12px;
+            background: #44403c; border-bottom: 1px solid var(--line); font-size: 11px;
+            text-transform: uppercase; letter-spacing: .05em; }
+        .cref-table td { padding: 10px 12px; border-bottom: 1px solid var(--line-soft); color: var(--ink-soft); vertical-align: top; }
+        .cref-table tr:nth-child(even) td { background: #fafaf9; }
+        .cref-table tr:last-child td { border-bottom: none; }
+        .cref-table tr:hover td { background: #f0f9ff; }
+        .cref-table td strong { color: var(--ink); font-weight: 700; }
         /* No black focus box when a road / green line is clicked (canvas + SVG interactive layers). */
         .leaflet-container:focus,
         .leaflet-container *:focus,
@@ -382,10 +430,10 @@
         .town-popup .tp-meta { color: var(--muted); font: 400 11.5px var(--sans); margin-top: 2px; }
 
         /* Connectivity evidence list in the Road Detail panel — the named entities a criterion connects */
-        .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 3px; }
-        .ev-item { display: flex; align-items: center; gap: 7px; font: 400 11.5px/1.3 var(--sans); color: var(--ink-soft); cursor: pointer; }
+        .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 5px; }
+        .ev-item { display: flex; align-items: baseline; gap: 7px; font: 400 11.5px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; flex-wrap: wrap; }
         .ev-item:hover .ev-name { text-decoration: underline; }
-        .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; position: relative; top: -1px; }
         .ev-dot.ev-town { background: #1d4ed8; }
         .ev-dot.ev-sua { background: #1d4ed8; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #1d4ed8; }   /* urban area = ringed dot */
         .ev-dot.ev-hosp { background: #dc2626; }
@@ -393,10 +441,10 @@
         .ev-dot.ev-employ { background: #0f766e; }
         .ev-dot.ev-employ.is-nearby { background: #fff; border: 1.5px dashed #64748b; }
         .ev-dot.ev-employ.is-qualifying { box-shadow: 0 0 0 2px #ccfbf1; }
-        .ev-name { font-weight: 600; color: var(--ink); }
-        .ev-meta { color: var(--faint); font-size: 10.5px; margin-left: auto; white-space: nowrap; padding-left: 8px; }
+        .ev-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
+        .ev-meta { color: var(--faint); font-size: 10.5px; white-space: normal; word-break: break-word; }
         .ev-review-item { align-items: flex-start; padding: 2px 0; }
-        .ev-review-item .ev-meta { max-width: 54%; white-space: normal; text-align: right; }
+        .ev-review-item .ev-meta { margin-left: auto; max-width: 54%; text-align: right; }
         .ev-copy { display: flex; min-width: 0; flex-direction: column; }
         .ev-status { color: var(--muted); font-size: 10px; }
 
@@ -846,12 +894,12 @@
            lift) → active darkens again and adds a white inset ring so selection still reads.
            These out-rank the shared tab-g2 outline rules by source order (rest/hover) and by the
            later .active rule below. Interaction-only motion: nothing animates at rest or on load. */
-        .tab-btn.tab-flag { transition: all .15s, transform .18s var(--ease-out);
-            background: #dc2626; border-color: #dc2626; color: #fff; }
-        .tab-btn.tab-flag:hover:not(.active) { background: #b91c1c; border-color: #b91c1c; color: #fff; transform: translateY(-1px); }
-        .tab-btn.tab-flag.active { background: #991b1b; border-color: #991b1b; color: #fff;
+        .tab-btn.tab-flag { transition: all .15s;
+            background: #991b1b; border-color: #991b1b; color: #fff; }
+        .tab-btn.tab-flag:hover:not(.active) { background: #7f1d1d; border-color: #7f1d1d; color: #fff; }
+        .tab-btn.tab-flag.active { background: #7f1d1d; border-color: #7f1d1d; color: #fff;
             box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.55), 0 1px 3px rgba(220,38,38,.4); }
-        .tabs .tab-btn.tab-flag:active { transform: scale(.97); }   /* press beats the hover lift */
+        .tabs .tab-btn.tab-flag:active { transform: scale(.97); }   /* press */
         @keyframes flagPulse { 0% { transform: scale(1); } 35% { transform: scale(1.07); } 70% { transform: scale(.98); } 100% { transform: scale(1); } }
         .tab-btn.flag-pulse { animation: flagPulse .5s var(--ease-out); }
         @media (prefers-reduced-motion: reduce) {
