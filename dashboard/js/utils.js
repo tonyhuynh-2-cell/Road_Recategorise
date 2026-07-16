@@ -2,6 +2,9 @@
 
 // A road is many segments; group them so a click/hover affects the whole road.
 function roadKeyOf(p) {
+    if (p.unit_excluded) return '';
+    const unit = (p.road_unit != null && String(p.road_unit).trim() !== '') ? String(p.road_unit).trim() : '';
+    if (unit) return unit;
     const n = (p.road_number != null && String(p.road_number).trim() !== '') ? String(p.road_number).trim() : '';
     return n || (p.road_name ? 'n:' + String(p.road_name).trim().toLowerCase() : '');
 }
