@@ -260,11 +260,21 @@ let selectedSource = null;
 // Track load start so the constant-speed loading bar can finish before fade-out
 const loadStart = performance.now();
 
-function highlightRoad(layers, sourceLayer) {
+function highlightRoad(layers, sourceLayer, selectedName) {
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = layers;
     selectedSource = sourceLayer;
-    layers.forEach(l => l.setStyle({ weight: 6, opacity: 1, color: '#2563eb', dashArray: null }));
+    const wanted = String(selectedName || '').trim().toUpperCase();
+    layers.forEach(function (layer) {
+        const name = String((layer.feature && layer.feature.properties && layer.feature.properties.road_name) || '').trim().toUpperCase();
+        const exact = !wanted || name === wanted;
+        layer.setStyle({
+            weight: exact ? 6.5 : 4,
+            opacity: exact ? 1 : 0.62,
+            color: exact ? '#2563eb' : '#60a5fa',
+            dashArray: null
+        });
+    });
 }
 
 function isSelected(layer) { return selectedLayers.indexOf(layer) !== -1; }
