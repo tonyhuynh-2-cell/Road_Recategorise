@@ -24,24 +24,24 @@ Promise.all([
     _f('data/ref_overrides.json').catch(() => ({})),
     _f('data/nsw_urbanity.json').catch(() => []),
     _f('data/nsw_nltn.json').catch(() => []),
-    _f('data/nsw_recat.json').catch(() => []),
-    _f('data/nsw_criteria.json').catch(() => ({})),
+    _f('data/nsw_unit_recat.json').catch(() => []),
+    _f('data/nsw_unit_criteria.json').catch(() => ({})),
     _f('data/nltn_2020_road.geojson').catch(() => null),
     _f('data/nltn_meta.json').catch(() => []),
-    _f('data/nsw_evidence.json').catch(() => ({})),
+    _f('data/nsw_unit_evidence.json').catch(() => ({})),
     _f('data/cv_evidence.json').catch(() => ({})),
     _f('data/nltn_evidence.json').catch(() => ({})),
     _f('data/sua_outlines.json').catch(() => []),
-    _f('data/nhvr_networks.json').catch(() => ({})),
-    _f('data/nsw_road_ext.json').catch(() => ({})),
-    _f('data/nsw_adt.json').catch(() => ({})),
-    _f('data/nsw_zone.json').catch(() => ({})),
+    _f('data/nsw_unit_nhvr.json').catch(() => ({})),
+    _f('data/nsw_unit_road_ext.json').catch(() => ({})),
+    _f('data/nsw_unit_adt.json').catch(() => ({})),
+    _f('data/nsw_unit_zone.json').catch(() => ({})),
     _f('data/nsw_boundary.geojson').catch(() => null)
 ]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt, adt, zone, nswBoundary]) => {
     if (typeof traceCode === 'function') traceCode(
         'Dashboard data loaded',
         'The dashboard has fetched its prepared assessment files. From here, the browser builds map layers and panels from these already-processed results.',
-        "Promise.all([\n  _f('data/nsw_assessment.geojson'),\n  _f('data/nsw_criteria.json'),\n  _f('data/nsw_evidence.json'),\n  _f('data/nhvr_networks.json'),\n  _f('data/nsw_adt.json')\n]).then(([nswRoads, nswCrit, nswEvid, nhvr, adt]) => {\n  // build map layers and UI from prepared files\n});",
+        "Promise.all([\n  _f('data/nsw_assessment.geojson'),\n  _f('data/nsw_unit_criteria.json'),\n  _f('data/nsw_unit_evidence.json'),\n  _f('data/nsw_unit_nhvr.json'),\n  _f('data/nsw_unit_adt.json')\n]).then(([nswRoads, nswCrit, nswEvid, nhvr, adt]) => {\n  // build map layers and UI from prepared road-unit files\n});",
         (nswRoads.features || []).length.toLocaleString() + ' road segments loaded'
     );
     // Data fetched — the remaining boot time is aggregation + layer construction (the "draw" phase).
@@ -56,7 +56,7 @@ Promise.all([
     window.ADT = adt || {};
     // Urban / Regional / Remote zone per road (Remote = rural + west of the Newell Hwy) — data/nsw_zone.json.
     window.ZONE = zone || {};
-    window.NSW_CRIT = nswCrit || {};   // per-road computed criteria results (data/nsw_criteria.json)
+    window.NSW_CRIT = nswCrit || {};   // connected road-unit criteria (data/nsw_unit_criteria.json)
     // Per-road connectivity evidence (which centres / hospitals / ports / airports / intermodals each
     // road connects, with names + qualifying attributes + coords) — data/*_evidence.json.
     // Centres include both town points and Significant Urban Areas (kind:'sua', suaId -> SUA_OUTLINES).
@@ -142,12 +142,13 @@ Promise.all([
 
     // === Build Map Layers ===
 
-    // NSW Roads — aggregate per road so a click selects the whole road
+    // NSW Roads — aggregate by connected/class-consistent road unit. TfNSW road_number values can
+    // contain several disconnected corridors, so roadKeyOf prefers the generated road_unit key.
     const NSW_BOOLS = ['has_pbs1', 'has_pbs2b', 'has_bdouble', 'is_key_freight_route', 'connects_major_town', 'connects_hospital'];
     const nswRoadAgg = {}, nswRoadLayers = {};
     nswRoads.features.forEach(f => {
         const k = roadKeyOf(f.properties); if (!k) return;
-        const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0, _byStatus: { red: 0, orange: 0, green: 0 }, _urbanLen: 0, _ruralLen: 0, _nltnLen: 0, _names: [] }));
+        const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0, _byStatus: { red: 0, orange: 0, green: 0 }, _urbanLen: 0, _ruralLen: 0, _nltnLen: 0, _names: [], _nameRefs: {} }));
         // The first segment of a road can have a blank name/ref while later ones are named (e.g. road
         // 0000340 = Bronte Rd). Backfill from any segment so the road is named for display AND search.
         if ((!a.road_name || !String(a.road_name).trim()) && f.properties.road_name && String(f.properties.road_name).trim()) a.road_name = f.properties.road_name;
@@ -156,6 +157,7 @@ Promise.all([
         // (e.g. 0000090 = The Bucketts Way + Wallanbah Rd), so all of them are indexed for search.
         const _rn = f.properties.road_name && String(f.properties.road_name).trim();
         if (_rn && a._names.indexOf(_rn) === -1) a._names.push(_rn);
+        if (_rn && f.properties.ref) a._nameRefs[_rn] = f.properties.ref;
         const len = roadLenKm(f.geometry);
         a._len += len;
         if (a._byStatus[f.properties.status] !== undefined) a._byStatus[f.properties.status] += len;
@@ -168,6 +170,7 @@ Promise.all([
     // Also roll up urban/rural by length, and flag Nationally Significant State Roads
     // = State road predominantly (>=50% of length) on the National Land Transport Network.
     Object.values(nswRoadAgg).forEach(a => {
+        if (a.unit_primary_name) a.road_name = a.unit_primary_name;
         a.status = ['red', 'orange', 'green'].reduce((best, s) => (a._byStatus[s] > a._byStatus[best] ? s : best), 'red');
         a._urban = a._urbanLen > a._ruralLen;
         // Nationally significant = State road predominantly (>=50% of length) on the National Land
@@ -273,7 +276,7 @@ Promise.all([
         smoothFactor: 2.5,        // ~17.7k segments — simplify more aggressively so zoom redraws stay smooth
         filter: function(f) {
             const p = f.properties;
-            if (isRamp(p)) return false;
+            if (p.unit_excluded || isRamp(p)) return false;
             const ag = nswRoadAgg[roadKeyOf(p)];
             if (ag && ag._len < 0.35 && !(p.road_name && String(p.road_name).trim()) && !p.ref) return false;  // tiny unnamed/unnumbered junction stubs
             return true;
@@ -294,10 +297,10 @@ Promise.all([
                 // aggregate's backfilled name (421 roads carry some unnamed segments).
                 const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                     ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                // Highlight the WHOLE gazetted road (every segment sharing the road key) — the
-                // clicked segment only picks the TITLE. Section-level highlighting stays available
-                // through the Sections dropdown (selectRoadSection, detail.js), an explicit pick.
-                highlightRoad(group(), nswLayer);
+                // Highlight the WHOLE road (every segment of the connected unit) with the clicked
+                // named section drawn dominant. Section-only highlighting stays available through
+                // the Sections dropdown (selectRoadSection, detail.js), an explicit pick.
+                highlightRoad(group(), nswLayer, segName);
                 const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                 if (typeof traceCode === 'function') traceCode(
                     'Road clicked: ' + roadName(agg),
@@ -320,7 +323,7 @@ Promise.all([
     bypassLayer = L.geoJSON(nswRoads, {
         pane: 'bypassPane',
         filter: function (f) {
-            const p = f.properties; if (isRamp(p)) return false;
+            const p = f.properties; if (p.unit_excluded || isRamp(p)) return false;
             const k = roadKeyOf(p); const e = k && window.NHVR[k];
             return !!(e && e.bypass);
         },
@@ -379,7 +382,7 @@ Promise.all([
         const feats = [];
         nswRoads.features.forEach(function (f) {
             const p = f.properties;
-            if (!p._inCV || isRamp(p)) return;
+            if (!p._inCV || p.unit_excluded || isRamp(p)) return;
             const g = f.geometry;
             const lines = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
             const parts = [];
@@ -402,7 +405,7 @@ Promise.all([
                     // Same blank-segment guard + whole-road highlight as the main overlay above.
                     const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                         ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                    highlightRoad(group(), cvClipLayer);
+                    highlightRoad(group(), cvClipLayer, segName);
                     const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                     if (typeof traceCode === 'function') traceCode(
                         'Clipped CV road clicked: ' + roadName(agg),

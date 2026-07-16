@@ -1090,15 +1090,17 @@ for rn, row in changed.items():
 
 What it is:
 
-The dashboard does not build Excel text from scratch each time. It has a prepared reporting table, `export_rows.json`, with road names, criteria explanations, NHVR status, traffic and categorisation.
+The dashboard does not build Excel text from scratch each time. It has a prepared road-unit reporting table, `export_unit_rows.json`, with road names, criteria explanations, NHVR status, traffic and categorisation.
 
 What the code does:
 
-The rebuild scripts keep `export_rows.json` aligned with `nsw_criteria.json`. `export.js` then filters those rows by scope and formats them into a workbook.
+The criteria rebuild scripts keep the legacy `export_rows.json` aligned with `nsw_criteria.json`. `rebuild_road_units.py` turns it into `export_unit_rows.json`; `export.js` then filters those rows by unit key and formats them into a workbook.
 
 Key files:
 
 - `dashboard/data/export_rows.json`
+- `dashboard/data/export_unit_rows.json`
+- `dashboard/rebuild_road_units.py`
 - `dashboard/js/export.js`
 - `dashboard/rebuild_*.py`
 
@@ -1139,12 +1141,13 @@ Plain flow:
 
 1. Python scripts prepare the data.
 2. Prepared JSON/GeoJSON files are saved under `dashboard/data/`.
-3. `index.html` loads Leaflet and all JavaScript modules.
-4. `init.js` fetches the prepared files and builds road aggregates/layers.
-5. `grading.js` decides how each road should be coloured in the current view.
-6. `panels.js` switches tabs, counts roads and applies map layers.
-7. `detail.js` explains a selected road's criteria.
-8. `search.js`, `flagged.js`, `export.js` and `local.js` add workflows around that same road data.
+3. `rebuild_road_units.py` separates overloaded administrative IDs into connected assessment units.
+4. `index.html` loads Leaflet and all JavaScript modules.
+5. `init.js` fetches the unit files and builds road aggregates/layers.
+6. `grading.js` decides how each road should be coloured in the current view.
+7. `panels.js` switches tabs, counts roads and applies map layers.
+8. `detail.js` explains a selected road's criteria.
+9. `search.js`, `flagged.js`, `export.js` and `local.js` add workflows around that same road data.
 
 Compact version:
 
@@ -1155,4 +1158,145 @@ source data
   -> browser loads prepared files
   -> Leaflet map layers + sidebar panels
   -> search/detail/export/local-road workflows
+```
+
+## 31. Network-Backed Long-Distance Rural Route Assessment
+
+What it is:
+
+The LDR criterion tests whether a non-urban road has a connected component at
+least 25 km long that joins an eligible State-tier source centre to a Town Centre.
+It now follows the physical NSW road network instead of comparing only the ends
+of categorisation geometry.
+
+What the code does:
+
+`network_connectivity.py` matches the categorised corridor to the NSW Transport
+Theme RoadSegment layer, builds connected components from shared road endpoints,
+and intersects those components with ABS UCL/SUA boundaries classified from 2021
+Census population. `rebuild_network_ldr.py` compares the result with the previous
+LDR value, records the impact, and updates criteria, map colours and exports when
+run with `--apply`.
+
+Key files:
+
+- `dashboard/network_connectivity.py`
+- `dashboard/rebuild_network_ldr.py`
+- `dashboard/data/network_ldr_comparison.json`
+- `dashboard/data/nsw_criteria.json`
+- `dashboard/js/detail.js`
+- `scripts/download_nsw_road_segments.py`
+
+Snippet:
+
+```python
+qualifying = [
+    component for component in components
+    if component["km"] >= 25.0
+    and component["source_centres"]
+    and component["town_centres"]
+]
+
+result = {
+    "ldr": bool(qualifying),
+    "coverage": route_coverage(route_geometry, matched_segments),
+    "source_centres": best["source_centres"],
+    "town_centres": best["town_centres"],
+}
+```
+
+The dashboard only mentions separate components when qualifying source and town
+evidence exists but is split between those components. It does not present every
+small geometry break as a reason the road failed.
+
+## 32. Network-Backed State Facility Connectivity (S-08)
+
+What it is:
+
+S-08 tests whether a non-urban State road connects a qualifying major facility
+or commercial/industrial/employment area to another centre type. Nearby map
+items alone do not pass the criterion; both sides must be on the same connected
+NSW road-network component.
+
+What the code does:
+
+`rebuild_state_facility_optional.py` reuses the cached NSW Road Segment corridor,
+assigns ABS UCL/SUA centres and eligible facility evidence to each component, and
+passes S-08 when one component contains both. Employment land uses the guide's
+Remote 5 ha or Regional 15 ha threshold. The dashboard discloses that the separate
+economic-value threshold is unavailable. For road numbers containing several
+named sections, the detail panel selects evidence for the section that was clicked.
+
+Key files:
+
+- `dashboard/rebuild_state_facility_optional.py`
+- `dashboard/network_connectivity.py`
+- `dashboard/data/network_state_facility_comparison.json`
+- `dashboard/data/nsw_criteria.json`
+- `dashboard/js/detail.js`
+- `dashboard/js/grading.js`
+
+Snippet:
+
+```python
+qualifying = [
+    component
+    for component in components
+    if component["centre_names"] and component["facilities"]
+]
+
+result = {
+    "dest": bool(qualifying) if network_coverage >= 0.70 else None,
+    "qualifying_components": component_details,
+}
+```
+
+## 33. Connected Road Assessment Units
+
+What it is:
+
+TfNSW `road_number` is an administrative identifier and can cover disconnected
+roads, mixed State/Regional sections and several names. The dashboard therefore
+uses a generated `road_unit` as its real selection and assessment key.
+
+What the code does:
+
+`rebuild_road_units.py` groups segments by administrative ID and current class,
+connects endpoints within 200 m, bridges modest compatible source gaps, and gives
+each resulting corridor a stable unit key. Disconnected components under 350 m
+are marked as source fragments instead of becoming standalone assessments when a
+larger component exists for that identifier. Evidence is assigned to nearby
+units; split units are reassessed independently. Values that only exist at the
+old road-number level are left unavailable instead of being copied across
+corridors.
+
+`roadKeyOf()` prefers `road_unit`, so map highlighting, search, details, pins,
+cross-tests and exports all use the same identity. A click strongly highlights
+the exact named section and softly highlights its other connected aliases.
+
+Key files:
+
+- `dashboard/rebuild_road_units.py`
+- `dashboard/data/nsw_road_units.json`
+- `dashboard/data/nsw_unit_*.json`
+- `dashboard/data/export_unit_rows.json`
+- `dashboard/js/utils.js`
+- `dashboard/js/init.js`
+- `dashboard/js/search.js`
+- `dashboard/js/state.js`
+
+Snippet:
+
+```python
+grouped_indexes[(road_number, admin_class)].append(segment_index)
+
+for component in connected_groups(component_geometries):
+    properties["road_unit"] = unit_key
+```
+
+```javascript
+function roadKeyOf(p) {
+    if (p.road_unit) return p.road_unit;
+    return p.road_number;
+}
 ```

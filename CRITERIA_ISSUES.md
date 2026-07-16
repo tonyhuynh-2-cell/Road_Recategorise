@@ -48,12 +48,20 @@ centre-to-centre or centre-to-facility relationship that earns the criterion.
 
 **Current software treatment:**
 
-The dashboard identifies qualifying evidence near a road and displays it in
-the criterion panel. For the Regional facility criteria (R-02 and R-06), the
-scorer additionally requires a qualifying facility or Regional/Major
-employment centre and a qualifying centre to be on the same connected road
-geometry component. This prevents a disconnected road-number group from
-combining unrelated evidence.
+The dashboard first divides overloaded TfNSW road numbers into connected,
+class-consistent road units. Evidence, criteria and map selection are scoped to
+that unit, preventing disconnected roads under one administrative ID from
+combining their centres or facilities.
+
+For S-08, the scorer requires a qualifying facility or zone-threshold employment
+area and another ABS centre type to occur on the same connected NSW Road Segment
+component. The panel selects the qualifying component that contains the named
+road section the user clicked when one is available.
+
+For the Regional facility criteria (R-02 and R-06), the scorer requires a
+qualifying facility or Regional/Major employment centre and a qualifying centre
+to be on the same connected categorisation-geometry component. These tests
+prevent a disconnected road-number group from combining unrelated evidence.
 
 The current evidence list is still broader than a literal endpoint list. It
 can include centres or facilities beside the road rather than only its ends.
@@ -75,7 +83,9 @@ from incidental nearby evidence.
 
 **Related implementation:**
 
+- [State S-08 network rebuild](dashboard/rebuild_state_facility_optional.py)
 - [Regional facility rebuild](dashboard/rebuild_regional_facility_optional.py)
 - [Road detail panel](dashboard/js/detail.js)
+- [Connected road-unit rebuild](dashboard/rebuild_road_units.py)
 - Criteria guide: *Approach to road recategorisation - Definitions and criteria*
   (December 2025; user-supplied source, not stored in this repository)

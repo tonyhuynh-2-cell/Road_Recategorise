@@ -9,9 +9,10 @@
 // workbook generation.
 //
 // Builds a colour-coded .xlsx workbook — Nationally Significant / State Roads / Regional Roads
-// sheets — from data/export_rows.json (the same verdicts the map shows, plus each road's named
+// sheets — from data/export_unit_rows.json (the same verdicts the map shows, plus each road's named
 // connections, criteria reasoning, road id, the LGA(s) it touches, and its length). Rows key to
-// the live per-road aggregate by the 'Road ID' column (verified 1:1 with roadKeyOf's keys). The
+// the live road-unit aggregate by the hidden `_key` field. `Road ID` remains the sourced TfNSW
+// administrative number for users, which can legitimately repeat across connected road units. The
 // 'local' scope instead sheets the loaded suburb's council roads live (localExportRows, local.js).
 //
 // Styling: Categorisation cells are shaded green / amber / red to match the map legend; the Why and
@@ -434,8 +435,8 @@ function exportToExcel(scope, keys, fbBtn) {
 
     Promise.all([
         loadExcelJS(),
-        fetch('data/export_rows.json?v=' + Date.now()).then(r => {
-            if (!r.ok) throw new Error('export_rows.json ' + r.status);
+        fetch('data/export_unit_rows.json?v=' + Date.now()).then(r => {
+            if (!r.ok) throw new Error('export_unit_rows.json ' + r.status);
             return r.json();
         })
     ]).then(function (parts) {
@@ -456,7 +457,7 @@ function exportToExcel(scope, keys, fbBtn) {
             // (roadKeyOf), with a name-derived fallback for any keyless road.
             const set = {};
             (keys || exportScopeKeys(scope)).forEach(k => { set[k] = 1; });
-            const match = r => set[r['Road ID']] === 1 || set['n:' + String(r['Road Name'] || '').trim().toLowerCase()] === 1;
+            const match = r => set[r._key || r['Road ID']] === 1 || set['n:' + String(r['Road Name'] || '').trim().toLowerCase()] === 1;
             const st = (data.state || []).filter(match);
             const rg = (data.regional || []).filter(match);
             if (st.length) buildSheet(wb, 'State Roads', st);

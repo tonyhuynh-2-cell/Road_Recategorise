@@ -119,19 +119,23 @@ function buildXtest() {
     for (const k in crit) {
         const c = crit[k]; if (!c || !c.opt) continue;
         const ldrOpt = c.area !== 'urban' && ((c.opt && c.opt.ldr === true) || (c.stateOpt && c.stateOpt.ldr === true));
-        // S-08/S-11 facility criterion needs the facility CONNECTED to another centre type —
-        // stateOpt.dest holds that two-legged result for every road (rebuild_state_facility_
-        // optional.py) so Regional roads cross-test against the real State rule, not their own
-        // (looser) facility result in opt.dest.
-        const stateDestOpt = c.stateOpt && typeof c.stateOpt.dest === 'boolean' ? c.stateOpt.dest : c.opt.dest;
-        const asStateOptMet = countOpt(c, ['centres', 'traffic']) + (stateDestOpt === true ? 1 : 0) + (ldrOpt ? 1 : 0);
+        // S-08/S-11 is derived independently (rural: NSW Road Segment components; urban: SAL
+        // evidence components). Regional roads use stateOpt.dest when cross-tested as State
+        // rather than borrowing their R-02 result.
+        const stateDestOpt = c.stateOpt && typeof c.stateOpt.dest === 'boolean'
+            ? c.stateOpt.dest : c.opt.dest;
+        const stateCentresOpt = c.stateOpt && typeof c.stateOpt.centres === 'boolean'
+            ? c.stateOpt.centres : c.opt.centres;
+        const asStateOptMet = countOpt(c, ['traffic']) + (stateCentresOpt === true ? 1 : 0) + (stateDestOpt === true ? 1 : 0) + (ldrOpt ? 1 : 0);
         // R-02/R-06 include Regional- and Major-tier commercial, industrial and employment centres.
         // regionalOpt is computed independently so a State road can be tested as Regional without
         // borrowing the stricter State facility result in opt.dest.
         const regionalDestOpt = c.regionalOpt && typeof c.regionalOpt.dest === 'boolean'
             ? c.regionalOpt.dest : c.opt.dest;
         const twoStateOpt = c.area !== 'urban' && ((c.opt && c.opt.two_state === true) || (roadExt[k] && roadExt[k].two_state === true));
-        const asRegionalOptMet = countOpt(c, ['centres', 'hv']) + (regionalDestOpt === true ? 1 : 0) + (twoStateOpt ? 1 : 0);
+        const regionalCentresOpt = c.regionalOpt && typeof c.regionalOpt.centres === 'boolean'
+            ? c.regionalOpt.centres : c.opt.centres;
+        const asRegionalOptMet = countOpt(c, ['hv']) + (regionalCentresOpt === true ? 1 : 0) + (regionalDestOpt === true ? 1 : 0) + (twoStateOpt ? 1 : 0);
         const optMet = c.cls === 'Regional' ? asRegionalOptMet : asStateOptMet;
         const pbs1 = !!(c.mand && c.mand.pbs1 === true);        // PBS-1 access (State mandatory gate)
         const bd = !!(nhvr[k] && nhvr[k].bdouble19 === true);   // 19m B-double access (Regional gate)

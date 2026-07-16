@@ -33,7 +33,7 @@ function selectRoadSection(name) {
         map.fitBounds(b.pad(0.25), { maxZoom: 13 });   // short sections must not zoom to street level
     }
     if (typeof highlightRoad === 'function' && typeof nswLayer !== 'undefined')
-        highlightRoad(segs.length ? segs : allSegs, nswLayer);
+        highlightRoad(allSegs, nswLayer, name);
     // The route shield belongs to the SECTION being shown, not to the segment originally clicked —
     // a road can carry a shield on one stretch only (e.g. the motorway overlap of a Main Road).
     const secRef = segs.length ? (segs[0].feature.properties.ref || null) : null;
@@ -96,12 +96,13 @@ function showRoadDetail(p, source) {
 
     document.getElementById('detail-road-name').innerHTML = roadLabel(p);
     // Road number line: the gazetted series label only (HW/MR/SR/TO/RR per the Schedule's numbering
-    // key — the raw zero-padded ID would repeat it), with the motorway note kept alongside. Skipped
-    // when the number already IS the title (fully unnamed roads).
+    // key), with the source ID shown when it distinguishes several connected assessment units.
     const noLbl = roadNoLabel(p);
     const numBits = [];
     if (noLbl && noLbl !== roadName(p)) numBits.push(noLbl);
     if (isHighSpeed(p)) numBits.push('Motorway / freeway');
+    if (p.unit_count > 1 && p.road_number) numBits.push('administrative ID ' + p.road_number);
+    if (p.unit_count > 1) numBits.push('connected assessment unit ' + (p.unit_ordinal || '?') + ' of ' + p.unit_count);
     document.getElementById('detail-road-number').textContent = numBits.join(' · ');
     // Named-sections dropdown — one gazetted road can run through several named roads (e.g. MR152:
     // Grafton · Maclean · Lawrence-Yamba · Yamba…). The clicked segment's section is pre-selected;
@@ -159,8 +160,12 @@ function showRoadDetail(p, source) {
     // own re-render — applyCrossTest restores the picked value itself.
     if (_xtSel && !_crossTestRerender) _xtSel.value = xtMode || '';
 
-    // Computed, area-aware criteria for this road (data/nsw_criteria.json), keyed like the map rollup.
+    // Computed, area-aware criteria for this connected road unit, keyed like the map rollup.
     const c = (source === 'nsw' && window.NSW_CRIT) ? window.NSW_CRIT[roadKeyOf(p)] : null;
+    const stateCentresPass = (c && c.stateOpt && typeof c.stateOpt.centres === 'boolean')
+        ? c.stateOpt.centres : !!(c && c.opt && c.opt.centres);
+    const regionalCentresPass = (c && c.regionalOpt && typeof c.regionalOpt.centres === 'boolean')
+        ? c.regionalOpt.centres : !!(c && c.opt && c.opt.centres);
     const urbanArea = c ? c.area === 'urban' : !!p._urban;
     // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts (data/nsw_adt.json), spatially
     // joined to the busiest count station on the road. Threshold depends on category + urban/rural —
@@ -202,6 +207,17 @@ function showRoadDetail(p, source) {
             : (c && c.stateOpt && c.stateOpt.ldr === true) ? true
                 : (c && c.stateOpt && c.stateOpt.ldr === false) ? false : null;
     const stateLdrInfo = (c && c.stateOpt) || {};
+    const stateDestPass = (c && c.stateOpt && typeof c.stateOpt.dest === 'boolean')
+        ? c.stateOpt.dest
+        : (c && c.opt && typeof c.opt.dest === 'boolean') ? c.opt.dest : null;
+    const stateDestInfo = (c && c.stateOpt) || {};
+    const selectedRoadName = String(p.road_name || '').trim().toUpperCase();
+    const stateDestComponents = stateDestInfo.dest_qualifying_components || [];
+    const selectedStateDestComponent = stateDestComponents.find(function (component) {
+        return (component.road_names || []).some(function (name) {
+            return String(name).trim().toUpperCase() === selectedRoadName;
+        });
+    }) || null;
     const regionalDestPass = (c && c.regionalOpt && c.regionalOpt.dest === true) ? true
         : (c && c.regionalOpt && c.regionalOpt.dest === false) ? false
             : (c && c.opt && c.opt.dest === true) ? true
@@ -243,37 +259,39 @@ function showRoadDetail(p, source) {
         }
         return 'Not assessed under this test — Regional facility connectivity has not been derived for this road';
     };
-    // S-08/S-11: the facility must share a connected road component with another CENTRE TYPE
-    // (rebuild_state_facility_optional.py, stateOpt.dest* — computed for every road so a Regional
-    // road cross-tested as State uses the real State rule). State facilities are the stricter set:
-    // major hospitals, Major Ports/Intermodals, International Airports (not Regional Airports),
-    // Regional/Major-tier employment centres.
-    const stateDestPass = (c && c.stateOpt && c.stateOpt.dest === true) ? true
-        : (c && c.stateOpt && c.stateOpt.dest === false) ? false
-            : (c && c.opt && typeof c.opt.dest === 'boolean') ? c.opt.dest : null;
-    const stateDestInfo = (c && c.stateOpt) || {};
     const stateDestValue = function () {
-        const componentKm = fmtKm(stateDestInfo.dest_component_km);
-        const centres = stateDestInfo.dest_centre_names || [];
-        const facilities = stateDestInfo.dest_facility_names || [];
+        const displayComponent = selectedStateDestComponent || stateDestComponents[0] || null;
+        const componentKm = fmtKm(displayComponent ? displayComponent.component_km : stateDestInfo.dest_component_km);
+        const centres = displayComponent ? (displayComponent.centre_names || []) : (stateDestInfo.dest_centre_names || []);
+        const facilities = displayComponent ? (displayComponent.facility_names || []) : (stateDestInfo.dest_facility_names || []);
         const allCentres = stateDestInfo.dest_all_centre_names || centres;
         const allFacilities = stateDestInfo.dest_all_facility_names || facilities;
         const components = stateDestInfo.dest_component_count || 0;
+        const networkMethod = stateDestInfo.dest_method === 'nsw_road_segment_network';
+        const networkCoverage = stateDestInfo.dest_network_coverage;
         const bits = [];
         if (stateDestPass === true) {
-            bits.push('Connected component' + (componentKm ? ' ' + componentKm : ''));
-            bits.push(nameList(facilities, 'qualifying facility/employment centre') + ' to ' + nameList(centres, 'another centre type'));
-            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            bits.push('Connected ' + (networkMethod ? 'NSW road-network ' : '') + 'component' + (componentKm ? ' ' + componentKm : ''));
+            bits.push(nameList(facilities, 'qualifying facility/employment area') + ' to ' + nameList(centres, 'another centre type'));
+            if ((displayComponent && displayComponent.employment_only === true) || (!displayComponent && stateDestInfo.dest_employment_only === true)) {
+                bits.push('employment land-area threshold used; economic value unavailable');
+            }
+            if (networkMethod && typeof networkCoverage === 'number' && networkCoverage < 0.9) {
+                bits.push('NSW road-network match ' + Math.round(networkCoverage * 100) + '%');
+            }
             return bits.join(' · ');
         }
         if (stateDestPass === false) {
             if (allFacilities.length && allCentres.length) {
-                bits.push('No connected component contains both a qualifying facility/employment centre and another centre type');
+                bits.push('No connected ' + (networkMethod ? 'NSW road-network ' : '') + 'component contains both qualifying facility/employment evidence and another centre type');
+                if (components > 1) bits.push('evidence is split across ' + components + ' road-network components');
             } else {
-                if (!allFacilities.length) bits.push('needs a major hospital, Major Port/Intermodal, International Airport or Regional/Major employment centre');
+                if (!allFacilities.length) bits.push('needs a qualifying hospital, port, intermodal, international airport or employment area');
                 if (!allCentres.length) bits.push('needs a connection to another centre type');
             }
-            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            if (networkMethod && typeof networkCoverage === 'number' && networkCoverage < 0.9) {
+                bits.push('NSW road-network match ' + Math.round(networkCoverage * 100) + '%');
+            }
             return bits.join(' · ');
         }
         return 'Not assessed under this test — State facility connectivity has not been derived for this road';
@@ -286,22 +304,31 @@ function showRoadDetail(p, source) {
         const allSources = stateLdrInfo.ldr_all_source_centres || sources;
         const allTowns = stateLdrInfo.ldr_all_town_centres || towns;
         const components = stateLdrInfo.ldr_component_count || 0;
+        const networkMethod = stateLdrInfo.ldr_method === 'nsw_road_segment_network';
+        const networkCoverage = stateLdrInfo.ldr_network_coverage;
         const bits = [];
         if (stateLdrPass === true) {
             bits.push('Connected component ' + (compKm || totalKm || 'unknown length') + ' vs ≥25 km');
             if (totalKm && compKm && totalKm !== compKm) bits.push('total road geometry ' + totalKm);
             bits.push(nameList(sources, 'qualifying centre') + ' to ' + nameList(towns, 'Town Centre'));
-            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            if (networkMethod && typeof networkCoverage === 'number' && networkCoverage < 0.9) {
+                bits.push('NSW road-network match ' + Math.round(networkCoverage * 100) + '%');
+            }
             return bits.join(' · ');
         }
         if (stateLdrPass === false) {
             if (totalKm) bits.push('Total route length ' + totalKm + '; length alone is not enough');
-            if (allSources.length && allTowns.length) bits.push('No connected component contains both a qualifying centre and a Town Centre');
+            if (allSources.length && allTowns.length) {
+                bits.push('No connected ' + (networkMethod ? 'NSW road-network ' : '') + 'component contains both a qualifying centre and a Town Centre');
+                if (components > 1) bits.push('centre evidence is split across ' + components + ' road-network components');
+            }
             else {
                 if (!allSources.length) bits.push('needs a Metro / Regional City / Major Town / Major Urban Centre');
                 if (!allTowns.length) bits.push('needs a Town Centre connection');
             }
-            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            if (networkMethod && typeof networkCoverage === 'number' && networkCoverage < 0.9) {
+                bits.push('NSW road-network match ' + Math.round(networkCoverage * 100) + '%');
+            }
             return bits.join(' · ');
         }
         return 'Not assessed under this test — LDR criterion has not been derived for this road';
@@ -328,19 +355,19 @@ function showRoadDetail(p, source) {
     };
     if (source === 'nsw' && c && !xtMode) {
         if (isState) {
-            const optionalStates = [c.opt.centres, c.opt.dest, trafficPass];
+            const optionalStates = [c.opt.centres, stateDestPass, trafficPass];
             if (!urbanArea) optionalStates.push(stateLdrPass);
             ownOptionalPasses = countPasses(optionalStates);
             addCriterionRef(mandatoryRefs, pbs1, 'S-09', 'crit-mand-pbs1', 'PBS Level 1 vehicle access');
             addCriterionRef(mandatoryRefs, parPass, 'Parallel', 'crit-mand-parallel', 'Does not closely parallel an existing State Road unless it has similar traffic volumes');
-            addCriterionRef(optionalRefs, c.opt.centres, urbanArea ? 'S-10' : 'S-07', 'crit-opt-centres', 'Connects qualifying centres');
+            addCriterionRef(optionalRefs, stateCentresPass, urbanArea ? 'S-10' : 'S-07', 'crit-opt-centres', 'Connects qualifying centres');
             if (!urbanArea) addCriterionRef(optionalRefs, stateLdrPass, 'LDR', 'crit-opt-ldr', 'Unnumbered State long-distance rural centre-to-town route');
-            addCriterionRef(optionalRefs, c.opt.dest, urbanArea ? 'S-11' : 'S-08', 'crit-opt-dest', 'Connects major facilities / employment centres');
+            addCriterionRef(optionalRefs, stateDestPass, urbanArea ? 'S-11' : 'S-08', 'crit-opt-dest', 'Connects major facilities / employment centres');
             addCriterionRef(optionalRefs, trafficPass, 'Traffic', 'crit-opt-traffic', 'Meets traffic volume + heavy-vehicle thresholds');
         } else {
             const optionalStates = [c.opt.centres, regionalDestPass, trafficPass];
             addCriterionRef(mandatoryRefs, bdPass, 'R-04', 'crit-mand-bdouble', 'GML/CML 19m B-double access');
-            addCriterionRef(optionalRefs, c.opt.centres, urbanArea ? 'R-05' : 'R-01', 'crit-opt-centres', 'Connects qualifying centres');
+            addCriterionRef(optionalRefs, regionalCentresPass, urbanArea ? 'R-05' : 'R-01', 'crit-opt-centres', 'Connects qualifying centres');
             addCriterionRef(optionalRefs, regionalDestPass, urbanArea ? 'R-06' : 'R-02', 'crit-opt-dest', 'Connects facilities / employment centres');
             // R-03 (road train) and Links-two-State-Roads apply to regional & remote Regional roads
             // only — urban / metropolitan Regional roads are assessed on the R-05 / R-06 set instead.
@@ -492,6 +519,13 @@ function showRoadDetail(p, source) {
         return n ? (n + ' nearby — not a qualifying connection') : 'No hospital / port / airport / intermodal / employment centre within range';
     };
     const facilityRows = evList(evDests, 'dest') + evList(evHosps, 'hosp') + evList(evEmploy, 'employ');
+    const stateFacilityNames = selectedStateDestComponent
+        ? new Set(selectedStateDestComponent.facility_names || []) : null;
+    const stateFacilityRows = stateFacilityNames
+        ? evList(evDests.filter(function (item) { return stateFacilityNames.has(item.name); }), 'dest') +
+            evList(evHosps.filter(function (item) { return stateFacilityNames.has(item.name); }), 'hosp') +
+            evList(evEmploy.filter(function (item) { return stateFacilityNames.has(item.name); }), 'employ')
+        : facilityRows;
     // Road train (R-03) — real NHVR membership; shown for Regional roads.
     const roadTrainRow = critItem(nh.roadtrain === true ? true : nh.roadtrain === false ? false : null,
         'R-03: On the road train network',
@@ -524,7 +558,7 @@ function showRoadDetail(p, source) {
         const cLabel = urbanArea
             ? 'S-10: Connects Metro Centres / Regional Cities / Major Urban Centres / Major Towns'
             : 'S-07: Connects Metro Centres / Regional Cities / Major Towns to each other';
-        html += critItem(!!c.opt.centres, cLabel, centresVal(!!c.opt.centres, evCent), 'crit-opt-centres') + evCentres(evCent);
+        html += critItem(stateCentresPass, cLabel, centresVal(stateCentresPass, evCent), 'crit-opt-centres') + evCentres(evCent);
         // LDR is an unnumbered State optional criterion. It needs a connected long-distance
         // component joining a State-tier centre to a Town Centre, not just route length.
         if (!urbanArea) html += xtMode
@@ -533,7 +567,7 @@ function showRoadDetail(p, source) {
                 stateLdrValue())
             : critItem(stateLdrPass, ldrLabel, stateLdrValue(), 'crit-opt-ldr');
         const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / International Airports / Employment Centres to other centre types';
-        html += critItem(stateDestPass, dLabel, stateDestValue(), 'crit-opt-dest') + facilityRows;
+        html += critItem(stateDestPass, dLabel, stateDestValue(), 'crit-opt-dest') + stateFacilityRows;
         html += trafficCrit;
         optEl.innerHTML = html;
     } else if (c && !mandAsState) {
@@ -546,7 +580,7 @@ function showRoadDetail(p, source) {
         const rDest = urbanArea
             ? 'R-06: Connects Major/Regional Hospitals / Major Ports / Intermodals / Airports / Employment Centres to Major Urban Centres or Major Towns'
             : 'R-02: Connects Major/Regional Hospitals / Ports / Airports / Employment Centres to Town/Urban Centres';
-        html += critItem(!!c.opt.centres, rCentres, centresVal(!!c.opt.centres, evCent), 'crit-opt-centres') + evCentres(evCent);
+        html += critItem(regionalCentresPass, rCentres, centresVal(regionalCentresPass, evCent), 'crit-opt-centres') + evCentres(evCent);
         html += critItem(regionalDestPass, rDest, regionalDestValue(), 'crit-opt-dest') + facilityRows;
         // Rural-only optional criteria — hidden for urban Regional roads (R-05/R-06 set).
         if (!urbanArea) html += roadTrainRow + twoStateRow;
@@ -582,8 +616,8 @@ function showRoadDetail(p, source) {
 
     // Connectivity — a plain-language summary derived from the SAME source as the optional criteria
     // above (c.opt) so the two cards can never contradict. NLTN membership is a separate factual tag.
-    const connCentres = c ? !!c.opt.centres : (!!p.connects_major_town || !!p.connects_regional_city);
-    const connDest = c ? (isState ? !!c.opt.dest : regionalDestPass === true) : !!p.connects_hospital;
+    const connCentres = c ? (isState ? stateCentresPass : regionalCentresPass) : (!!p.connects_major_town || !!p.connects_regional_city);
+    const connDest = c ? (isState ? stateDestPass === true : regionalDestPass === true) : !!p.connects_hospital;
     const nFac = evDests.length + evHosps.length;
     document.getElementById('detail-connectivity').innerHTML =
         critItem(!!p._nltn, 'On the National Land Transport Network', p._nltn ? 'Carries segment(s) of the national freight network' : 'Not on the NLTN') +
