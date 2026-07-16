@@ -1018,3 +1018,60 @@
         .flag-chip.fc-neutral { color: var(--ink-soft); background: var(--line-soft); }
         body.dark-mode .flag-chip.fc-neutral { color: var(--ink-soft); background: #2d2a27; }
         body.dark-mode #local-road-list::-webkit-scrollbar-thumb { background: #44403c; }
+
+        /* ================================================================
+           Dashboard Overview — full-page 3×2 card grid
+           ================================================================ */
+        .dov { position: fixed; inset: 0; z-index: 900; background: var(--bg); overflow-y: auto;
+            font-family: var(--sans); animation: cmFadeIn .25s ease; }
+        .dov[hidden] { display: none; }
+        .dov-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px;
+            border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; }
+        .dov-brand { display: flex; align-items: center; gap: 12px; }
+        .dov-mark { width: 36px; height: 36px; }
+        .dov-title { font: 700 16px var(--sans); color: var(--ink); letter-spacing: -.01em; }
+        .dov-sub { font: 500 11px var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+        .dov-back { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px;
+            border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink-soft);
+            font: 500 12.5px var(--sans); cursor: pointer; transition: all .15s ease; }
+        .dov-back:hover { border-color: var(--ink-soft); color: var(--ink); background: var(--bg-soft); }
+        .dov-back:active { transform: scale(.97); }
+
+        .dov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+            padding: 24px 28px 40px; max-width: 1400px; margin: 0 auto; }
+        .dov-card { background: var(--bg); border: 1.5px solid var(--line); border-radius: 14px;
+            padding: 20px; display: flex; flex-direction: column; min-height: 260px; }
+        .dov-card h3 { font: 700 11px var(--sans); text-transform: uppercase; letter-spacing: .07em;
+            color: var(--muted); margin-bottom: 14px; }
+        .dov-card canvas { width: 100% !important; height: auto !important; flex: 1; }
+
+        /* Mini map card */
+        .dov-card-map { position: relative; }
+        #dov-map-container { flex: 1; border-radius: 10px; overflow: hidden; min-height: 200px; }
+        .dov-card-foot { font: 400 10.5px var(--sans); color: var(--faint); margin-top: 8px; text-align: center; }
+
+        /* Network summary stats */
+        .dov-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; flex: 1; align-content: center; }
+        .dov-stat { display: flex; flex-direction: column; gap: 2px; }
+        .dov-stat-val { font: 700 22px var(--sans); color: var(--ink); letter-spacing: -.02em; }
+        .dov-stat-lbl { font: 500 11px var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+        /* Risk table card */
+        .dov-card-table { overflow: hidden; }
+        .dov-risk-list { flex: 1; overflow-y: auto; }
+        .dov-risk-table { width: 100%; border-collapse: collapse; font: 400 12px/1.4 var(--sans); }
+        .dov-risk-table th { text-align: left; font: 600 10px var(--sans); text-transform: uppercase;
+            letter-spacing: .05em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+        .dov-risk-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); color: var(--ink-soft); }
+        .dov-risk-table td strong { color: var(--ink); font-weight: 600; }
+        .dov-risk-table tr:hover td { background: #fef2f2; }
+        .dov-risk-empty { font: 400 12px var(--sans); color: var(--faint); text-align: center; padding: 30px; }
+
+        @media (max-width: 1000px) {
+            .dov-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 650px) {
+            .dov-grid { grid-template-columns: 1fr; }
+            .dov-header { padding: 14px 16px; }
+            .dov-grid { padding: 16px; }
+        }

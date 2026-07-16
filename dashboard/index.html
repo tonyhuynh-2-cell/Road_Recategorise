@@ -76,9 +76,14 @@
         </div>
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
             <h1 style="margin-bottom:0;">Road Recategorisation Assessment</h1>
-            <button id="criteria-btn" class="criteria-btn" onclick="openCriteriaModal()" title="Open criteria reference">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            </button>
+            <div style="display:flex; gap:6px;">
+                <button class="criteria-btn" onclick="showDashboardView()" title="Dashboard overview">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
+                </button>
+                <button id="criteria-btn" class="criteria-btn" onclick="openCriteriaModal()" title="Open criteria reference">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                </button>
+            </div>
         </div>
 
         <div class="tabs">
@@ -601,13 +606,73 @@
     </div>
 </div>
 
+<!-- Dashboard Overview — full-page 3×2 card grid (Option C: replaces the map view entirely) -->
+<div id="dashboard-view" class="dov" hidden>
+    <div class="dov-header">
+        <div class="dov-brand">
+            <svg class="dov-mark" viewBox="33 8 119 119" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path fill="#a52b32" d="M92.735 125.963c32.657 0 58.966-25.932 58.966-58.125S125.392 9.712 92.735 9.712c-32.659 0-58.967 25.933-58.967 58.126s26.309 58.125 58.967 58.125z"/>
+                <path fill="#fff" d="M92.282 11.054l-45.359 90.765s24.041-20.567 45.359-20.567c21.773 0 45.812 20.567 45.812 20.567L92.282 11.054z"/>
+            </svg>
+            <div>
+                <div class="dov-title">Road Recategorisation Assessment</div>
+                <div class="dov-sub">Network Dashboard Overview</div>
+            </div>
+        </div>
+        <button class="dov-back" onclick="showMapView()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10.2"></path></svg>
+            Back to map
+        </button>
+    </div>
+    <div class="dov-grid">
+        <!-- Card 1: Mini map -->
+        <div class="dov-card dov-card-map" id="dov-minimap">
+            <h3>Network Map</h3>
+            <div id="dov-map-container"></div>
+            <div class="dov-card-foot">Click "Back to map" to interact</div>
+        </div>
+        <!-- Card 2: Network summary -->
+        <div class="dov-card" id="dov-summary">
+            <h3>Network Summary</h3>
+            <div class="dov-stats">
+                <div class="dov-stat"><span class="dov-stat-val" id="dov-total-roads">–</span><span class="dov-stat-lbl">Total roads</span></div>
+                <div class="dov-stat"><span class="dov-stat-val" id="dov-total-km">–</span><span class="dov-stat-lbl">Total km</span></div>
+                <div class="dov-stat"><span class="dov-stat-val" id="dov-state-count">–</span><span class="dov-stat-lbl">State roads</span></div>
+                <div class="dov-stat"><span class="dov-stat-val" id="dov-regional-count">–</span><span class="dov-stat-lbl">Regional roads</span></div>
+                <div class="dov-stat"><span class="dov-stat-val" id="dov-segments">–</span><span class="dov-stat-lbl">Segments assessed</span></div>
+            </div>
+        </div>
+        <!-- Card 3: Verdict donut -->
+        <div class="dov-card">
+            <h3>Verdict Breakdown</h3>
+            <canvas id="dov-donut" width="240" height="240"></canvas>
+        </div>
+        <!-- Card 4: Criteria pass rates -->
+        <div class="dov-card">
+            <h3>Criteria Pass Rates</h3>
+            <canvas id="dov-criteria-bar" width="320" height="220"></canvas>
+        </div>
+        <!-- Card 5: Zone breakdown -->
+        <div class="dov-card">
+            <h3>Verdict by Zone</h3>
+            <canvas id="dov-zone-bar" width="320" height="220"></canvas>
+        </div>
+        <!-- Card 6: Top roads at risk -->
+        <div class="dov-card dov-card-table">
+            <h3>Top 10 Roads at Risk</h3>
+            <div class="dov-risk-list" id="dov-risk-list"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <!-- Load app scripts fresh on every page load (document.write keeps dependency order and runs
      synchronously during parse) so edits show up on a normal reload — no hard refresh required. -->
 <script>
 (function () {
     var v = Date.now();
-    var files = ['trace', 'config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'flagged', 'criteria', 'init'];
+    var files = ['trace', 'config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'flagged', 'criteria', 'overview', 'init'];
     for (var i = 0; i < files.length; i++) {
         document.write('<script src="js/' + files[i] + '.js?v=' + v + '"><\/script>');
     }
