@@ -1022,11 +1022,11 @@
         /* ================================================================
            Dashboard Overview — full-page 3×2 card grid
            ================================================================ */
-        .dov { position: fixed; inset: 0; z-index: 900; background: var(--bg); overflow-y: auto;
-            font-family: var(--sans); animation: cmFadeIn .25s ease; }
+        .dov { position: fixed; inset: 0; z-index: 900; background: var(--bg); overflow: hidden;
+            font-family: var(--sans); animation: cmFadeIn .25s ease; display: flex; flex-direction: column; }
         .dov[hidden] { display: none; }
-        .dov-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px;
-            border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; }
+        .dov-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px;
+            border-bottom: 1px solid var(--line); background: var(--bg); flex-shrink: 0; }
         .dov-brand { display: flex; align-items: center; gap: 12px; }
         .dov-mark { width: 36px; height: 36px; }
         .dov-title { font: 700 16px var(--sans); color: var(--ink); letter-spacing: -.01em; }
@@ -1037,18 +1037,18 @@
         .dov-back:hover { border-color: var(--ink-soft); color: var(--ink); background: var(--bg-soft); }
         .dov-back:active { transform: scale(.97); }
 
-        .dov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
-            padding: 24px 28px 40px; max-width: 1400px; margin: 0 auto; }
+        .dov-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; gap: 16px;
+            padding: 16px 28px; flex: 1; min-height: 0; max-width: 1400px; margin: 0 auto; width: 100%; }
         .dov-card { background: var(--bg); border: 1.5px solid var(--line); border-radius: 14px;
-            padding: 20px; display: flex; flex-direction: column; min-height: 260px; }
+            padding: 16px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
         .dov-card h3 { font: 700 11px var(--sans); text-transform: uppercase; letter-spacing: .07em;
-            color: var(--muted); margin-bottom: 14px; }
-        .dov-card canvas { width: 100% !important; height: auto !important; flex: 1; }
+            color: var(--muted); margin-bottom: 10px; flex-shrink: 0; }
+        .dov-card canvas { flex: 1; min-height: 0; }
 
         /* Mini map card */
         .dov-card-map { position: relative; }
-        #dov-map-container { flex: 1; border-radius: 10px; overflow: hidden; min-height: 200px; }
-        .dov-card-foot { font: 400 10.5px var(--sans); color: var(--faint); margin-top: 8px; text-align: center; }
+        #dov-map-container { flex: 1; border-radius: 10px; overflow: hidden; min-height: 0; }
+        .dov-card-foot { font: 400 10.5px var(--sans); color: var(--faint); margin-top: 6px; text-align: center; }
 
         /* Network summary stats */
         .dov-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; flex: 1; align-content: center; }

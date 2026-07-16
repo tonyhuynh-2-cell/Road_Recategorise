@@ -9,6 +9,8 @@ function showDashboardView() {
     document.getElementById('dashboard-view').hidden = false;
     if (!_dovInitialized) initDashboardOverview();
     else refreshDashboardOverview();
+    // Leaflet needs a size refresh after the container becomes visible
+    if (_dovMiniMap) setTimeout(function () { _dovMiniMap.invalidateSize(); }, 100);
 }
 
 function showMapView() {
@@ -20,15 +22,13 @@ function showMapView() {
 
 function initDashboardOverview() {
     _dovInitialized = true;
-    // Mini map
+    // Interactive mini map
     _dovMiniMap = L.map('dov-map-container', {
-        zoomControl: false, attributionControl: false, dragging: false,
-        scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false
+        zoomControl: true, attributionControl: false
     }).setView([-32.0, 149.5], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(_dovMiniMap);
     // Add a simplified version of the road layer
     if (typeof nswLayer !== 'undefined') {
-        // Clone the geojson data to render on the mini map
         var src = nswLayer.toGeoJSON();
         L.geoJSON(src, {
             style: function (f) {
@@ -119,6 +119,7 @@ function renderDonut(g, o, r) {
             datasets: [{ data: [g, o, r], backgroundColor: ['#16a34a', '#f59e0b', '#dc2626'], borderWidth: 2, borderColor: '#fff' }]
         },
         options: {
+            responsive: true, maintainAspectRatio: false,
             cutout: '60%',
             plugins: {
                 legend: { position: 'bottom', labels: { font: { family: 'IBM Plex Sans', size: 11 }, padding: 14 } },
@@ -142,6 +143,7 @@ function renderCriteriaBar(passed, total) {
             datasets: [{ data: pcts, backgroundColor: '#2563eb', borderRadius: 4 }]
         },
         options: {
+            responsive: true, maintainAspectRatio: false,
             indexAxis: 'y',
             scales: { x: { max: 100, ticks: { callback: function (v) { return v + '%'; }, font: { size: 10 } }, grid: { color: '#f5f5f4' } }, y: { ticks: { font: { family: 'IBM Plex Sans', size: 11 } }, grid: { display: false } } },
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return c.raw + '% of roads pass'; } } } }
@@ -164,6 +166,7 @@ function renderZoneBar(zd) {
             ]
         },
         options: {
+            responsive: true, maintainAspectRatio: false,
             scales: { x: { stacked: true, ticks: { font: { family: 'IBM Plex Sans', size: 11 } }, grid: { display: false } }, y: { stacked: true, ticks: { font: { size: 10 } }, grid: { color: '#f5f5f4' } } },
             plugins: { legend: { position: 'bottom', labels: { font: { family: 'IBM Plex Sans', size: 11 }, padding: 12 } } }
         }
