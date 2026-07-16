@@ -122,6 +122,17 @@ via `scratchpad/gen_evidence2.py`).
   lists the actual suburbs (kind `sal`).
 - **Major hospitals** — `POI/Major_Hospitals_NSW.geojson` (NSW Health / AIHW
   MyHospitals), tiered by beds: Urban 400+, Regional 100+, Remote 15+.
+- **State facility criterion S-08 / S-11 (July 2026 re-score):** the guide
+  wording is two-legged — the facility must connect **to other centre types**.
+  `dashboard/rebuild_state_facility_optional.py` (mirrors the R-02/R-06
+  rebuild) requires a qualifying facility (major hospital; Major Port /
+  Major Intermodal / **International** Airport — Regional Airports qualify for
+  R-02 only; Regional/Major-tier commercial-industrial-employment centre) to
+  share a connected road-geometry component with a qualifying centre (POI
+  centre types; SAL suburbs in urban areas). The result is stored in
+  `stateOpt.dest*` for every road (cross-tests) and drives `opt.dest` for
+  State roads. Previously the criterion passed on mere buffer proximity to a
+  hospital / port / airport, with no centre leg and no employment centres.
 - **Ports / airports / intermodals** —
   `POI/Key_Destinations_Ports_Intermodals_Airports.geojson` (known major-facility
   locations: Port Botany/Kembla/Newcastle, Moorebank/Enfield/Parkes, international &

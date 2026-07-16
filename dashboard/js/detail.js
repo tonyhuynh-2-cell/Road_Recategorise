@@ -243,6 +243,41 @@ function showRoadDetail(p, source) {
         }
         return 'Not assessed under this test — Regional facility connectivity has not been derived for this road';
     };
+    // S-08/S-11: the facility must share a connected road component with another CENTRE TYPE
+    // (rebuild_state_facility_optional.py, stateOpt.dest* — computed for every road so a Regional
+    // road cross-tested as State uses the real State rule). State facilities are the stricter set:
+    // major hospitals, Major Ports/Intermodals, International Airports (not Regional Airports),
+    // Regional/Major-tier employment centres.
+    const stateDestPass = (c && c.stateOpt && c.stateOpt.dest === true) ? true
+        : (c && c.stateOpt && c.stateOpt.dest === false) ? false
+            : (c && c.opt && typeof c.opt.dest === 'boolean') ? c.opt.dest : null;
+    const stateDestInfo = (c && c.stateOpt) || {};
+    const stateDestValue = function () {
+        const componentKm = fmtKm(stateDestInfo.dest_component_km);
+        const centres = stateDestInfo.dest_centre_names || [];
+        const facilities = stateDestInfo.dest_facility_names || [];
+        const allCentres = stateDestInfo.dest_all_centre_names || centres;
+        const allFacilities = stateDestInfo.dest_all_facility_names || facilities;
+        const components = stateDestInfo.dest_component_count || 0;
+        const bits = [];
+        if (stateDestPass === true) {
+            bits.push('Connected component' + (componentKm ? ' ' + componentKm : ''));
+            bits.push(nameList(facilities, 'qualifying facility/employment centre') + ' to ' + nameList(centres, 'another centre type'));
+            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            return bits.join(' · ');
+        }
+        if (stateDestPass === false) {
+            if (allFacilities.length && allCentres.length) {
+                bits.push('No connected component contains both a qualifying facility/employment centre and another centre type');
+            } else {
+                if (!allFacilities.length) bits.push('needs a major hospital, Major Port/Intermodal, International Airport or Regional/Major employment centre');
+                if (!allCentres.length) bits.push('needs a connection to another centre type');
+            }
+            if (components > 1) bits.push(components + ' disconnected geometry components in source data');
+            return bits.join(' · ');
+        }
+        return 'Not assessed under this test — State facility connectivity has not been derived for this road';
+    };
     const stateLdrValue = function () {
         const totalKm = fmtKm(stateLdrInfo.ldr_km);
         const compKm = fmtKm(stateLdrInfo.ldr_component_km);
@@ -497,8 +532,8 @@ function showRoadDetail(p, source) {
                 ldrLabel,
                 stateLdrValue())
             : critItem(stateLdrPass, ldrLabel, stateLdrValue(), 'crit-opt-ldr');
-        const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / Airports / Employment Centres';
-        html += critItem(!!c.opt.dest, dLabel, destVal(!!c.opt.dest, evDests, evHosps, evEmploy), 'crit-opt-dest') + facilityRows;
+        const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / International Airports / Employment Centres to other centre types';
+        html += critItem(stateDestPass, dLabel, stateDestValue(), 'crit-opt-dest') + facilityRows;
         html += trafficCrit;
         optEl.innerHTML = html;
     } else if (c && !mandAsState) {

@@ -119,7 +119,12 @@ function buildXtest() {
     for (const k in crit) {
         const c = crit[k]; if (!c || !c.opt) continue;
         const ldrOpt = c.area !== 'urban' && ((c.opt && c.opt.ldr === true) || (c.stateOpt && c.stateOpt.ldr === true));
-        const asStateOptMet = countOpt(c, ['centres', 'dest', 'traffic']) + (ldrOpt ? 1 : 0);
+        // S-08/S-11 facility criterion needs the facility CONNECTED to another centre type —
+        // stateOpt.dest holds that two-legged result for every road (rebuild_state_facility_
+        // optional.py) so Regional roads cross-test against the real State rule, not their own
+        // (looser) facility result in opt.dest.
+        const stateDestOpt = c.stateOpt && typeof c.stateOpt.dest === 'boolean' ? c.stateOpt.dest : c.opt.dest;
+        const asStateOptMet = countOpt(c, ['centres', 'traffic']) + (stateDestOpt === true ? 1 : 0) + (ldrOpt ? 1 : 0);
         // R-02/R-06 include Regional- and Major-tier commercial, industrial and employment centres.
         // regionalOpt is computed independently so a State road can be tested as Regional without
         // borrowing the stricter State facility result in opt.dest.
