@@ -32,6 +32,7 @@ function initDashboardOverview() {
     }).setView([-32.0, 149.5], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(_dovMiniMap);
     // Add road layer with click handlers
+    var _dovSelectedLayer = null;
     if (typeof nswLayer !== 'undefined') {
         var src = nswLayer.toGeoJSON();
         L.geoJSON(src, {
@@ -45,16 +46,28 @@ function initDashboardOverview() {
                 if (!key) return;
                 layer.on('click', function (e) {
                     L.DomEvent.stopPropagation(e);
+                    // Reset previous selection
+                    if (_dovSelectedLayer) {
+                        var prevV = _dovSelectedLayer.feature.properties._roadStatus || _dovSelectedLayer.feature.properties.status || 'red';
+                        _dovSelectedLayer.setStyle({ color: ROAD_COLORS[prevV] || '#a8a29e', weight: 1.5, opacity: 0.8 });
+                    }
+                    // Highlight this road
+                    layer.setStyle({ weight: 5, opacity: 1, color: '#2563eb' });
+                    layer.bringToFront();
+                    _dovSelectedLayer = layer;
                     // Look up the full aggregated road data
                     var aggData = (typeof NSW_AGG !== 'undefined') ? NSW_AGG[key] : null;
                     var props = aggData ? Object.assign({}, aggData, p) : p;
                     dovShowRoadInfo(props);
                 });
                 layer.on('mouseover', function () {
-                    layer.setStyle({ weight: 4, opacity: 1 });
+                    if (layer !== _dovSelectedLayer) layer.setStyle({ weight: 3, opacity: 1 });
                 });
                 layer.on('mouseout', function () {
-                    layer.setStyle({ weight: 1.5, opacity: 0.8 });
+                    if (layer !== _dovSelectedLayer) {
+                        var v = feature.properties._roadStatus || feature.properties.status || 'red';
+                        layer.setStyle({ weight: 1.5, opacity: 0.8, color: ROAD_COLORS[v] || '#a8a29e' });
+                    }
                 });
             }
         }).addTo(_dovMiniMap);
