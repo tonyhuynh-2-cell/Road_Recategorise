@@ -292,7 +292,10 @@ function dovShowRoadInfo(p) {
     card.innerHTML =
         '<div class="dov-road-header">' +
             '<h3>Selected Road</h3>' +
-            '<button class="dov-road-reset" onclick="dovShowSummary()" title="Back to summary">&times;</button>' +
+            '<div class="dov-road-header-actions">' +
+                '<button class="dov-view-map-btn" onclick="dovViewOnMap(\'' + key.replace(/'/g, "\\'") + '\')">View on map</button>' +
+                '<button class="dov-road-reset" onclick="dovShowSummary()" title="Back to summary">&times;</button>' +
+            '</div>' +
         '</div>' +
         '<div class="dov-road-info">' +
             '<div class="dov-road-name">' + name + '</div>' +
@@ -304,7 +307,6 @@ function dovShowRoadInfo(p) {
             '<div class="dov-road-section"><span class="dov-section-title">NHVR Networks</span>' + nhvrHtml + '</div>' +
             '<div class="dov-road-section"><span class="dov-section-title">Traffic</span>' + trafficHtml + '</div>' +
             '<div class="dov-road-section"><span class="dov-section-title">Connects</span>' + connHtml + '</div>' +
-            '<button class="dov-view-map-btn" onclick="dovViewOnMap(\'' + key.replace(/'/g, "\\'") + '\')">View on map</button>' +
         '</div>';
 }
 
