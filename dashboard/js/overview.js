@@ -59,8 +59,8 @@ function initDashboardOverview() {
             }
         }).addTo(_dovMiniMap);
     }
-    // Click empty map to reset to summary
-    _dovMiniMap.on('click', function () { dovShowSummary(); });
+    // Click empty map — do nothing (keep road info card if showing)
+    _dovMiniMap.on('click', function () { /* no-op: only the back button resets */ });
     refreshDashboardOverview();
 }
 
@@ -220,15 +220,34 @@ function dovShowRoadInfo(p) {
     var agg = (typeof NSW_AGG !== 'undefined') ? NSW_AGG[key] : null;
     var c = (window.NSW_CRIT || {})[key];
     var nh = (window.NHVR || {})[key] || {};
+    var rx = (window.ROAD_EXT || {})[key] || {};
+    var ad = (window.ADT || {})[key];
     var z = (window.ZONE || {})[key];
+    var evd = (window.NSW_EVID || {})[key] || {};
 
     var name = (agg && agg.road_name) ? titleCase(agg.road_name) : (p.road_name ? titleCase(p.road_name) : 'Unnamed road');
+    var roadId = (p.road_number && String(p.road_number).trim()) ? String(p.road_number).trim() : (agg && agg.road_number ? String(agg.road_number).trim() : '');
     var cls = p.admin_class === 'S' ? 'State Road' : 'Regional Road';
     var verdict = (c && c.verdict) || p._roadStatus || p.status || 'red';
     var verdictLabel = verdict === 'green' ? 'Meets criteria' : verdict === 'orange' ? 'Meets 1 of 2' : 'Does not meet';
     var verdictColor = ROAD_COLORS[verdict] || '#a8a29e';
     var len = agg ? Math.round(agg._len) : '–';
     var zoneLabel = z === 'urban' ? 'Urban' : z === 'remote' ? 'Remote' : 'Regional';
+    var isState = p.admin_class === 'S';
+
+    // Mandatory criteria
+    var mandHtml = '';
+    if (isState) {
+        var pbs1 = (c && c.mand) ? c.mand.pbs1 : !!p.has_pbs1;
+        var parallel = rx.parallel_state_20;
+        mandHtml += '<div class="dov-crit-row ' + (pbs1 ? 'dov-crit-pass' : 'dov-crit-fail') + '">S-09: PBS Level 1 access</div>';
+        if (parallel === true) mandHtml += '<div class="dov-crit-row dov-crit-fail">Parallels a State Road (&lt;20km)</div>';
+        else if (parallel === false) mandHtml += '<div class="dov-crit-row dov-crit-pass">No parallel State Road</div>';
+    } else {
+        var bd = nh.bdouble19;
+        mandHtml += '<div class="dov-crit-row ' + (bd ? 'dov-crit-pass' : 'dov-crit-fail') + '">R-04: 19m B-double access</div>';
+    }
+    mandHtml += '<div class="dov-crit-row dov-crit-na">No load limits (assumed)</div>';
 
     // Optional criteria
     var optHtml = '';
@@ -247,14 +266,45 @@ function dovShowRoadInfo(p) {
         });
     }
 
+    // NHVR network membership
+    var nhvrHtml = '';
+    if (nh.roadtrain === true) nhvrHtml += '<div class="dov-crit-row dov-crit-pass">Road train (32m)</div>';
+    if (nh.bdouble19 === true) nhvrHtml += '<div class="dov-crit-row dov-crit-pass">19m B-double</div>';
+    if (nh.bypass === true) nhvrHtml += '<div class="dov-crit-row dov-crit-pass">HV bypass route</div>';
+    if (!nhvrHtml) nhvrHtml = '<span class="dov-road-faint">No NHVR network flags</span>';
+
+    // Traffic data
+    var trafficHtml = '';
+    if (ad) {
+        trafficHtml = '<span class="dov-road-faint">AADT: ' + ad.aadt.toLocaleString() + ' (' + ad.year + ')' + (ad.hv_pct != null ? ' · ' + ad.hv_pct + '% HV' : '') + '</span>';
+    } else {
+        trafficHtml = '<span class="dov-road-faint">No traffic data available</span>';
+    }
+
+    // Connected centres/facilities (by name, max 5)
+    var connHtml = '';
+    var centres = (evd.centres || []).slice(0, 4).map(function (e) { return e.name; });
+    var facilities = (evd.hospitals || []).concat(evd.dests || []).slice(0, 3).map(function (e) { return e.name; });
+    if (centres.length) connHtml += '<div class="dov-conn-group"><span class="dov-conn-label">Centres:</span> ' + centres.join(', ') + '</div>';
+    if (facilities.length) connHtml += '<div class="dov-conn-group"><span class="dov-conn-label">Facilities:</span> ' + facilities.join(', ') + '</div>';
+    if (!connHtml) connHtml = '<span class="dov-road-faint">No connected entities in data</span>';
+
     card.innerHTML =
-        '<h3>Selected Road</h3>' +
+        '<div class="dov-road-header">' +
+            '<h3>Selected Road</h3>' +
+            '<button class="dov-road-reset" onclick="dovShowSummary()" title="Back to summary">&times;</button>' +
+        '</div>' +
         '<div class="dov-road-info">' +
             '<div class="dov-road-name">' + name + '</div>' +
-            '<div class="dov-road-meta">' + cls + ' · ' + zoneLabel + ' · ' + len + ' km</div>' +
+            (roadId ? '<div class="dov-road-id">Road ID: ' + roadId + '</div>' : '') +
+            '<div class="dov-road-meta">' + cls + ' · ' + zoneLabel + ' zone · ' + len + ' km</div>' +
             '<div class="dov-road-verdict" style="color:' + verdictColor + '">' + verdictLabel + '</div>' +
-            (optHtml ? '<div class="dov-road-criteria">' + optHtml + '</div>' : '') +
-            '<button class="dov-road-reset" onclick="dovShowSummary()">Back to summary</button>' +
+            '<div class="dov-road-section"><span class="dov-section-title">Mandatory</span>' + mandHtml + '</div>' +
+            '<div class="dov-road-section"><span class="dov-section-title">Optional (need &ge;2)</span>' + optHtml + '</div>' +
+            '<div class="dov-road-section"><span class="dov-section-title">NHVR Networks</span>' + nhvrHtml + '</div>' +
+            '<div class="dov-road-section"><span class="dov-section-title">Traffic</span>' + trafficHtml + '</div>' +
+            '<div class="dov-road-section"><span class="dov-section-title">Connects</span>' + connHtml + '</div>' +
+            '<button class="dov-view-map-btn" onclick="dovViewOnMap(\'' + key.replace(/'/g, "\\'") + '\')">View on map</button>' +
         '</div>';
 }
 
@@ -286,4 +336,19 @@ function dovShowSummary() {
     set('dov-state-count', stateCount.toLocaleString());
     set('dov-regional-count', regionalCount.toLocaleString());
     set('dov-segments', (typeof NSW_SEG_TOTAL !== 'undefined' ? NSW_SEG_TOTAL : 0).toLocaleString());
+}
+
+// Switch to the main map view with a specific road selected
+function dovViewOnMap(key) {
+    showMapView();
+    // Select the road on the main map
+    var layers = (window.NSW_ROAD_LAYERS || {})[key];
+    if (layers && layers.length && typeof highlightRoad === 'function' && typeof nswLayer !== 'undefined') {
+        highlightRoad(layers, nswLayer);
+        // Zoom to it
+        try { map.fitBounds(L.featureGroup(layers).getBounds().pad(0.2), { maxZoom: 12 }); } catch (e) {}
+        // Show detail
+        var agg = (typeof NSW_AGG !== 'undefined') ? NSW_AGG[key] : null;
+        if (agg && typeof showRoadDetail === 'function') showRoadDetail(agg, 'nsw');
+    }
 }
