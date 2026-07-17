@@ -31,8 +31,9 @@ function initDashboardOverview() {
         zoomControl: true, attributionControl: false
     }).setView([-32.0, 149.5], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(_dovMiniMap);
-    // Add road layer with click handlers
-    var _dovSelectedLayer = null;
+    // Add road layer with click handlers — group segments by roadKey so clicking one selects the whole road
+    var _dovSelectedLayers = [];
+    var _dovRoadGroups = {};   // roadKey → [layer, layer, …]
     if (typeof nswLayer !== 'undefined') {
         var src = nswLayer.toGeoJSON();
         L.geoJSON(src, {
@@ -44,29 +45,38 @@ function initDashboardOverview() {
                 var p = feature.properties;
                 var key = (typeof roadKeyOf === 'function') ? roadKeyOf(p) : '';
                 if (!key) return;
+                // Group layers by road key
+                if (!_dovRoadGroups[key]) _dovRoadGroups[key] = [];
+                _dovRoadGroups[key].push(layer);
+
                 layer.on('click', function (e) {
                     L.DomEvent.stopPropagation(e);
                     // Reset previous selection
-                    if (_dovSelectedLayer) {
-                        var prevV = _dovSelectedLayer.feature.properties._roadStatus || _dovSelectedLayer.feature.properties.status || 'red';
-                        _dovSelectedLayer.setStyle({ color: ROAD_COLORS[prevV] || '#a8a29e', weight: 3, opacity: 0.8 });
-                    }
-                    // Highlight this road
-                    layer.setStyle({ weight: 6, opacity: 1, color: '#2563eb' });
-                    layer.bringToFront();
-                    _dovSelectedLayer = layer;
+                    _dovSelectedLayers.forEach(function (l) {
+                        var prevV = l.feature.properties._roadStatus || l.feature.properties.status || 'red';
+                        l.setStyle({ color: ROAD_COLORS[prevV] || '#a8a29e', weight: 3, opacity: 0.8 });
+                    });
+                    // Highlight ALL segments of this road
+                    var group = _dovRoadGroups[key] || [layer];
+                    group.forEach(function (l) {
+                        l.setStyle({ weight: 6, opacity: 1, color: '#2563eb' });
+                        l.bringToFront();
+                    });
+                    _dovSelectedLayers = group;
                     // Look up the full aggregated road data
                     var aggData = (typeof NSW_AGG !== 'undefined') ? NSW_AGG[key] : null;
                     var props = aggData ? Object.assign({}, aggData, p) : p;
                     dovShowRoadInfo(props);
                 });
                 layer.on('mouseover', function () {
-                    if (layer !== _dovSelectedLayer) layer.setStyle({ weight: 5, opacity: 1 });
+                    if (_dovSelectedLayers.indexOf(layer) === -1) {
+                        (_dovRoadGroups[key] || [layer]).forEach(function (l) { l.setStyle({ weight: 5, opacity: 1 }); });
+                    }
                 });
                 layer.on('mouseout', function () {
-                    if (layer !== _dovSelectedLayer) {
+                    if (_dovSelectedLayers.indexOf(layer) === -1) {
                         var v = feature.properties._roadStatus || feature.properties.status || 'red';
-                        layer.setStyle({ weight: 3, opacity: 0.8, color: ROAD_COLORS[v] || '#a8a29e' });
+                        (_dovRoadGroups[key] || [layer]).forEach(function (l) { l.setStyle({ weight: 3, opacity: 0.8, color: ROAD_COLORS[v] || '#a8a29e' }); });
                     }
                 });
             }
