@@ -38,7 +38,7 @@ function initDashboardOverview() {
         L.geoJSON(src, {
             style: function (f) {
                 var v = f.properties._roadStatus || f.properties.status || 'red';
-                return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: 1.5, opacity: 0.8 };
+                return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: 3, opacity: 0.8 };
             },
             onEachFeature: function (feature, layer) {
                 var p = feature.properties;
@@ -49,10 +49,10 @@ function initDashboardOverview() {
                     // Reset previous selection
                     if (_dovSelectedLayer) {
                         var prevV = _dovSelectedLayer.feature.properties._roadStatus || _dovSelectedLayer.feature.properties.status || 'red';
-                        _dovSelectedLayer.setStyle({ color: ROAD_COLORS[prevV] || '#a8a29e', weight: 1.5, opacity: 0.8 });
+                        _dovSelectedLayer.setStyle({ color: ROAD_COLORS[prevV] || '#a8a29e', weight: 3, opacity: 0.8 });
                     }
                     // Highlight this road
-                    layer.setStyle({ weight: 5, opacity: 1, color: '#2563eb' });
+                    layer.setStyle({ weight: 6, opacity: 1, color: '#2563eb' });
                     layer.bringToFront();
                     _dovSelectedLayer = layer;
                     // Look up the full aggregated road data
@@ -61,12 +61,12 @@ function initDashboardOverview() {
                     dovShowRoadInfo(props);
                 });
                 layer.on('mouseover', function () {
-                    if (layer !== _dovSelectedLayer) layer.setStyle({ weight: 3, opacity: 1 });
+                    if (layer !== _dovSelectedLayer) layer.setStyle({ weight: 5, opacity: 1 });
                 });
                 layer.on('mouseout', function () {
                     if (layer !== _dovSelectedLayer) {
                         var v = feature.properties._roadStatus || feature.properties.status || 'red';
-                        layer.setStyle({ weight: 1.5, opacity: 0.8, color: ROAD_COLORS[v] || '#a8a29e' });
+                        layer.setStyle({ weight: 3, opacity: 0.8, color: ROAD_COLORS[v] || '#a8a29e' });
                     }
                 });
             }
