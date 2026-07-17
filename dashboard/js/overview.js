@@ -40,8 +40,15 @@ function initDashboardOverview() {
                 return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: 1.5, opacity: 0.8 };
             },
             onEachFeature: function (feature, layer) {
-                layer.on('click', function () {
-                    dovShowRoadInfo(feature.properties);
+                var p = feature.properties;
+                var key = (typeof roadKeyOf === 'function') ? roadKeyOf(p) : '';
+                if (!key) return;
+                layer.on('click', function (e) {
+                    L.DomEvent.stopPropagation(e);
+                    // Look up the full aggregated road data
+                    var aggData = (typeof NSW_AGG !== 'undefined') ? NSW_AGG[key] : null;
+                    var props = aggData ? Object.assign({}, aggData, p) : p;
+                    dovShowRoadInfo(props);
                 });
                 layer.on('mouseover', function () {
                     layer.setStyle({ weight: 4, opacity: 1 });
