@@ -1075,3 +1075,17 @@
             .dov-header { padding: 14px 16px; }
             .dov-grid { padding: 16px; }
         }
+
+        /* Dashboard overview — road info card (replaces summary on road click) */
+        .dov-road-info { display: flex; flex-direction: column; gap: 8px; flex: 1; justify-content: center; }
+        .dov-road-name { font: 700 18px var(--sans); color: var(--ink); letter-spacing: -.01em; }
+        .dov-road-meta { font: 500 12px var(--sans); color: var(--muted); }
+        .dov-road-verdict { font: 700 14px var(--sans); margin-top: 4px; }
+        .dov-road-criteria { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .dov-crit-row { font: 500 11px var(--sans); padding: 3px 9px; border-radius: 5px; }
+        .dov-crit-pass { background: #dcfce7; color: #166534; }
+        .dov-crit-fail { background: #fee2e2; color: #991b1b; }
+        .dov-road-reset { margin-top: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 7px;
+            background: var(--bg); color: var(--muted); font: 500 11px var(--sans); cursor: pointer; align-self: flex-start;
+            transition: all .12s ease; }
+        .dov-road-reset:hover { border-color: var(--ink-soft); color: var(--ink); }

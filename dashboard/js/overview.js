@@ -7,6 +7,8 @@ let _dovCharts = {};
 function showDashboardView() {
     document.querySelector('.container').hidden = true;
     document.getElementById('dashboard-view').hidden = false;
+    // Hide the main map's zoom control (it bleeds through z-index)
+    document.querySelectorAll('.leaflet-control-zoom').forEach(function (el) { el.style.display = 'none'; });
     if (!_dovInitialized) initDashboardOverview();
     else refreshDashboardOverview();
     // Leaflet needs a size refresh after the container becomes visible
@@ -16,6 +18,8 @@ function showDashboardView() {
 function showMapView() {
     document.getElementById('dashboard-view').hidden = true;
     document.querySelector('.container').hidden = false;
+    // Restore the main map's zoom control
+    document.querySelectorAll('.leaflet-control-zoom').forEach(function (el) { el.style.display = ''; });
     // Leaflet may need a size refresh after being hidden
     if (typeof map !== 'undefined') setTimeout(function () { map.invalidateSize(); }, 100);
 }
@@ -27,16 +31,29 @@ function initDashboardOverview() {
         zoomControl: true, attributionControl: false
     }).setView([-32.0, 149.5], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(_dovMiniMap);
-    // Add a simplified version of the road layer
+    // Add road layer with click handlers
     if (typeof nswLayer !== 'undefined') {
         var src = nswLayer.toGeoJSON();
         L.geoJSON(src, {
             style: function (f) {
                 var v = f.properties._roadStatus || f.properties.status || 'red';
-                return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: 1.2, opacity: 0.8 };
+                return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: 1.5, opacity: 0.8 };
+            },
+            onEachFeature: function (feature, layer) {
+                layer.on('click', function () {
+                    dovShowRoadInfo(feature.properties);
+                });
+                layer.on('mouseover', function () {
+                    layer.setStyle({ weight: 4, opacity: 1 });
+                });
+                layer.on('mouseout', function () {
+                    layer.setStyle({ weight: 1.5, opacity: 0.8 });
+                });
             }
         }).addTo(_dovMiniMap);
     }
+    // Click empty map to reset to summary
+    _dovMiniMap.on('click', function () { dovShowSummary(); });
     refreshDashboardOverview();
 }
 
@@ -185,4 +202,81 @@ function renderRiskList(roads) {
     });
     html += '</tbody></table>';
     el.innerHTML = html;
+}
+
+// --- Road info display in the summary card ---
+
+function dovShowRoadInfo(p) {
+    var card = document.getElementById('dov-summary');
+    if (!card) return;
+    var key = roadKeyOf(p);
+    var agg = (typeof NSW_AGG !== 'undefined') ? NSW_AGG[key] : null;
+    var c = (window.NSW_CRIT || {})[key];
+    var nh = (window.NHVR || {})[key] || {};
+    var z = (window.ZONE || {})[key];
+
+    var name = (agg && agg.road_name) ? titleCase(agg.road_name) : (p.road_name ? titleCase(p.road_name) : 'Unnamed road');
+    var cls = p.admin_class === 'S' ? 'State Road' : 'Regional Road';
+    var verdict = (c && c.verdict) || p._roadStatus || p.status || 'red';
+    var verdictLabel = verdict === 'green' ? 'Meets criteria' : verdict === 'orange' ? 'Meets 1 of 2' : 'Does not meet';
+    var verdictColor = ROAD_COLORS[verdict] || '#a8a29e';
+    var len = agg ? Math.round(agg._len) : '–';
+    var zoneLabel = z === 'urban' ? 'Urban' : z === 'remote' ? 'Remote' : 'Regional';
+
+    // Optional criteria
+    var optHtml = '';
+    if (c && c.opt) {
+        var opts = [
+            ['Connects centres', c.opt.centres],
+            ['Connects facilities', c.opt.dest],
+            ['Heavy vehicle network', c.opt.hv],
+            ['Traffic volume', c.opt.traffic],
+            ['Long-distance route', c.opt.ldr],
+            ['Links two State Roads', c.opt.two_state]
+        ];
+        opts.forEach(function (o) {
+            if (o[1] === true) optHtml += '<div class="dov-crit-row dov-crit-pass">' + o[0] + '</div>';
+            else if (o[1] === false) optHtml += '<div class="dov-crit-row dov-crit-fail">' + o[0] + '</div>';
+        });
+    }
+
+    card.innerHTML =
+        '<h3>Selected Road</h3>' +
+        '<div class="dov-road-info">' +
+            '<div class="dov-road-name">' + name + '</div>' +
+            '<div class="dov-road-meta">' + cls + ' · ' + zoneLabel + ' · ' + len + ' km</div>' +
+            '<div class="dov-road-verdict" style="color:' + verdictColor + '">' + verdictLabel + '</div>' +
+            (optHtml ? '<div class="dov-road-criteria">' + optHtml + '</div>' : '') +
+            '<button class="dov-road-reset" onclick="dovShowSummary()">Back to summary</button>' +
+        '</div>';
+}
+
+function dovShowSummary() {
+    var card = document.getElementById('dov-summary');
+    if (!card) return;
+    card.innerHTML =
+        '<h3>Network Summary</h3>' +
+        '<div class="dov-stats">' +
+            '<div class="dov-stat"><span class="dov-stat-val" id="dov-total-roads">–</span><span class="dov-stat-lbl">Total roads</span></div>' +
+            '<div class="dov-stat"><span class="dov-stat-val" id="dov-total-km">–</span><span class="dov-stat-lbl">Total km</span></div>' +
+            '<div class="dov-stat"><span class="dov-stat-val" id="dov-state-count">–</span><span class="dov-stat-lbl">State roads</span></div>' +
+            '<div class="dov-stat"><span class="dov-stat-val" id="dov-regional-count">–</span><span class="dov-stat-lbl">Regional roads</span></div>' +
+            '<div class="dov-stat"><span class="dov-stat-val" id="dov-segments">–</span><span class="dov-stat-lbl">Segments assessed</span></div>' +
+        '</div>';
+    // Re-populate the stats
+    var agg = (typeof NSW_AGG !== 'undefined') ? NSW_AGG : {};
+    var crit = window.NSW_CRIT || {};
+    var totalRoads = 0, totalKm = 0, stateCount = 0, regionalCount = 0;
+    for (var k in agg) {
+        var a = agg[k];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        totalRoads++; totalKm += a._len || 0;
+        if (a.admin_class === 'S') stateCount++; else regionalCount++;
+    }
+    var set = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+    set('dov-total-roads', totalRoads.toLocaleString());
+    set('dov-total-km', Math.round(totalKm).toLocaleString() + ' km');
+    set('dov-state-count', stateCount.toLocaleString());
+    set('dov-regional-count', regionalCount.toLocaleString());
+    set('dov-segments', (typeof NSW_SEG_TOTAL !== 'undefined' ? NSW_SEG_TOTAL : 0).toLocaleString());
 }
