@@ -248,6 +248,7 @@
             transition: all .15s ease; flex-shrink: 0; }
         .criteria-btn:hover { border-color: #a8a29e; color: #44403c; background: #f5f5f4; }
         .criteria-btn:active { transform: scale(.95); }
+        .criteria-btn.criteria-btn-active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
 
         /* Criteria modal — overlays the map area */
         .criteria-modal { position: absolute; inset: 0; z-index: 700; display: flex; flex-direction: column;
