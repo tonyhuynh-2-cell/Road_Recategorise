@@ -362,15 +362,25 @@ const criterionRefs = mandatoryRefs.concat(optionalQuotaMet ? [] : optionalRefs)
 
 What it is:
 
-The detail panel checks traffic volume and heavy-vehicle percentage against the correct threshold for State/Regional and urban/rural conditions.
+The rebuild imports the newest completed-year measured traffic count for each
+matched road. The detail panel shows that evidence and checks traffic volume and
+heavy-vehicle percentage against the correct State/Regional and urban/rural
+thresholds.
 
 What the code does:
 
-`detail.js` calculates AADT pass, heavy-vehicle pass and combined traffic pass. If heavy-vehicle percentage is missing, the traffic criterion is not treated as a clean pass.
+`rebuild_adt.py` rejects partial/current-year observations, combines directional
+counts, pairs heavy vehicles to the same station/year and matches counters to
+road units. It also applies the traffic result to the generated criteria and
+verdict. `detail.js` reproduces the same calculation for display. If
+heavy-vehicle percentage is missing, the traffic criterion is not treated as a
+clean pass.
 
 Key files:
 
 - `dashboard/js/detail.js`
+- `dashboard/rebuild_adt.py`
+- `dashboard/rebuild_road_units.py`
 - `dashboard/data/nsw_adt.json`
 
 Snippet:

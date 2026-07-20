@@ -111,18 +111,25 @@ testing connectivity.
 
 ## 2. Traffic — Average Daily Traffic (AADT) & heavy-vehicle %
 
-**`nsw_adt.json`** — real AADT + %HV for **366 roads** (State 191/266, Regional
-175/626).
+**`nsw_declared_adt.json`** — measured AADT for **376 of 921 declared roads**
+(State 190, Regional 186). Heavy-vehicle percentage is available for 169 roads,
+and 83 road measurements are from 2020 or later. `nsw_unit_adt.json` retains the
+same evidence at connected-section level for audit.
 
 - **Source:** **TfNSW "NSW Roads Traffic Volume Counts"** open data
   (`opendata.transport.nsw.gov.au`, dataset `ef2b0bd2-…`). Two CSVs:
   - *Station Reference* — 1,783 count-station locations (lat/lon).
   - *Yearly Summary* — annual counts 2006–2026 by station, direction and vehicle class.
-- **How derived:** for each station, take the latest **all-days, both-directions**
-  count (ALL VEHICLES / UNCLASSIFIED) as AADT and the HEAVY-VEHICLES count for %HV;
-  spatially join each station to the busiest assessed road within **250 m**
-  (`scratchpad/build_adt.py`). Coverage is strong on State roads, sparser on rural
-  Regional roads (fewer stations).
+- **How derived:** `dashboard/rebuild_adt.py` excludes partial and current-year
+  counts, combines the two measured directions when TfNSW has not published a
+  both-directions total, and keeps each station's newest completed-year result
+  (through 2025 in the current build). Heavy-vehicle percentage is calculated
+  only from the same station and year as an `ALL VEHICLES` count. Stations first
+  match road administrative ID and geometry; road-name/geometry matching handles
+  source-ID differences. A counter is shared with another administrative road
+  record only when the road names agree and the geometries overlap within 15 m.
+  The newest matched observation is selected for each road; a high old count no
+  longer overrides a newer measurement.
 - The old **Clarence Valley** master file (`Traffic Counts Master File.xlsx`) is
   council data for the Grafton region only — used for the CV tab, not statewide.
 
@@ -357,7 +364,7 @@ These are produced entirely from the datasets above:
 | **Emergency evacuation routes** | **No statewide dataset exists** — only council PDFs + NSW SES *tsunami evacuation areas* (coastal polygons, not road routes). Investigated and confirmed unavailable. |
 | **Interstate towns within 100 km of the border** | Skipped (needs QLD/VIC/SA town data; only NSW census is on disk). |
 | **Commercial/industrial economic value** | Deliberately excluded from scoring under the client-approved size-only method. The software does not infer jobs, freight output or income from the available polygons. |
-| **Location of road-wide AADT / road-train / bypass results inside split administrative IDs** | Existing derived files identify only the TfNSW road number, not the contributing station/network geometry. Split road units show these values as unavailable rather than copying one corridor's result to another. B-double and PBS-1 remain available from segment-level flags. |
+| **Measured ADT on roads without a nearby TfNSW counter** | The importer locates every usable TfNSW station observation to connected road geometry, including tightly overlapping named administrative records. Roads with no matching counter remain unavailable rather than borrowing traffic from a nearby, parallel or crossing road. B-double and PBS-1 remain available from segment-level flags. |
 
 ---
 

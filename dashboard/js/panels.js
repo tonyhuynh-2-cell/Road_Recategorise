@@ -276,7 +276,7 @@ function renderMapLegend() {
             const m = NSW_VIEW_META[nswView];
             const rows = m ? m.legend : [
                 ['#16a34a', 'Meets its criteria'],
-                ['#f59e0b', 'Meets 1 optional (may pass with ADT)'],
+                ['#f59e0b', 'Meets 1 optional criterion'],
                 ['#dc2626', 'Does not meet']
             ];
             rows.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
@@ -319,7 +319,7 @@ function renderMapLegend() {
         h += li('towns', townSw, 'Centres / localities · zoom in');
     } else {   // overview + detail
         h += li('green', sw('#16a34a'), 'Meets its criteria');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 optional (may pass with ADT)');
+        h += li('orange', sw('#f59e0b'), 'Meets 1 optional criterion');
         h += li('red', sw('#dc2626'), 'Does not meet');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town/City');

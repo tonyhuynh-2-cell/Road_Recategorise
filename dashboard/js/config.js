@@ -43,14 +43,14 @@ const NSW_VIEW_META = {
     state: {
         title: 'State Roads', sub: 'State roads not on the national network, graded against the State Road criteria',
         gLabel: 'Meets criteria', oLabel: 'Meets 1 optional', rLabel: 'Does not meet',
-        legend: [['#16a34a', 'Meets State criteria (≥2 optional)'], ['#f59e0b', 'Meets 1 optional — may pass with ADT'], ['#dc2626', 'Meets none — candidate to downgrade']],
+        legend: [['#16a34a', 'Meets State criteria (≥2 optional)'], ['#f59e0b', 'Meets 1 optional criterion'], ['#dc2626', 'Meets none — candidate to downgrade']],
         note: 'State Roads must meet ≥2 optional criteria (connect centres; unnumbered long-distance rural centre-to-town route; connect major hospitals / Major Ports / Intermodals / International Airports / employment centres TO other centre types; traffic volume + heavy-vehicle threshold) plus the mandatory criteria. Nationally significant State roads (predominantly on the National Land Transport Network — M1, M4, M5, Hume, etc.) are shown on the Nat. Significant tab, not here.'
     },
     regional: {
         title: 'Regional Roads', sub: 'Graded against the Regional Road criteria',
         gLabel: 'Meets criteria', oLabel: 'Meets 1 optional', rLabel: 'Does not meet',
-        legend: [['#16a34a', 'Meets Regional criteria (≥2 optional)'], ['#f59e0b', 'Meets 1 optional — may pass with ADT'], ['#dc2626', 'Meets none — candidate for Local']],
-        note: 'Regional Roads must meet ≥2 optional criteria (connect urban / town centres; connect hospitals / ports / airports / employment to centres; road-train access for regional/remote roads) plus the mandatory 19m B-double access. Orange roads meet 1 optional criterion and would qualify with sufficient ADT.'
+        legend: [['#16a34a', 'Meets Regional criteria (≥2 optional)'], ['#f59e0b', 'Meets 1 optional criterion'], ['#dc2626', 'Meets none — candidate for Local']],
+        note: 'Regional Roads must meet ≥2 optional criteria (connect urban / town centres; connect hospitals / ports / airports / employment to centres; road-train access for regional/remote roads; traffic volume + heavy-vehicle threshold) plus the mandatory 19m B-double access. Orange roads meet 1 optional criterion and need one more optional criterion to qualify.'
     }
 };
 
@@ -81,8 +81,8 @@ const XT_MODE_NOTES = {
 };
 // Map-legend verdict labels per active cross-test mode (the target category's tiers).
 const XT_MODE_LEGEND = {
-    regional: [['#16a34a', 'Would meet Regional (≥2 optional)'], ['#f59e0b', 'Meets 1 optional — may pass with ADT'], ['#dc2626', 'Would not meet Regional']],
-    state:    [['#16a34a', 'Would meet State (≥2 optional)'], ['#f59e0b', 'Meets 1 optional — may pass with ADT'], ['#dc2626', 'Would not meet State']],
+    regional: [['#16a34a', 'Would meet Regional (≥2 optional)'], ['#f59e0b', 'Meets 1 optional criterion'], ['#dc2626', 'Would not meet Regional']],
+    state:    [['#16a34a', 'Would meet State (≥2 optional)'], ['#f59e0b', 'Meets 1 optional criterion'], ['#dc2626', 'Would not meet State']],
     natsig:   [['#16a34a', 'Would be nationally significant (PBS 2B + ≥2 criteria)'], ['#f59e0b', 'Meets 1 national criterion'], ['#dc2626', 'No national criterion, or fails the PBS 2B gate']]
 };
 

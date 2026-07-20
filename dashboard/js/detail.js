@@ -232,8 +232,8 @@ function showRoadDetail(p, source) {
     const regionalCriterionCentres = regionalCriterionNames.size
         ? evCent.filter(function (item) { return regionalCriterionNames.has(item.name); }) : evCent;
     const urbanArea = c ? c.area === 'urban' : !!p._urban;
-    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts (data/nsw_adt.json), spatially
-    // joined to the busiest count station on the road. Threshold depends on category + urban/rural —
+    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts, spatially joined to the
+    // newest completed-year count on the mapped road. Threshold depends on category + urban/rural —
     // under a State/Regional cross-test the TARGET category's thresholds apply (effState).
     const ad = (source === 'nsw' && window.ADT) ? window.ADT[roadKeyOf(p)] : null;
     const effState = xtMode === 'state' ? true : xtMode === 'regional' ? false : isState;
@@ -536,7 +536,7 @@ function showRoadDetail(p, source) {
     } else if (ad) {
         // Statewide AADT now available for this road (TfNSW count station).
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (aadtPass ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + adtThr.toLocaleString() + ' (' + (urbanArea ? 'urban' : 'rural') + ' ' + (effState ? 'State' : 'Regional') + (xtMode ? ' — cross-test' : '') + ') · TfNSW count, ' + ad.year + '</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">' + (hvPass === true ? ICON.pass : hvPass === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · busiest of ' + ad.stations + ' stations' : '') + '</div></div></div>';
+            '<div class="criteria-item"><span class="criteria-icon">' + (hvPass === true ? ICON.pass : hvPass === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · selected from ' + ad.stations + ' matched stations' : '') + '</div></div></div>';
     } else {
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">No TfNSW count station on this road · ' + (effState ? 'State threshold >' + adtThr.toLocaleString() : 'Regional threshold >' + adtThr.toLocaleString()) + (xtMode ? ' (cross-test)' : '') + '</div></div></div>';
     }

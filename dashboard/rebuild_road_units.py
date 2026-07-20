@@ -44,6 +44,11 @@ from rebuild_employment_centres import (
     employment_size_threshold,
     source_path as employment_source_path,
 )
+from rebuild_adt import (
+    apply_traffic_criteria,
+    build_measured_adt,
+    combine_adt_rows,
+)
 from regional_employment_access import OUTPUT_NAME as REGIONAL_ACCESS_OUTPUT, apply_access_results
 from rebuild_state_facility_optional import evaluate_state_dest, state_metadata
 
@@ -1050,8 +1055,11 @@ def build_declared_roads(
                 nhvr_row["bdouble19Coverage"] = combined["bdouble_coverage"]
                 nhvr_row["source_scope"] = "declared_road_all_sections"
                 nhvr[key] = nhvr_row
-                if base in legacy_adt:
-                    adt[key] = copy.deepcopy(legacy_adt[base])
+                measured = combine_adt_rows([
+                    unit_adt.get(member["key"]) for member in members
+                ])
+                if measured:
+                    adt[key] = measured
                 road_ext[key] = copy.deepcopy(legacy_ext.get(base, {}))
             else:
                 member_key = members[0]["key"]
@@ -1169,10 +1177,21 @@ def validate_outputs(
             legacy = copy.deepcopy(legacy_criteria.get(base) or {})
             current.pop("regionalOpt", None)
             legacy.pop("regionalOpt", None)
+            for candidate in (current, legacy):
+                candidate.setdefault("opt", {}).pop("traffic", None)
+                candidate["optMet"] = optional_count(candidate["opt"])
+                candidate["verdict"] = verdict_of(candidate)
             if key not in regional_dest_changed and current != legacy:
                 raise RuntimeError(f"Single-unit road {base} changed outside Regional evidence")
-        if len(rows) > 1 and any(row["key"] in adt for row in rows):
-            raise RuntimeError(f"Split road {base} retained ambiguous road-wide AADT")
+        if len(rows) > 1:
+            for row in rows:
+                measured = adt.get(row["key"])
+                if measured and measured.get("match_method") not in {
+                    "administrative_id_and_geometry",
+                    "road_name_and_geometry",
+                    "overlapping_road_name_and_geometry",
+                }:
+                    raise RuntimeError(f"Split road {base} retained ambiguous road-wide AADT")
     for key, result in network_state_dest.items():
         state_opt = criteria[key].get("stateOpt") or {}
         if state_opt.get("dest") != result.get("dest"):
@@ -1588,6 +1607,16 @@ def main() -> None:
         ):
             regional_dest_changed.add(key)
 
+    # Rebuild measured traffic evidence from the raw TfNSW station files. This
+    # replaces the legacy road-wide "busiest historical count" values with the
+    # newest completed-year observation located to each connected road unit.
+    base_adt, unit_adt, adt_audit = build_measured_adt(
+        features,
+        projected_geometries,
+        args.raw_dir,
+    )
+    apply_traffic_criteria(unit_criteria, unit_adt)
+
     unit_recat = []
     for index, feature in enumerate(features):
         key = feature["properties"].get("road_unit")
@@ -1674,6 +1703,7 @@ def main() -> None:
         urbanity,
         newell_segments,
     )
+    apply_traffic_criteria(declared_criteria, declared_adt)
     declared_recat = []
     for index, feature in enumerate(features):
         key = feature["properties"].get("declared_road")
@@ -1782,6 +1812,7 @@ def main() -> None:
         "excluded_micro_component_count": len(excluded_components),
         "excluded_micro_feature_count": sum(len(row["feature_indexes"]) for row in excluded_components),
         "unit_state_facility_assessment": unit_state_dest_audit,
+        "traffic_assessment": adt_audit,
         "split_source_roads": split_ids,
         "units": audit_units,
     }
@@ -1877,9 +1908,17 @@ def main() -> None:
     )
     print(f"unit verdicts: {dict(verdicts)}")
     print(
+        "measured ADT: "
+        f"{len(unit_adt):,} units from {adt_audit['matched_station_observations']:,} "
+        f"matched TfNSW stations across {adt_audit['matched_station_assignments']:,} "
+        f"road assignments (through {adt_audit['latest_complete_year']})"
+    )
+    print(f"ADT match methods: {adt_audit['match_methods']}")
+    print(
         f"declared roads: {len(declared_roads):,} "
         f"({declared_audit['grouped_declared_road_count']:,} span multiple mapped sections)"
     )
+    print(f"declared roads with measured ADT: {len(declared_adt):,}")
     print(f"declared-road verdicts: {dict(declared_verdicts)}")
     print("validation: unit and declared-road keys, verdicts, segment colours and exports agree")
     for base in ("0000057",):
@@ -1897,6 +1936,7 @@ def main() -> None:
         return
 
     write_json("nsw_assessment.geojson", assessment)
+    write_json("nsw_adt.json", base_adt)
     write_json("nsw_road_units.json", audit)
     write_json("nsw_unit_criteria.json", unit_criteria)
     write_json("nsw_unit_evidence.json", unit_evidence)
