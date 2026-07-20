@@ -156,6 +156,22 @@ excluded.
   `POI/Census_Population/2021Census_G01_NSW_*.csv`.
 - **Significant Urban Areas** (`sua_outlines.json`) — **ABS SUA 2021**
   (`POI/SUA_NSW_2021.shp`); the perimeters used to say what a city road "connects".
+- **Remote-zone town thresholds (July 2026, PENDING DATA RE-RUN):** the guide
+  eases every centre tier west of the Newell Hwy (Regional City 15,000+ ·
+  Major Town 5,000+ · Town Centre 1,000+). `dashboard/rebuild_remote_town_centres.py`
+  applies them to the towns/evidence layer (the network-based criteria already
+  honour them via `centre_roles`): it adds 12 remote towns the flat 2,000 floor
+  had excluded (Bourke, Walgett, Nyngan, Lightning Ridge, Balranald…) to
+  `nsw_towns.geojson`, attaches them (≤5 km) to rural roads' evidence, and
+  re-tiers 3 centres (Broken Hill → Regional City; Deniliquin, Moama → Major
+  Town). **The regenerated data is NOT in this lineage yet**: the declared-road
+  pipeline (`rebuild_road_units.py`) now requires raw inputs not present on
+  every machine (`nsw_planning_employment_zones.geojson`,
+  `nsw_road_segments_gda2020/nsw_road_segments.gpkg` + the derived corridor
+  cache, `abs_sua_census_profile_2021_nsw/2021Census_G01_NSW_SUA.csv`).
+  Cascade once those are available: `rebuild_remote_town_centres.py --apply` →
+  `rebuild_r01_rural_centres.py --apply` → `rebuild_road_units.py --apply
+  --raw-dir <raw>`.
 - **Suburbs & Localities (SAL 2021)** — **ABS ASGS Edition 3, Non-ABS Structures
   GeoPackage** (`dashboard/Newfile/ASGS_Ed3_Non_ABS_Structures_GDA2020_updated_2025.gpkg`,
   layer `SAL_2021_AUST_GDA2020`; ~1 GB, NOT in git — auto-extracted from the

@@ -774,7 +774,11 @@ function detailLayout(mode) {
     set('detail-card-optional', true, nltn ? 'Mandatory criteria' : 'Optional criteria (must meet ≥2)');
     set('detail-card-vehicle', false);
     set('detail-card-connectivity', false);
-    set('detail-card-extra', !nltn, 'Additional data');
+    // No title arg: set()'s textContent write would wipe the expand chevron out of the header.
+    // The card also starts minimised again for every road opened.
+    const extra = document.getElementById('detail-card-extra');
+    if (extra) extra.classList.add('collapsed');
+    set('detail-card-extra', !nltn);
 }
 
 // Road Detail for an NLTN 2020 line (the Nationally Significant lens). Graded by the national

@@ -164,6 +164,18 @@
         .map-legend::-webkit-scrollbar { width: 7px; }
         .map-legend::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
         .map-legend h3 { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 11px; }
+        .ml-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+        .ml-header h3 { margin-bottom: 0; }
+        .ml-actions { display: flex; align-items: center; gap: 4px; }
+        .ml-btn { width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
+            color: var(--muted); display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all .12s ease; }
+        .ml-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
+        .ml-btn:active { transform: scale(.92); }
+        .map-legend.ml-collapsed .legend-item,
+        .map-legend.ml-collapsed .legend-sub,
+        .map-legend.ml-collapsed .legend-static { display: none; }
+        .map-legend.ml-collapsed .ml-header { margin-bottom: 0; }
         .map-legend .legend-item { margin-bottom: 10px; font-size: 12px; }
         .map-legend .legend-item:last-child { margin-bottom: 0; }
         @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
@@ -239,10 +251,12 @@
         .data-note { margin-top: 16px; background: var(--bg-soft); border: 1.5px solid var(--muted); border-radius: 12px; padding: 12.5px 14.5px; }
 
         /* Collapsible card (Additional data: traffic + vehicle access + connectivity) */
-        .collapsible-card .collapsible-header { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-        .collapsible-card .collapse-chevron { transition: transform .2s ease; font-size: 14px; color: var(--muted); }
+        .collapsible-card .collapsible-header { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; width: 100%; }
+        .collapsible-card .collapse-chevron { transition: transform .2s ease, opacity .12s ease; width: 18px; height: 18px; flex-shrink: 0; display: block; margin-left: auto; }
+        .collapsible-card .collapsible-header:hover .collapse-chevron { opacity: .65; }
         .collapsible-card.collapsed .collapse-chevron { transform: rotate(-90deg); }
         .collapsible-card.collapsed .collapsible-body { display: none; }
+        .collapsible-card.collapsed .collapsible-header { margin-bottom: 0; }
         .collapsible-card .collapsible-body { margin-top: 10px; }
         .extra-section { margin-bottom: 14px; }
         .extra-section:last-child { margin-bottom: 0; }
@@ -272,6 +286,7 @@
             border-bottom: 1px solid var(--line); flex-shrink: 0; }
         .cm-title { display: flex; align-items: center; gap: 8px; font: 600 12px var(--sans); color: var(--ink); }
         .cm-actions { display: flex; align-items: center; gap: 6px; }
+        .cm-zone-legend { display: flex; align-items: center; gap: 14px; font: 500 11px var(--sans); color: var(--ink-soft); }
         .cm-action-btn { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 7px;
             background: var(--bg); color: var(--muted); display: inline-flex; align-items: center;
             justify-content: center; cursor: pointer; transition: all .12s ease; text-decoration: none; }
@@ -291,8 +306,19 @@
         .cref h2:first-child { margin-top: 0; }
         .cref h3 { font: 600 13.5px var(--sans); color: #1d4ed8; margin: 20px 0 10px; }
         .cref p { font: 400 13px/1.55 var(--sans); color: var(--muted); margin: 0 0 12px; }
-        .cref .cref-rule { font: 600 12.5px var(--sans); color: #1e40af; margin: 18px 0 10px;
-            padding: 8px 12px; background: #eff6ff; border-radius: 7px; border-left: 4px solid #2563eb; }
+        .cref .cref-rule { font: 600 12.5px var(--sans); color: #5b21b6; margin: 18px 0 10px;
+            padding: 8px 12px; background: #f3e8ff; border-radius: 7px; border-left: 4px solid #7c3aed; }
+        /* Section background tints — Urban (blue) vs Remote & Regional (amber) */
+        .cref .cref-section-urban { background: #f8faff; border-radius: 12px; padding: 18px 20px; margin: 24px -20px; border-left: 4px solid #93c5fd; }
+        .cref .cref-section-urban h2 { color: #1e40af; border-bottom-color: #bfdbfe; }
+        .cref .cref-section-regional { background: #fffdf7; border-radius: 12px; padding: 18px 20px; margin: 24px -20px; border-left: 4px solid #fcd34d; }
+        .cref .cref-section-regional h2 { color: #92400e; border-bottom-color: #fde68a; }
+        .cref .cref-section-natsig { background: #f8fafc; border-radius: 12px; padding: 18px 20px; margin: 24px -20px; border: 1.5px solid #e2e8f0; }
+        .cref .cref-section-natsig h2 { color: #334155; border-bottom-color: #cbd5e1; }
+        /* Zone colour key swatches (used in the criteria modal header) */
+        .cref-zone-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+        .cref-zone-key-urban { background: #f8faff; border: 2px solid #93c5fd; }
+        .cref-zone-key-regional { background: #fffdf7; border: 2px solid #fcd34d; }
         .cref-table { width: 100%; border-collapse: collapse; font: 400 12.5px/1.5 var(--sans); margin-bottom: 18px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
         .cref-table th { text-align: left; font-weight: 700; color: #fff; padding: 9px 12px;
             background: #44403c; border-bottom: 1px solid var(--line); font-size: 11px;
@@ -323,6 +349,11 @@
         .detail-placeholder svg { margin-bottom: 16px; }
         .detail-placeholder p { font: 400 13px/1.5 var(--sans); color: var(--muted); max-width: 220px; margin: 0 auto; }
         .criteria-item { display: flex; align-items: flex-start; gap: 9px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; line-height: 1.4; }
+
+        /* Zone banner — indicates which criteria set (Urban vs Remote & Regional) applies */
+        .criteria-zone-banner { display: none; }
+        .czb-urban { display: none; }
+        .czb-regional { display: none; }
         .criteria-item:last-child { border: none; padding-bottom: 0; }
         .criteria-icon { font-size: 0.95rem; min-width: 18px; text-align: center; line-height: 1.4; }
         .criteria-text { flex: 1; }
@@ -536,9 +567,7 @@
             flex-direction: column; align-items: flex-end; gap: 7px; pointer-events: none; }
         .mw-distance { background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: 8px;
             padding: 4px 10px; box-shadow: 0 3px 12px rgba(28,25,23,.12); font: 600 12.5px var(--sans);
-            color: var(--ink-soft); white-space: nowrap;
-            /* clear the fixed #page-reload button that sits in this band: 36px button + 8px gap */
-            margin-right: 44px; }
+            color: var(--ink-soft); white-space: nowrap; }
         .mw-distance[hidden] { display: none; }
         .mw-dist-cap { color: var(--muted); font-weight: 500; font-size: 10px; text-transform: uppercase;
             letter-spacing: .05em; margin-right: 5px; }

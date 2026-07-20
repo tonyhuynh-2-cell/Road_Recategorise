@@ -317,8 +317,10 @@ Promise.all([
                 // aggregate's backfilled name (421 roads carry some unnamed segments).
                 const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                     ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                // A multi-part declared road keeps one title and verdict. The clicked connected unit
-                // is framed as its mapped section; one-part roads retain the named-section behavior.
+                // A multi-part declared road keeps one title and verdict. The whole road lights up:
+                // the clicked connected unit draws PURPLE, sibling units keep the standard blue
+                // (highlightRoad's selectedUnitKey path); one-part roads retain the named-section
+                // behavior. Section-only highlighting stays available via the Sections dropdown.
                 const roadAgg = k && nswRoadAgg[k];
                 const mappedGroup = roadAgg && roadAgg.declared_section_count > 1;
                 const clickedUnit = mappedGroup ? feature.properties.road_unit : null;
@@ -429,7 +431,8 @@ Promise.all([
                     L.DomEvent.stopPropagation(e);
                     // Shift+click = export custom-selection pick (same branch as the main overlay).
                     if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
-                    // Same declared-road identity + selected-section treatment as the main overlay.
+                    // Same declared-road identity + selected-section treatment as the main overlay
+                    // (clicked unit purple, sibling units standard blue).
                     const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                         ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
                     const roadAgg = k && nswRoadAgg[k];

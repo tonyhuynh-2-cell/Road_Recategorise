@@ -259,7 +259,10 @@ function renderMapLegend() {
     const dashSw = '<div class="legend-color legend-dash"></div>';
     const townSw = '<div class="legend-color" style="background:transparent; width:24px; height:auto; display:flex; align-items:center; justify-content:center;"><span style="width:10px; height:10px; border-radius:50%; background:#57534e; display:block;"></span></div>';
     const vkeys = ['green', 'orange', 'red'];
-    let h = '<h3>Map legend</h3>';
+    let h = '<div class="ml-header"><h3>Map legend</h3><div class="ml-actions">' +
+        '<button class="ml-btn" onclick="resetLegendToggles()" title="Reset all layers"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg></button>' +
+        '<button class="ml-btn" onclick="toggleLegendCollapse()" title="Minimise legend"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>' +
+        '</div></div>';
     if (currentTab === 'cv' || currentTab === 'sydney') {
         // LGA focus: the verdict / category rows follow the ACTIVE lens — the two sidebar dropdowns
         // are orthogonal (category picks the rows; the LGA adds its outline / clip extras below).
@@ -364,6 +367,21 @@ function toggleBypassIsolate(on) {
 // route-number treatment, and the clip layer swap. Toggling any other key (towns, boundary, bypass,
 // nltn, the c_* highlight rings) cannot change a road's style, so the road repaint is skipped.
 const ROADSTYLE_KEYS = { green: 1, orange: 1, red: 1, dashed: 1, clip: 1, fnat: 1, fstate: 1, freg: 1, flocal: 1 };
+
+// Reset all legend toggles to ON (re-enable all hidden layers)
+function resetLegendToggles() {
+    Object.keys(legendToggles).forEach(function (k) {
+        if (k !== 'clip') legendToggles[k] = true;   // keep clip as-is (it's a special mode)
+    });
+    syncLegendVisuals();
+    applyLegend();
+}
+
+// Minimise/expand the legend body (keep just the header visible)
+function toggleLegendCollapse() {
+    var el = document.getElementById('map-legend');
+    if (el) el.classList.toggle('ml-collapsed');
+}
 
 // Clicking a legend swatch toggles that category on/off across the map.
 function toggleLegendItem(key) {

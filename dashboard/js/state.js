@@ -310,17 +310,29 @@ let selectedSource = null;
 // Track load start so the constant-speed loading bar can finish before fade-out
 const loadStart = performance.now();
 
-function highlightRoad(layers, sourceLayer, selectedName, selectedUnit) {
+// selectedUnitKey (optional, 4th arg — both lineages added one): pass ALL the gazetted road's
+// layers plus the clicked unit's key — that unit draws purple, sibling units keep the standard
+// blue highlight. Without it, the clicked NAMED section draws dominant over the rest of the road.
+function highlightRoad(layers, sourceLayer, selectedName, selectedUnitKey) {
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = layers;
     selectedSource = sourceLayer;
     const wanted = String(selectedName || '').trim().toUpperCase();
-    const wantedUnit = String(selectedUnit || '').trim();
+    const unitKey = selectedUnitKey ? String(selectedUnitKey).trim() : '';
     layers.forEach(function (layer) {
-        const properties = (layer.feature && layer.feature.properties) || {};
-        const name = String(properties.road_name || '').trim().toUpperCase();
-        const unit = String(properties.road_unit || '').trim();
-        const exact = wantedUnit ? unit === wantedUnit : (!wanted || name === wanted);
+        const p = (layer.feature && layer.feature.properties) || {};
+        if (unitKey) {
+            const inUnit = String(p.road_unit || '').trim() === unitKey || roadKeyOf(p) === unitKey;
+            layer.setStyle({
+                weight: inUnit ? 6.5 : 5,
+                opacity: inUnit ? 1 : 0.9,
+                color: inUnit ? '#7c3aed' : '#2563eb',
+                dashArray: null
+            });
+            return;
+        }
+        const name = String(p.road_name || '').trim().toUpperCase();
+        const exact = !wanted || name === wanted;
         layer.setStyle({
             weight: exact ? 6.5 : 4,
             opacity: exact ? 1 : 0.62,
