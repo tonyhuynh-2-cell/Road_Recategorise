@@ -553,9 +553,7 @@
             flex-direction: column; align-items: flex-end; gap: 7px; pointer-events: none; }
         .mw-distance { background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: 8px;
             padding: 4px 10px; box-shadow: 0 3px 12px rgba(28,25,23,.12); font: 600 12.5px var(--sans);
-            color: var(--ink-soft); white-space: nowrap;
-            /* clear the fixed #page-reload button that sits in this band: 36px button + 8px gap */
-            margin-right: 44px; }
+            color: var(--ink-soft); white-space: nowrap; }
         .mw-distance[hidden] { display: none; }
         .mw-dist-cap { color: var(--muted); font-weight: 500; font-size: 10px; text-transform: uppercase;
             letter-spacing: .05em; margin-right: 5px; }
