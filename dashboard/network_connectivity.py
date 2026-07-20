@@ -112,7 +112,7 @@ def _aligned_with_route(segment, route_geometry, candidate_name, route_names) ->
 def build_corridor_matches(
     road_segments_path: Path,
     routes: gpd.GeoDataFrame,
-    cache_path: Path,
+    cache_path: Path | None,
     chunk_size: int = 50_000,
 ) -> gpd.GeoDataFrame:
     buffers = _candidate_buffers(routes)
@@ -176,8 +176,9 @@ def build_corridor_matches(
         crs=PROJECTED_CRS,
     )
     matched = matched.drop_duplicates(subset=["road_number", "OBJECTID"])
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    pyogrio.write_dataframe(matched, cache_path, layer="corridor_segments", driver="GPKG")
+    if cache_path is not None:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        pyogrio.write_dataframe(matched, cache_path, layer="corridor_segments", driver="GPKG")
     return matched
 
 
@@ -193,6 +194,19 @@ def load_or_build_corridor_matches(
         available = set(matched["road_number"].astype(str))
         if wanted <= available:
             return matched[matched["road_number"].astype(str).isin(wanted)].copy()
+        missing = wanted - available
+        additions = build_corridor_matches(
+            road_segments_path,
+            routes.loc[routes.index.astype(str).isin(missing)],
+            None,
+        )
+        combined = gpd.GeoDataFrame(
+            pd.concat([matched, additions], ignore_index=True),
+            geometry="geometry",
+            crs=PROJECTED_CRS,
+        ).drop_duplicates(subset=["road_number", "OBJECTID"])
+        pyogrio.write_dataframe(combined, cache_path, layer="corridor_segments", driver="GPKG")
+        return combined[combined["road_number"].astype(str).isin(wanted)].copy()
     return build_corridor_matches(road_segments_path, routes, cache_path)
 
 

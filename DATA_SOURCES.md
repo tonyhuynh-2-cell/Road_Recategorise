@@ -31,7 +31,7 @@ Two kinds of data appear below:
 | `nsw_unit_evidence.json` | Legacy evidence reassigned by unit geometry | Derived | Named centres/facilities shown for the selected corridor only |
 | `nsw_adt.json` | TfNSW Traffic Volume Counts (open data) | Sourced → joined | AADT + %HV in the detail panel & export |
 | `nhvr_networks.json` | NHVR gazetted-network map service | Sourced → joined | Road train / B-double / bypass status |
-| `employment_centres.json` | NSW Planning Portal land-zoning | Sourced → derived | Commercial/industrial centres by hectares |
+| `employment_centres.json` + `employment_centre_outlines.json` | NSW Planning EPI land-zoning | Sourced → derived | Employment-centre areas, exact map polygons and road-gap evidence |
 | `nltn_2020_road.geojson` + `nsw_nltn.json` | NLTN Determination 2020 (data.gov.au) | Sourced → joined | Nationally Significant tab |
 | `nsw_towns.geojson` | ABS Census 2021 population centres | Sourced | Town/city pins + "connects centres" |
 | `sua_outlines.json` | ABS Significant Urban Areas 2021 | Sourced | Urban-area perimeters (highlights) |
@@ -173,11 +173,15 @@ excluded.
   locations: Port Botany/Kembla/Newcastle, Moorebank/Enfield/Parkes, international &
   regional airports).
 - **Employment (commercial / industrial) centres** (`employment_centres.json`,
-  `scratchpad/fetch_employment.py`) — **NSW Planning Portal land-zoning**
+  `employment_centre_outlines.json`) — **NSW Planning EPI land-zoning**
   (`mapprod3.environment.nsw.gov.au …/EPI_Primary_Planning_Layers/MapServer/2`).
-  Every Commercial (B1–B7, E1, E2, MU1) and Industrial (IN1–IN4, E3–E5) zone
-  polygon, measured in **hectares** and tiered Major ≥40 ha / Regional ≥15 ha /
-  Local ≥5 ha. **1,835 centres.**
+  `rebuild_employment_centres.py` can fetch the source polygons to
+  `nsw_planning_employment_zones.geojson`, dissolve contiguous polygons by LGA
+  and zone class, and rebuild both dashboard files. Every Commercial (B1–B8,
+  E1, E2, MU1) and Industrial (IN1–IN4, E3–E5) centre is measured in **hectares**
+  and tiered Major ≥40 ha / Regional ≥15 ha / Local ≥5 ha. The current build
+  contains **1,851 centres** from **5,962 source polygons**. The outline file
+  contains the actual simplified polygon used on the map, not a display radius.
   *(The dollar-value half of this criterion — an employment-density estimate — was
   built and then removed at your request; it's recoverable in git history.)*
 
@@ -261,11 +265,23 @@ These are produced entirely from the datasets above:
   UCL/SUA centres to connected components, and synchronises the criterion result,
   map colour and export. The derived corridor cache stays with the raw data rather
   than being committed to the dashboard.
-- **Network-backed S-08** (`rebuild_state_facility_optional.py`) — requires a
+- **Network-backed S-08/S-11** (`rebuild_state_facility_optional.py`) — requires a
   qualifying facility or commercial/industrial/employment area and an ABS centre
-  on the same connected NSW Road Segment component. Employment areas use the
-  guide's available hectare threshold (Remote 5 ha; Regional 15 ha); the missing
-  economic-value threshold is disclosed in the detail panel and comparison report.
+  on the same connected NSW Road Segment component. Employment areas must also
+  intersect the selected categorisation geometry and meet the guide's available
+  hectare threshold (Remote 5 ha; Regional 15 ha; Urban 40 ha). A 50 m network
+  tolerance only reconciles the categorisation line with its matching physical
+  road centreline; it cannot turn a displayed polygon-to-road gap into a pass.
+  The missing economic-value threshold is disclosed in the detail panel and
+  comparison report. `rebuild_road_units.py` reruns this test for urban roads and
+  for each unit of split road identifiers. This preserves matching ABS centres
+  and facilities without copying one road-wide result to disconnected sections.
+- **Exact employment-map evidence** (`rebuild_road_units.py`) — calculates the
+  true boundary-to-road relationship for every intersecting employment polygon
+  and the four closest non-intersecting polygons within 3 km. An intersection is
+  labelled explicitly. A near miss keeps its measured distance and nearest-point
+  connector, so the map can show even a small physical gap rather than implying
+  contact from a representative point or fixed-radius circle.
 
 ---
 

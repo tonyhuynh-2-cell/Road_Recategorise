@@ -255,7 +255,7 @@ function renderMapLegend() {
     const liStatic = (swatch, label) => '<div class="legend-item legend-static">' + swatch + ' ' + label + '</div>';
     const sw = c => '<div class="legend-color" style="background:' + c + '"></div>';
     const dashSw = '<div class="legend-color legend-dash"></div>';
-    const townSw = '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>';
+    const townSw = '<div class="legend-color" style="background:transparent; width:24px; height:auto; display:flex; align-items:center; justify-content:center;"><span style="width:10px; height:10px; border-radius:50%; background:#57534e; display:block;"></span></div>';
     const vkeys = ['green', 'orange', 'red'];
     let h = '<h3>Map legend</h3>';
     if (currentTab === 'cv' || currentTab === 'sydney') {
@@ -273,9 +273,9 @@ function renderMapLegend() {
             // State / Regional lens rows from NSW_VIEW_META; Overview ('all') keeps the generic rows.
             const m = NSW_VIEW_META[nswView];
             const rows = m ? m.legend : [
-                ['#16a34a', 'Meets its criteria (≥2 optional)'],
-                ['#f59e0b', 'Meets 1 optional — may pass with ADT'],
-                ['#dc2626', 'Does not meet (→ downgrade)']
+                ['#16a34a', 'Meets its criteria'],
+                ['#f59e0b', 'Meets 1 optional (may pass with ADT)'],
+                ['#dc2626', 'Does not meet']
             ];
             rows.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
             h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
@@ -293,9 +293,9 @@ function renderMapLegend() {
             h += li('orange', sw('#f59e0b'), 'Tested: meets 1 State criterion');
             h += li('red', sw('#dc2626'), 'Tested: meets no State criterion');
         } else if (lm) {
-            h += li('green', sw('#16a34a'), 'Tested: meets Regional (≥2 centres)');
+            h += li('green', sw('#16a34a'), 'Tested: meets Regional (≥ 2 centres)');
             h += li('orange', sw('#f59e0b'), 'Tested: 1 centre nearby');
-            h += li('red', sw('#dc2626'), 'Tested: no ≥2-centre link');
+            h += li('red', sw('#dc2626'), 'Tested: no ≥ 2-centre link');
         }
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     } else if (currentTab === 'fresh' || (currentTab === 'detail' && nswView === 'fresh' && !inFlaggedScope())) {
@@ -316,11 +316,11 @@ function renderMapLegend() {
         else h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town / City — pin size scales with population');
     } else {   // overview + detail
-        h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
-        h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
+        h += li('green', sw('#16a34a'), 'Meets its criteria');
+        h += li('orange', sw('#f59e0b'), 'Meets 1 optional (may pass with ADT)');
+        h += li('red', sw('#dc2626'), 'Does not meet');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
-        h += li('towns', townSw, 'Town / City — pin size scales with population');
+        h += li('towns', townSw, 'Town/City');
     }
     // Local roads & street names (basemap label overlay) — a toggle on the road-map tabs; the labels
     // switch on once zoomed in (LOCAL_ZOOM), naming the local roads already drawn on the base map.

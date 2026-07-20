@@ -3,7 +3,7 @@
 // Load all data. Cache-bust so edits to data/ always load fresh (no stale browser cache).
 // Each resolved file advances the loading screen's progress bar — REAL progress, not simulated.
 const _bust = '?v=' + Date.now();
-const _loadTotal = 24; let _loadDone = 0;
+const _loadTotal = 25; let _loadDone = 0;
 const _loadTick = () => {
     _loadDone++;
     const bf = document.getElementById('loader-bar-fill');
@@ -32,12 +32,13 @@ Promise.all([
     _f('data/cv_evidence.json').catch(() => ({})),
     _f('data/nltn_evidence.json').catch(() => ({})),
     _f('data/sua_outlines.json').catch(() => []),
+    _f('data/employment_centre_outlines.json').catch(() => ({})),
     _f('data/nsw_unit_nhvr.json').catch(() => ({})),
     _f('data/nsw_unit_road_ext.json').catch(() => ({})),
     _f('data/nsw_unit_adt.json').catch(() => ({})),
     _f('data/nsw_unit_zone.json').catch(() => ({})),
     _f('data/nsw_boundary.geojson').catch(() => null)
-]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, nhvr, roadExt, adt, zone, nswBoundary]) => {
+]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, employmentOutlines, nhvr, roadExt, adt, zone, nswBoundary]) => {
     if (typeof traceCode === 'function') traceCode(
         'Dashboard data loaded',
         'The dashboard has fetched its prepared assessment files. From here, the browser builds map layers and panels from these already-processed results.',
@@ -66,6 +67,9 @@ Promise.all([
     // Significant Urban Area boundary outlines (drawn as the "town perimeter" highlight on selection),
     // indexed by suaId — data/sua_outlines.json.
     window.SUA_OUTLINES = suaOutlines || [];
+    // Commercial and industrial planning-zone polygons. Evidence rows reference these by zoneId,
+    // allowing the map to show the real boundary and any measured gap to the selected road.
+    window.EMPLOYMENT_OUTLINES = employmentOutlines || {};
 
     // ── NSW spotlight ──────────────────────────────────────────────────────────────────────────
     // Outline the state and wash out everything around it: a big rectangle with a NSW-shaped hole

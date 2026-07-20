@@ -149,12 +149,12 @@
         /* Legend */
         .legend { margin-top: 4px; }
         .legend h3 { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 11px; }
-        .legend-item { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; font: 400 12.5px/1.3 var(--sans); color: var(--ink-soft); cursor: pointer; user-select: none; transition: opacity .12s ease; }
+        .legend-item { display: flex; align-items: center; gap: 14px; margin-bottom: 9px; font: 400 12.5px/1.3 var(--sans); color: var(--ink-soft); cursor: pointer; user-select: none; transition: opacity .12s ease; }
         .legend-item[data-legend-key]:hover { opacity: 0.7; }
         .legend-item.legend-off { opacity: 0.3; }
         .legend-item.legend-static { cursor: default; }
         .legend-item.legend-static:hover { opacity: 1; }
-        .legend-color { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+        .legend-color { width: 24px; height: 3px; border-radius: 2px; flex-shrink: 0; }
         .legend-color.legend-dash { height: 0; border-top: 3px dashed #57534e; border-radius: 0; }
         /* Floating map legend — top-right of the map, over the tiles */
         .map-legend { position: absolute; top: 14px; right: 14px; z-index: 600; width: 252px; max-height: calc(100% - 28px);
@@ -164,7 +164,7 @@
         .map-legend::-webkit-scrollbar { width: 7px; }
         .map-legend::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
         .map-legend h3 { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 11px; }
-        .map-legend .legend-item { margin-bottom: 8px; font-size: 12px; }
+        .map-legend .legend-item { margin-bottom: 10px; font-size: 12px; }
         .map-legend .legend-item:last-child { margin-bottom: 0; }
         @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
         /* Orange sub-filter — "Why orange?" button group inside the floating legend */
@@ -223,10 +223,10 @@
         @media (max-width: 920px) {
             .code-trace { left: 8px; top: 60px; width: calc(100% - 16px); max-height: 38vh; }
         }
-        /* "Highlights" sub-heading + the round connection swatches (kept in a 22px box so labels align) */
-        .legend-sub { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 11px; }
-        .legend-swatch { width: 22px; display: inline-flex; justify-content: center; flex-shrink: 0; }
-        .legend-pin { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        /* "Highlights" sub-heading + the round connection swatches (kept in a 24px box so labels align) */
+        .legend-sub { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 12px; }
+        .legend-swatch { width: 24px; display: inline-flex; justify-content: center; flex-shrink: 0; }
+        .legend-pin { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
         /* Note — same full 1.5px surround as the cards, in mid-GREY (var(--muted) reads on both
            themes; padding compensates so the box geometry stays put) */
@@ -255,6 +255,7 @@
             transition: all .15s ease; flex-shrink: 0; }
         .criteria-btn:hover { border-color: #a8a29e; color: #44403c; background: #f5f5f4; }
         .criteria-btn:active { transform: scale(.95); }
+        .criteria-btn.criteria-btn-active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
 
         /* Criteria modal — overlays the map area */
         .criteria-modal { position: absolute; inset: 0; z-index: 700; display: flex; flex-direction: column;
@@ -446,8 +447,14 @@
         .ev-dot.ev-hosp { background: #dc2626; }
         .ev-dot.ev-dest { background: #7c3aed; }
         .ev-dot.ev-employ { background: #0f766e; }
+        .ev-dot.ev-employ.is-nearby { background: #fff; border: 1.5px dashed #64748b; }
+        .ev-dot.ev-employ.is-qualifying { box-shadow: 0 0 0 2px #ccfbf1; }
         .ev-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
         .ev-meta { color: var(--faint); font-size: 10.5px; white-space: normal; word-break: break-word; }
+        .ev-review-item { align-items: flex-start; padding: 2px 0; }
+        .ev-review-item .ev-meta { margin-left: auto; max-width: 54%; text-align: right; }
+        .ev-copy { display: flex; min-width: 0; flex-direction: column; }
+        .ev-status { color: var(--muted); font-size: 10px; }
 
         /* Map highlights: rings + labels for the entities the selected road connects */
         .conn-icon { background: none !important; border: none !important; }
@@ -461,6 +468,7 @@
         .conn-dest .conn-glyph { background: #7c3aed; }
         .conn-employ .conn-glyph { background: #0f766e; }
         .conn-employ .conn-name { color: #0f766e; }
+        .conn-gap { color: #64748b; font-size: 9.5px; font-weight: 500; padding-left: 4px; }
         .conn-town .conn-name { color: #1d4ed8; }
         .conn-sua .conn-name { color: #1d4ed8; }
         .conn-sua .conn-pin { border-color: #1d4ed8; }
@@ -1018,3 +1026,88 @@
         .flag-chip.fc-neutral { color: var(--ink-soft); background: var(--line-soft); }
         body.dark-mode .flag-chip.fc-neutral { color: var(--ink-soft); background: #2d2a27; }
         body.dark-mode #local-road-list::-webkit-scrollbar-thumb { background: #44403c; }
+
+        /* ================================================================
+           Dashboard Overview — full-page 3×2 card grid
+           ================================================================ */
+        .dov { position: fixed; inset: 0; z-index: 900; background: var(--bg); overflow: hidden;
+            font-family: var(--sans); animation: cmFadeIn .25s ease; display: flex; flex-direction: column; }
+        .dov[hidden] { display: none; }
+        .dov-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px;
+            border-bottom: 1px solid var(--line); background: var(--bg); flex-shrink: 0; }
+        .dov-brand { display: flex; align-items: center; gap: 12px; }
+        .dov-mark { width: 36px; height: 36px; }
+        .dov-title { font: 700 16px var(--sans); color: var(--ink); letter-spacing: -.01em; }
+        .dov-sub { font: 500 11px var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+        .dov-back { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px;
+            border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink-soft);
+            font: 500 12.5px var(--sans); cursor: pointer; transition: all .15s ease; }
+        .dov-back:hover { border-color: var(--ink-soft); color: var(--ink); background: var(--bg-soft); }
+        .dov-back:active { transform: scale(.97); }
+
+        .dov-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; gap: 16px;
+            padding: 16px 28px; flex: 1; min-height: 0; max-width: 1400px; margin: 0 auto; width: 100%; }
+        .dov-card { background: var(--bg); border: 1.5px solid var(--line); border-radius: 14px;
+            padding: 16px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+        .dov-card h3 { font: 700 11px var(--sans); text-transform: uppercase; letter-spacing: .07em;
+            color: var(--muted); margin-bottom: 10px; flex-shrink: 0; }
+        .dov-card canvas { flex: 1; min-height: 0; }
+
+        /* Mini map card */
+        .dov-card-map { position: relative; }
+        #dov-map-container { flex: 1; border-radius: 10px; overflow: hidden; min-height: 0; }
+        .dov-card-foot { font: 400 10.5px var(--sans); color: var(--faint); margin-top: 6px; text-align: center; }
+
+        /* Network summary stats */
+        .dov-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; flex: 1; align-content: center; }
+        .dov-stat { display: flex; flex-direction: column; gap: 2px; }
+        .dov-stat-val { font: 700 22px var(--sans); color: var(--ink); letter-spacing: -.02em; }
+        .dov-stat-lbl { font: 500 11px var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+        /* Risk table card */
+        .dov-card-table { overflow: hidden; }
+        .dov-risk-list { flex: 1; overflow-y: auto; }
+        .dov-risk-table { width: 100%; border-collapse: collapse; font: 400 12px/1.4 var(--sans); }
+        .dov-risk-table th { text-align: left; font: 600 10px var(--sans); text-transform: uppercase;
+            letter-spacing: .05em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+        .dov-risk-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); color: var(--ink-soft); }
+        .dov-risk-table td strong { color: var(--ink); font-weight: 600; }
+        .dov-risk-table tr:hover td { background: #fef2f2; }
+        .dov-risk-empty { font: 400 12px var(--sans); color: var(--faint); text-align: center; padding: 30px; }
+
+        @media (max-width: 1000px) {
+            .dov-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 650px) {
+            .dov-grid { grid-template-columns: 1fr; }
+            .dov-header { padding: 14px 16px; }
+            .dov-grid { padding: 16px; }
+        }
+
+        /* Dashboard overview — road info card (replaces summary on road click) */
+        .dov-road-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .dov-road-header h3 { margin-bottom: 0; }
+        .dov-road-header-actions { display: flex; align-items: center; gap: 6px; }
+        .dov-road-info { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y: auto; }
+        .dov-road-name { font: 700 16px var(--sans); color: var(--ink); letter-spacing: -.01em; }
+        .dov-road-id { font: 500 11px var(--mono); color: var(--muted); }
+        .dov-road-meta { font: 500 11.5px var(--sans); color: var(--muted); }
+        .dov-road-verdict { font: 700 13px var(--sans); margin-top: 2px; }
+        .dov-road-section { margin-top: 12px; }
+        .dov-section-title { display: block; font: 600 9.5px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-bottom: 8px; }
+        .dov-road-criteria { display: flex; flex-wrap: wrap; gap: 8px; }
+        .dov-crit-row { font: 500 10.5px var(--sans); padding: 5px 11px; border-radius: 5px; display: inline-block; margin: 0 6px 6px 0; }
+        .dov-crit-pass { background: #dcfce7; color: #166534; }
+        .dov-crit-fail { background: #fee2e2; color: #991b1b; }
+        .dov-crit-na { background: #f5f5f4; color: #78716c; }
+        .dov-road-faint { font: 400 11px var(--sans); color: var(--faint); }
+        .dov-conn-group { font: 400 11px var(--sans); color: var(--ink-soft); margin-bottom: 3px; }
+        .dov-conn-label { font-weight: 600; color: var(--muted); }
+        .dov-road-reset { width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 6px;
+            background: var(--bg); color: var(--muted); font: 500 16px var(--sans); cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; transition: all .12s ease; flex-shrink: 0; }
+        .dov-road-reset:hover { border-color: var(--ink-soft); color: var(--ink); }
+        .dov-view-map-btn { padding: 5px 10px; border: 1px solid #2563eb; border-radius: 6px;
+            background: #eff6ff; color: #2563eb; font: 600 10.5px var(--sans); cursor: pointer;
+            transition: all .12s ease; white-space: nowrap; }
+        .dov-view-map-btn:hover { background: #2563eb; color: #fff; }

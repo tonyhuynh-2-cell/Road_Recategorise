@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild non-urban State facility connectivity (S-08) from road topology."""
+"""Evaluate State facility connectivity (S-08/S-11) from road topology."""
 
 from __future__ import annotations
 
@@ -31,8 +31,9 @@ DATA = DASHBOARD / "data"
 DEFAULT_RAW = Path.home() / "Desktop" / "IPWEA" / "data" / "raw"
 MINIMUM_COVERAGE = 0.70
 FACILITY_CONNECT_M = 3_000.0
+EMPLOYMENT_NETWORK_TOLERANCE_M = 50.0
 STATE_DEST_TYPES = {"International Airport", "Major Intermodal", "Major Port"}
-EMPLOYMENT_AREA_HA = {"remote": 5.0, "regional": 15.0}
+EMPLOYMENT_AREA_HA = {"remote": 5.0, "regional": 15.0, "urban": 40.0}
 TO_PROJECTED = Transformer.from_crs("EPSG:4326", PROJECTED_CRS, always_xy=True)
 
 
@@ -99,33 +100,54 @@ def facility_candidates(evidence: dict, zone: str) -> list[dict]:
             candidates.append({**item, "facility_kind": "destination"})
     minimum_hectares = EMPLOYMENT_AREA_HA.get(zone, 15.0)
     for item in evidence.get("employment", []):
-        if float(item.get("ha") or 0.0) >= minimum_hectares:
+        if (
+            item.get("relation") == "intersects"
+            and float(item.get("ha") or 0.0) >= minimum_hectares
+        ):
             candidates.append({**item, "facility_kind": "employment"})
     return candidates
 
 
-def assign_facilities(components: list[dict], evidence: dict, zone: str) -> None:
+def assign_facilities(
+    components: list[dict],
+    evidence: dict,
+    zone: str,
+    employment_geometries: dict[str, object] | None = None,
+) -> None:
     for component in components:
         component["facilities"] = {}
     for item in facility_candidates(evidence, zone):
-        if item.get("lon") is None or item.get("lat") is None:
-            continue
-        x, y = TO_PROJECTED.transform(float(item["lon"]), float(item["lat"]))
-        point = Point(x, y)
-        distances = [point.distance(component["geometry"]) for component in components]
+        geometry = None
+        if item["facility_kind"] == "employment" and employment_geometries:
+            geometry = employment_geometries.get(str(item.get("zoneId") or ""))
+        if geometry is None:
+            if item.get("lon") is None or item.get("lat") is None:
+                continue
+            x, y = TO_PROJECTED.transform(float(item["lon"]), float(item["lat"]))
+            geometry = Point(x, y)
+        distances = [geometry.distance(component["geometry"]) for component in components]
         if not distances:
             continue
         component_index = min(range(len(distances)), key=distances.__getitem__)
-        if distances[component_index] > FACILITY_CONNECT_M:
+        maximum_distance = (
+            EMPLOYMENT_NETWORK_TOLERANCE_M
+            if item["facility_kind"] == "employment"
+            else FACILITY_CONNECT_M
+        )
+        if distances[component_index] > maximum_distance:
             continue
-        key = (str(item.get("name") or "Facility"), item["facility_kind"])
+        name = str(item.get("name") or "Facility")
+        lga = str(item.get("lga") or "").strip().title()
+        display_name = f"{name} ({lga})" if lga and item["facility_kind"] == "employment" else name
+        key = (str(item.get("zoneId") or display_name), item["facility_kind"])
         components[component_index]["facilities"][key] = {
-            "name": key[0],
-            "kind": key[1],
+            "name": display_name,
+            "kind": item["facility_kind"],
             "distance_km": round(distances[component_index] / 1000.0, 2),
             "ha": item.get("ha"),
             "tier": item.get("tier"),
-            "type": item.get("ftype") or item.get("cat"),
+            "type": item.get("ftype") or item.get("cat") or item.get("kind"),
+            "zone_id": item.get("zoneId"),
         }
 
 
@@ -159,12 +181,13 @@ def evaluate_state_dest(
     evidence: dict,
     zone: str,
     sections: list[dict],
+    employment_geometries: dict[str, object] | None = None,
 ) -> dict:
     components = road_components(segments)
     assign_section_names(components, sections)
     for component in components:
         assign_centres(component, centres, zone)
-    assign_facilities(components, evidence or {}, zone)
+    assign_facilities(components, evidence or {}, zone, employment_geometries)
 
     qualifying = [
         component

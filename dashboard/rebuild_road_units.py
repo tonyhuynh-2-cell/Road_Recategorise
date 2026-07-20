@@ -24,11 +24,21 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import geopandas as gpd
+import pyogrio
+from pyproj import Transformer
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString, Point
-from shapely.ops import unary_union
+from shapely.ops import nearest_points, unary_union
 
-from network_connectivity import DisjointSet, PROJECTED_CRS
+from network_connectivity import (
+    DisjointSet,
+    PROJECTED_CRS,
+    load_abs_centres,
+    load_or_build_corridor_matches,
+    prepare_routes,
+)
+from rebuild_employment_centres import derive_centres, source_path as employment_source_path
+from rebuild_state_facility_optional import evaluate_state_dest, state_metadata
 
 
 DASHBOARD = Path(__file__).resolve().parent
@@ -41,7 +51,10 @@ MICRO_COMPONENT_KM = 0.35
 MICRO_GAP_M = 2_000.0
 TWO_STATE_TOUCH_M = 50.0
 EVIDENCE_ATTACH_M = 5_000.0
+EMPLOYMENT_DISPLAY_M = 3_000.0
+EMPLOYMENT_NEARBY_LIMIT = 4
 ACCESS_COVERAGE = 0.80
+TO_WGS84 = Transformer.from_crs(PROJECTED_CRS, "EPSG:4326", always_xy=True)
 
 STATE_CENTRE_TYPES = {"Significant Urban Area", "Regional City", "Major Town"}
 REGIONAL_RURAL_CENTRE_TYPES = STATE_CENTRE_TYPES | {"Town Centre"}
@@ -282,6 +295,217 @@ def attach_evidence(source_evidence: dict, units: list[dict]) -> dict[str, dict]
     return output
 
 
+def employment_evidence(units: dict[str, dict], centres: gpd.GeoDataFrame) -> dict[str, list[dict]]:
+    """Attach exact zoning polygons, retaining all intersections and a few nearest misses."""
+    output = {}
+    for key, unit in units.items():
+        indexes = centres.sindex.query(
+            unit["geometry"].buffer(EMPLOYMENT_DISPLAY_M),
+            predicate="intersects",
+        )
+        candidates = []
+        for index in indexes:
+            row = centres.iloc[index]
+            distance = float(row.geometry.distance(unit["geometry"]))
+            if distance <= EMPLOYMENT_DISPLAY_M:
+                candidates.append((distance, row))
+        intersecting = [pair for pair in candidates if pair[0] <= 0.5]
+        nearby = sorted(
+            (pair for pair in candidates if pair[0] > 0.5),
+            key=lambda pair: (pair[0], pair[1]["zone_id"]),
+        )[:EMPLOYMENT_NEARBY_LIMIT]
+        items = []
+        for distance, row in sorted(
+            intersecting + nearby,
+            key=lambda pair: (pair[0], pair[1]["LAY_CLASS"], pair[1]["zone_id"]),
+        ):
+            item = {
+                "zoneId": row["zone_id"],
+                "name": row["LAY_CLASS"],
+                "code": row["SYM_CODE"],
+                "kind": row["kind"],
+                "tier": row["tier"],
+                "ha": round(float(row["ha"]), 1),
+                "lga": row["LGA_NAME"],
+                "lon": round(float(row["lon"]), 5),
+                "lat": round(float(row["lat"]), 5),
+                "km": round(distance / 1000.0, 3),
+                "distance_m": round(distance),
+                "relation": "intersects" if distance <= 0.5 else "nearby",
+                "source": "NSW Planning EPI Land Zoning polygon",
+            }
+            if distance > 0.5:
+                zone_point, road_point = nearest_points(row.geometry, unit["geometry"])
+                zone_lon, zone_lat = TO_WGS84.transform(zone_point.x, zone_point.y)
+                road_lon, road_lat = TO_WGS84.transform(road_point.x, road_point.y)
+                item["link"] = [
+                    [round(zone_lon, 5), round(zone_lat, 5)],
+                    [round(road_lon, 5), round(road_lat, 5)],
+                ]
+            items.append(item)
+        output[key] = items
+    return output
+
+
+def assign_network_segments(matches: gpd.GeoDataFrame, units: list[dict]) -> dict[str, gpd.GeoDataFrame]:
+    """Partition cached physical segments between the connected units of one source ID."""
+    assigned = {unit["key"]: [] for unit in units}
+    if matches.empty:
+        return {key: matches.copy() for key in assigned}
+    buffers = [unit["geometry"].buffer(UNIT_SNAP_M) for unit in units]
+    for index, geometry in zip(matches.index, matches.geometry):
+        scores = []
+        for unit_index, unit in enumerate(units):
+            overlap = geometry.intersection(buffers[unit_index]).length
+            scores.append((geometry.distance(unit["geometry"]), -overlap, unit["key"]))
+        assigned[min(scores)[2]].append(index)
+    return {
+        key: matches.loc[indexes].copy() if indexes else matches.iloc[0:0].copy()
+        for key, indexes in assigned.items()
+    }
+
+
+def unit_sections(unit: dict, features: list, projected_geometries: list) -> list[dict]:
+    sections = []
+    for index in unit["feature_indexes"]:
+        name = str(features[index]["properties"].get("road_name") or "").strip()
+        if name:
+            sections.append({"name": name, "geometry": projected_geometries[index]})
+    return sections
+
+
+def centre_type(kind: str, population: int, zone: str) -> str | None:
+    regional_city = 15_000 if zone == "remote" else 20_000
+    major_town = 5_000 if zone == "remote" else 7_000
+    town = 1_000 if zone == "remote" else 2_000
+    if kind == "SUA" and population >= 130_000:
+        return "Significant Urban Area"
+    if population >= regional_city:
+        return "Regional City"
+    if population >= major_town:
+        return "Major Town"
+    if kind == "UCL" and population >= town:
+        return "Town Centre"
+    return None
+
+
+def add_abs_centre_evidence(
+    evidence: dict,
+    unit: dict,
+    centres: gpd.GeoDataFrame,
+    names: list[str],
+) -> None:
+    """Add network-assessed ABS centres that were absent from legacy road evidence."""
+    existing = {
+        str(item.get("name") or "").strip()
+        for item in evidence.get("centres", [])
+        if str(item.get("name") or "").strip()
+    }
+    additions = []
+    for name in names:
+        if name in existing:
+            continue
+        candidates = centres[centres["name"].astype(str) == name]
+        if candidates.empty:
+            continue
+        selected = min(
+            (row for _index, row in candidates.iterrows()),
+            key=lambda row: (row.geometry.distance(unit["geometry"]), row["kind"] != "UCL"),
+        )
+        population = int(selected["population"])
+        kind = str(selected["kind"])
+        classification = centre_type(kind, population, unit["zone"])
+        if not classification:
+            continue
+        point = gpd.GeoSeries(
+            [selected.geometry.representative_point()], crs=PROJECTED_CRS
+        ).to_crs("EPSG:4326").iloc[0]
+        additions.append({
+            "name": name,
+            "kind": "sua" if kind == "SUA" else "town",
+            "pop": population,
+            "type": classification,
+            "lon": round(point.x, 5),
+            "lat": round(point.y, 5),
+            "km": round(selected.geometry.distance(unit["geometry"]) / 1000.0, 1),
+            "source": "ABS ASGS 2021 network intersection",
+        })
+    if additions:
+        evidence.setdefault("centres", []).extend(additions)
+
+
+def assess_unit_state_dest(
+    source_units: dict[str, list[dict]],
+    unit_evidence: dict[str, dict],
+    raw_dir: Path,
+    features: list,
+    projected_geometries: list,
+    employment_centres: gpd.GeoDataFrame,
+) -> tuple[dict[str, dict], dict]:
+    """Re-run S-08/S-11 where road-number evidence cannot safely be retained."""
+    targets = {
+        base: rows
+        for base, rows in source_units.items()
+        if not base.startswith("n:")
+        and (
+            any(unit["zone"] == "urban" for unit in rows)
+            or (len(rows) > 1 and any(unit["zone"] != "urban" for unit in rows))
+        )
+    }
+    if not targets:
+        return {}, {"source_ids": 0, "units": 0, "segments": 0}
+
+    cache = raw_dir / "derived" / "road_corridor_matches.gpkg"
+    road_segments = raw_dir / "nsw_road_segments_gda2020" / "nsw_road_segments.gpkg"
+    for required in (cache, road_segments):
+        if not required.exists():
+            raise FileNotFoundError(required)
+    routes = prepare_routes(DATA / "nsw_assessment.geojson", set(targets))
+    matches = load_or_build_corridor_matches(
+        road_segments,
+        routes,
+        cache,
+    )
+    matches["road_number"] = matches["road_number"].astype(str)
+    matches = matches[matches["road_number"].isin(targets)].to_crs(PROJECTED_CRS)
+    centres = load_abs_centres(raw_dir)
+    employment_geometries = {
+        str(row.zone_id): row.geometry
+        for row in employment_centres.itertuples()
+    }
+    empty = matches.iloc[0:0].copy()
+    results = {}
+    assigned_segment_count = 0
+    for base, rows in targets.items():
+        source_matches = matches[matches["road_number"] == base].copy()
+        by_unit = assign_network_segments(source_matches, rows)
+        assigned_segment_count += sum(len(group) for group in by_unit.values())
+        for unit in rows:
+            result = evaluate_state_dest(
+                unit["geometry"],
+                by_unit.get(unit["key"], empty),
+                centres,
+                unit_evidence.get(unit["key"], {}),
+                unit["zone"],
+                unit_sections(unit, features, projected_geometries),
+                employment_geometries,
+            )
+            if not result["assessed"]:
+                continue
+            results[unit["key"]] = result
+            add_abs_centre_evidence(
+                unit_evidence[unit["key"]],
+                unit,
+                centres,
+                result["all_centre_names"],
+            )
+    return results, {
+        "source_ids": len(targets),
+        "units": len(results),
+        "segments": assigned_segment_count,
+    }
+
+
 def centre_names(evidence: dict, allowed_types: set[str]) -> list[str]:
     return sorted({
         str(item.get("name") or "").strip()
@@ -328,7 +552,10 @@ def state_facilities(evidence: dict, zone: str) -> list[dict]:
             facilities.append({"name": item.get("name"), "kind": "destination", "type": item.get("ftype")})
     minimum_hectares = 40.0 if zone == "urban" else 5.0 if zone == "remote" else 15.0
     for item in evidence.get("employment", []):
-        if float(item.get("ha") or 0.0) >= minimum_hectares:
+        if (
+            item.get("relation") == "intersects"
+            and float(item.get("ha") or 0.0) >= minimum_hectares
+        ):
             facilities.append({
                 "name": item.get("name"),
                 "kind": "employment",
@@ -345,7 +572,10 @@ def regional_facilities(evidence: dict) -> list[dict]:
         for item in evidence.get(bucket, []):
             facilities.append({"name": item.get("name"), "kind": kind, "type": item.get("ftype") or item.get("cat")})
     for item in evidence.get("employment", []):
-        if item.get("tier") in REGIONAL_EMPLOYMENT_TIERS:
+        if (
+            item.get("relation") == "intersects"
+            and item.get("tier") in REGIONAL_EMPLOYMENT_TIERS
+        ):
             facilities.append({
                 "name": item.get("name"),
                 "kind": "employment",
@@ -383,6 +613,16 @@ def verdict_of(criteria: dict) -> str:
     return "green" if criteria["optMet"] >= 2 else "orange" if criteria["optMet"] == 1 else "red"
 
 
+def apply_state_dest(criteria: dict, result: dict) -> dict:
+    updated = copy.deepcopy(criteria)
+    updated.setdefault("stateOpt", {}).update(state_metadata(result))
+    if updated.get("cls") == "State":
+        updated.setdefault("opt", {})["dest"] = result.get("dest")
+        updated["optMet"] = optional_count(updated["opt"])
+        updated["verdict"] = verdict_of(updated)
+    return updated
+
+
 def build_split_criteria(
     unit: dict,
     evidence: dict,
@@ -391,6 +631,7 @@ def build_split_criteria(
     road_ext: dict,
     zone: str,
     nltn_values: list,
+    network_state_dest: dict | None = None,
 ) -> dict:
     area = "urban" if zone == "urban" else "rural"
     state_centres = centre_names(evidence, STATE_CENTRE_TYPES)
@@ -400,22 +641,25 @@ def build_split_criteria(
     regional_centre_pass = len(regional_centres) >= 2
 
     ldr = state_ldr(unit, evidence, zone)
-    state_dest_facilities = state_facilities(evidence, zone)
-    state_dest = facility_metadata(unit, regional_centres, state_dest_facilities, "dest")
-    state_dest.update({
-        "dest_method": "road_unit_network",
-        "dest_network_coverage": 1.0,
-        "dest_qualifying_components": ([{
-            "component_km": round(unit["length_km"], 1),
-            "road_names": unit["road_names"],
-            "centre_names": regional_centres,
-            "facility_names": state_dest["dest_facility_names"],
-            "facility_details": state_dest_facilities,
-            "employment_only": bool(state_dest_facilities) and all(item["kind"] == "employment" for item in state_dest_facilities),
-        }] if state_dest["dest"] else []),
-        "dest_employment_only": bool(state_dest_facilities) and all(item["kind"] == "employment" for item in state_dest_facilities),
-        "dest_economic_value_assessed": False,
-    })
+    if network_state_dest is not None:
+        state_dest = state_metadata(network_state_dest)
+    else:
+        state_dest_facilities = state_facilities(evidence, zone)
+        state_dest = facility_metadata(unit, regional_centres, state_dest_facilities, "dest")
+        state_dest.update({
+            "dest_method": "road_unit_evidence_fallback",
+            "dest_network_coverage": None,
+            "dest_qualifying_components": ([{
+                "component_km": round(unit["length_km"], 1),
+                "road_names": unit["road_names"],
+                "centre_names": regional_centres,
+                "facility_names": state_dest["dest_facility_names"],
+                "facility_details": state_dest_facilities,
+                "employment_only": bool(state_dest_facilities) and all(item["kind"] == "employment" for item in state_dest_facilities),
+            }] if state_dest["dest"] else []),
+            "dest_employment_only": bool(state_dest_facilities) and all(item["kind"] == "employment" for item in state_dest_facilities),
+            "dest_economic_value_assessed": False,
+        })
     regional_dest_facilities = regional_facilities(evidence)
     regional_dest = facility_metadata(unit, regional_centres, regional_dest_facilities, "dest")
 
@@ -565,6 +809,7 @@ def validate_outputs(
     adt: dict,
     legacy_criteria: dict,
     legacy_recat: list,
+    network_state_dest: dict[str, dict],
 ) -> None:
     unit_keys = set(units)
     for label, mapping in (
@@ -599,10 +844,26 @@ def validate_outputs(
         if verdict_of(row) != row.get("verdict"):
             raise RuntimeError(f"Verdict does not reproduce for {key}")
     for base, rows in source_units.items():
-        if len(rows) == 1 and criteria[rows[0]["key"]] != legacy_criteria.get(base):
+        if (
+            len(rows) == 1
+            and rows[0]["key"] not in network_state_dest
+            and criteria[rows[0]["key"]] != legacy_criteria.get(base)
+        ):
             raise RuntimeError(f"Single-unit road {base} did not retain its legacy criteria")
         if len(rows) > 1 and any(row["key"] in adt for row in rows):
             raise RuntimeError(f"Split road {base} retained ambiguous road-wide AADT")
+    for key, result in network_state_dest.items():
+        state_opt = criteria[key].get("stateOpt") or {}
+        if state_opt.get("dest") != result.get("dest"):
+            raise RuntimeError(f"Unit State facility result did not transfer for {key}")
+        if state_opt.get("dest_method") != "nsw_road_segment_network":
+            raise RuntimeError(f"Unit State facility method missing for {key}")
+        evidence_names = {
+            str(item.get("name") or "")
+            for item in evidence[key].get("centres", [])
+        }
+        if not set(result.get("all_centre_names") or []) <= evidence_names:
+            raise RuntimeError(f"Unit State facility centre evidence is incomplete for {key}")
     exported_keys = {
         row.get("_key")
         for tab in ("state", "regional")
@@ -621,6 +882,29 @@ def validate_outputs(
     }
     if actual_57 != expected_57:
         raise RuntimeError(f"Road 0000057 unit regression: {sorted(actual_57)}")
+    kamilaroi = criteria.get("0000029~S01", {}).get("stateOpt") or {}
+    if kamilaroi.get("dest") is not True:
+        raise RuntimeError("Kamilaroi unit 0000029~S01 must pass network-backed S-08")
+    if not {"Bourke", "Walgett"} <= set(kamilaroi.get("dest_centre_names") or []):
+        raise RuntimeError("Kamilaroi S-08 is missing Bourke/Walgett centre evidence")
+    if not {"Bourke District Hospital", "Walgett Health Service"} <= set(
+        kamilaroi.get("dest_facility_names") or []
+    ):
+        raise RuntimeError("Kamilaroi S-08 is missing its connected hospitals")
+    cowpasture = criteria.get("0000648~S01", {}).get("stateOpt") or {}
+    if cowpasture.get("dest") is not False:
+        raise RuntimeError("Cowpasture S-11 must not pass from a nearby employment polygon")
+    cowpasture_employment = evidence.get("0000648~S01", {}).get("employment", [])
+    local_centres = [
+        item for item in cowpasture_employment
+        if item.get("name") == "Local Centre" and item.get("relation") == "intersects"
+    ]
+    nearby_heavy = [
+        item for item in cowpasture_employment
+        if item.get("name") == "Heavy Industrial" and item.get("relation") == "nearby"
+    ]
+    if not local_centres or not nearby_heavy:
+        raise RuntimeError("Cowpasture employment evidence is missing exact polygon relationships")
 
 
 def main() -> None:
@@ -797,6 +1081,20 @@ def main() -> None:
         else:
             unit_evidence.update(attach_evidence(legacy_evidence.get(base, {}), rows))
 
+    employment_centres = derive_centres(employment_source_path(args.raw_dir))
+    exact_employment = employment_evidence(units, employment_centres)
+    for key in units:
+        unit_evidence[key]["employment"] = exact_employment[key]
+
+    unit_state_dest, unit_state_dest_audit = assess_unit_state_dest(
+        source_units,
+        unit_evidence,
+        args.raw_dir,
+        features,
+        projected_geometries,
+        employment_centres,
+    )
+
     unit_nhvr = {}
     unit_adt = {}
     unit_zone_values = {}
@@ -808,7 +1106,10 @@ def main() -> None:
             unit_nhvr[key] = copy.deepcopy(legacy_nhvr.get(base, {}))
             if base in legacy_adt:
                 unit_adt[key] = copy.deepcopy(legacy_adt[base])
-            unit_criteria[key] = copy.deepcopy(legacy_criteria.get(base, {}))
+            unit_criteria[key] = apply_state_dest(
+                legacy_criteria.get(base, {}),
+                unit_state_dest[key],
+            ) if key in unit_state_dest else copy.deepcopy(legacy_criteria.get(base, {}))
             continue
         unit_nhvr[key] = {
             "bdouble19": unit["bdouble"],
@@ -822,6 +1123,7 @@ def main() -> None:
             unit_ext[key],
             unit["zone"],
             [nltn[index] for index in unit["feature_indexes"]],
+            unit_state_dest.get(key),
         )
 
     unit_recat = []
@@ -842,7 +1144,7 @@ def main() -> None:
         if not criteria:
             continue
         base = unit["source_key"]
-        if unit["unit_count"] == 1 and base in export_lookup:
+        if unit["unit_count"] == 1 and base in export_lookup and key not in unit_state_dest:
             row = copy.deepcopy(export_lookup[base])
             row["_key"] = key
         else:
@@ -896,6 +1198,9 @@ def main() -> None:
             "bdouble_coverage": unit["bdouble_coverage"],
             "nltn_coverage": unit["nltn_coverage"],
         }
+        if key in unit_state_dest:
+            audit_units[key]["s08_network_coverage"] = unit_state_dest[key]["coverage"]
+            audit_units[key]["s08_network_segment_count"] = unit_state_dest[key]["matched_segment_count"]
     split_ids = {base: [unit["key"] for unit in rows] for base, rows in source_units.items() if len(rows) > 1}
     audit = {
         "method": "road number + connected component within 200 m + current classification",
@@ -905,6 +1210,7 @@ def main() -> None:
         "split_source_road_count": len(split_ids),
         "excluded_micro_component_count": len(excluded_components),
         "excluded_micro_feature_count": sum(len(row["feature_indexes"]) for row in excluded_components),
+        "unit_state_facility_assessment": unit_state_dest_audit,
         "split_source_roads": split_ids,
         "units": audit_units,
     }
@@ -923,6 +1229,7 @@ def main() -> None:
         unit_adt,
         legacy_criteria,
         recat,
+        unit_state_dest,
     )
 
     verdicts = Counter(row.get("verdict") for row in unit_criteria.values())
@@ -932,6 +1239,11 @@ def main() -> None:
     print(
         f"micro components excluded: {len(excluded_components):,} "
         f"({sum(len(row['feature_indexes']) for row in excluded_components):,} features)"
+    )
+    print(
+        "unit S-08/S-11 network assessments: "
+        f"{unit_state_dest_audit['units']:,} units across "
+        f"{unit_state_dest_audit['source_ids']:,} source IDs"
     )
     print(f"unit verdicts: {dict(verdicts)}")
     print("validation: all unit keys, verdicts, segment colours and exports agree")

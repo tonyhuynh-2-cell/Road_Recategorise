@@ -286,7 +286,10 @@ function showRoadDetail(p, source) {
                 bits.push('No connected ' + (networkMethod ? 'NSW road-network ' : '') + 'component contains both qualifying facility/employment evidence and another centre type');
                 if (components > 1) bits.push('evidence is split across ' + components + ' road-network components');
             } else {
-                if (!allFacilities.length) bits.push('needs a qualifying hospital, port, intermodal, international airport or employment area');
+                if (!allFacilities.length && evEmploy.length) {
+                    const minimumHa = urbanArea ? 40 : zone === 'remote' ? 5 : 15;
+                    bits.push('No employment polygon both intersects the road and meets the ' + minimumHa + ' ha threshold');
+                } else if (!allFacilities.length) bits.push('needs a qualifying hospital, port, intermodal, international airport or employment area');
                 if (!allCentres.length) bits.push('needs a connection to another centre type');
             }
             if (networkMethod && typeof networkCoverage === 'number' && networkCoverage < 0.9) {
@@ -519,13 +522,22 @@ function showRoadDetail(p, source) {
         return n ? (n + ' nearby — not a qualifying connection') : 'No hospital / port / airport / intermodal / employment centre within range';
     };
     const facilityRows = evList(evDests, 'dest') + evList(evHosps, 'hosp') + evList(evEmploy, 'employ');
-    const stateFacilityNames = selectedStateDestComponent
-        ? new Set(selectedStateDestComponent.facility_names || []) : null;
-    const stateFacilityRows = stateFacilityNames
-        ? evList(evDests.filter(function (item) { return stateFacilityNames.has(item.name); }), 'dest') +
-            evList(evHosps.filter(function (item) { return stateFacilityNames.has(item.name); }), 'hosp') +
-            evList(evEmploy.filter(function (item) { return stateFacilityNames.has(item.name); }), 'employ')
-        : facilityRows;
+    const stateFacilityNames = new Set(
+        selectedStateDestComponent
+            ? (selectedStateDestComponent.facility_names || [])
+            : (stateDestInfo.dest_facility_names || [])
+    );
+    const stateCentreNames = new Set(
+        selectedStateDestComponent
+            ? (selectedStateDestComponent.centre_names || [])
+            : (stateDestInfo.dest_centre_names || [])
+    );
+    const stateCentreRows = evCentres(evCent.filter(function (item) { return stateCentreNames.has(item.name); }));
+    const statePointFacilityRows =
+        evList(evDests.filter(function (item) { return stateFacilityNames.has(item.name); }), 'dest') +
+        evList(evHosps.filter(function (item) { return stateFacilityNames.has(item.name); }), 'hosp');
+    const stateEmploymentRows = evEmploymentReview(evEmploy, urbanArea ? 40 : zone === 'remote' ? 5 : 15);
+    const stateEvidenceRows = stateCentreRows + statePointFacilityRows + stateEmploymentRows;
     // Road train (R-03) — real NHVR membership; shown for Regional roads.
     const roadTrainRow = critItem(nh.roadtrain === true ? true : nh.roadtrain === false ? false : null,
         'R-03: On the road train network',
@@ -567,7 +579,7 @@ function showRoadDetail(p, source) {
                 stateLdrValue())
             : critItem(stateLdrPass, ldrLabel, stateLdrValue(), 'crit-opt-ldr');
         const dLabel = 'S-' + (urbanArea ? '11' : '08') + ': Connects Major Hospitals / Ports / Intermodals / International Airports / Employment Centres to other centre types';
-        html += critItem(stateDestPass, dLabel, stateDestValue(), 'crit-opt-dest') + stateFacilityRows;
+        html += critItem(stateDestPass, dLabel, stateDestValue(), 'crit-opt-dest') + stateEvidenceRows;
         html += trafficCrit;
         optEl.innerHTML = html;
     } else if (c && !mandAsState) {
