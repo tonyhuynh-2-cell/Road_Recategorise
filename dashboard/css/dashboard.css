@@ -317,6 +317,12 @@
         .detail-placeholder svg { margin-bottom: 16px; }
         .detail-placeholder p { font: 400 13px/1.5 var(--sans); color: var(--muted); max-width: 220px; margin: 0 auto; }
         .criteria-item { display: flex; align-items: flex-start; gap: 9px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; line-height: 1.4; }
+
+        /* Zone banner — indicates which criteria set (Urban vs Remote & Regional) applies */
+        .criteria-zone-banner { display: inline-block; font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .06em;
+            padding: 5px 12px; border-radius: 6px; margin-bottom: 12px; }
+        .czb-urban { background: #dbeafe; color: #1e40af; }
+        .czb-regional { background: #fef3c7; color: #92400e; }
         .criteria-item:last-child { border: none; padding-bottom: 0; }
         .criteria-icon { font-size: 0.95rem; min-width: 18px; text-align: center; line-height: 1.4; }
         .criteria-text { flex: 1; }
