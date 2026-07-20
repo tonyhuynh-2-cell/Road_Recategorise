@@ -266,6 +266,7 @@
             border-bottom: 1px solid var(--line); flex-shrink: 0; }
         .cm-title { display: flex; align-items: center; gap: 8px; font: 600 12px var(--sans); color: var(--ink); }
         .cm-actions { display: flex; align-items: center; gap: 6px; }
+        .cm-zone-legend { display: flex; align-items: center; gap: 14px; font: 500 11px var(--sans); color: var(--ink-soft); }
         .cm-action-btn { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 7px;
             background: var(--bg); color: var(--muted); display: inline-flex; align-items: center;
             justify-content: center; cursor: pointer; transition: all .12s ease; text-decoration: none; }
@@ -292,11 +293,8 @@
         .cref .cref-section-urban h2 { color: #1e40af; border-bottom-color: #93c5fd; }
         .cref .cref-section-regional { background: #fffbeb; border-radius: 12px; padding: 18px 20px; margin: 24px -20px; border-left: 4px solid #d97706; }
         .cref .cref-section-regional h2 { color: #92400e; border-bottom-color: #fcd34d; }
-        /* Zone colour legend — sticky at the top of the criteria modal */
-        .cref-zone-legend { display: flex; align-items: center; gap: 20px; font: 500 12px var(--sans); color: var(--ink-soft);
-            padding: 10px 14px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 24px;
-            position: sticky; top: 0; z-index: 2; }
-        .cref-zone-key { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: middle; }
+        /* Zone colour key swatches (used in the criteria modal header) */
+        .cref-zone-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
         .cref-zone-key-urban { background: #dbeafe; border: 2px solid #2563eb; }
         .cref-zone-key-regional { background: #fef3c7; border: 2px solid #d97706; }
         .cref-table { width: 100%; border-collapse: collapse; font: 400 12.5px/1.5 var(--sans); margin-bottom: 18px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
