@@ -99,5 +99,7 @@ const NSR_EXCLUDE = {
 // service is ~28s per viewport (verified) — far too slow for live use, which is why we don't use it.
 const LOCAL_ZOOM = 14;
 
-// Town markers turn into name text-boxes once zoomed in past this level
-const LABEL_ZOOM = 9;
+// Town and locality names appear once the bottom-right map scale reads this distance or closer.
+// Keep this tied to the displayed scale rather than a zoom level because metres-per-pixel varies
+// with latitude and viewport size.
+const TOWN_LABEL_SCALE_METRES = 2000;

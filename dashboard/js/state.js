@@ -352,7 +352,15 @@ function deselect() {
 map.on('click', deselect);  // clicking off any road clears the selection
 
 // --- Bottom-right map widgets: a scale bar + the selected-road distance readout ---
-// Scale bar: pick a "nice" round distance (1 / 2 / 5 × 10ⁿ) that fits in ~80 px at the map centre.
+// Scale bar: pick a "nice" round distance (1 / 2 / 5 × 10ⁿ) that fits in 130 px at the map centre.
+function displayedScaleMetres() {
+    const y = map.getSize().y / 2, target = 130;
+    const meters = map.distance(map.containerPointToLatLng([0, y]), map.containerPointToLatLng([target, y]));
+    if (!isFinite(meters) || meters <= 0) return null;
+    const pow = Math.pow(10, Math.floor(Math.log10(meters)));
+    return ((meters / pow) >= 5 ? 5 : (meters / pow) >= 2 ? 2 : 1) * pow;
+}
+
 function updateScale() {
     const barEl = document.getElementById('mw-scale-bar');
     const labelEl = document.getElementById('mw-scale-label');
@@ -360,10 +368,11 @@ function updateScale() {
     const y = map.getSize().y / 2, target = 130;
     const meters = map.distance(map.containerPointToLatLng([0, y]), map.containerPointToLatLng([target, y]));
     if (!isFinite(meters) || meters <= 0) return;
-    const pow = Math.pow(10, Math.floor(Math.log10(meters)));
-    const nice = ((meters / pow) >= 5 ? 5 : (meters / pow) >= 2 ? 2 : 1) * pow;
+    const nice = displayedScaleMetres();
+    if (nice === null) return;
     barEl.style.width = Math.round(target * nice / meters) + 'px';
     labelEl.textContent = nice >= 1000 ? (nice / 1000) + ' km' : Math.round(nice) + ' m';
+    updateTownLabels(nice);
 }
 map.on('moveend zoomend', updateScale);
 map.whenReady(function () { setTimeout(updateScale, 0); });
@@ -378,16 +387,15 @@ function showRoadDistance(km) {
 }
 function hideRoadDistance() { const el = document.getElementById('mw-distance'); if (el) el.hidden = true; }
 
-function updateTownLabels() {
+function updateTownLabels(scaleMetres) {
     const container = map.getContainer();
     const zoom = map.getZoom();
-    container.classList.toggle('labels-on', zoom >= LABEL_ZOOM);
+    const displayedMetres = typeof scaleMetres === 'number' ? scaleMetres : displayedScaleMetres();
+    container.classList.toggle('labels-on', displayedMetres !== null && displayedMetres <= TOWN_LABEL_SCALE_METRES);
     ['8', '10', '11', '12', '13'].forEach(function (level) {
         container.classList.toggle('centres-z' + level, zoom >= Number(level));
     });
 }
-
-map.on('zoomend', updateTownLabels);
 
 // --- Network reveal (UI revamp): the road WEB grows outward from Sydney -------------------------
 // Not a geometric wipe: every road strand draws along its own length on a temporary overlay canvas.
