@@ -489,7 +489,7 @@
 
         /* Connectivity evidence list in the Road Detail panel — the named entities a criterion connects */
         .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 5px; }
-        .ev-item { display: flex; align-items: flex-start; gap: 7px; font: 400 11.5px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; }
+        .ev-item { display: flex; align-items: flex-start; gap: 7px; font: 400 11.5px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; flex-wrap: wrap; }
         .ev-item:hover .ev-name { text-decoration: underline; }
         .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
         .ev-dot.ev-town { background: #1d4ed8; }
@@ -499,11 +499,11 @@
         .ev-dot.ev-employ { background: #0f766e; }
         .ev-dot.ev-employ.is-nearby { background: #fff; border: 1.5px dashed #64748b; }
         .ev-dot.ev-employ.is-qualifying { box-shadow: 0 0 0 2px #ccfbf1; }
-        .ev-name { font-weight: 600; color: var(--ink); }
-        .ev-meta { color: var(--faint); font-size: 10.5px; word-break: break-word; }
+        .ev-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
+        .ev-meta { color: var(--faint); font-size: 10.5px; margin-left: auto; white-space: nowrap; text-align: right; }
         .ev-review-item { padding: 2px 0; }
         .ev-review-item .ev-dot { margin-top: 6px; }
-        .ev-review-item .ev-meta { margin-left: auto; max-width: 54%; text-align: right; }
+        .ev-review-item .ev-meta { margin-left: auto; max-width: 54%; text-align: right; white-space: normal; word-break: break-word; }
         .ev-copy { display: flex; min-width: 0; flex-direction: column; flex: 1; }
         .ev-status { color: var(--muted); font-size: 10px; }
 
