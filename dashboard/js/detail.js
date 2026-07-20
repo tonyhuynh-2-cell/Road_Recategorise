@@ -567,8 +567,6 @@ function showRoadDetail(p, source) {
         optEl.innerHTML = html;
     } else if (c && mandAsState) {
         let html = '';
-        // Zone banner — which criteria set applies
-        html += '<div class="criteria-zone-banner ' + (urbanArea ? 'czb-urban' : 'czb-regional') + '">' + (urbanArea ? 'Urban Criteria' : 'Remote &amp; Regional Criteria') + '</div>';
         const cLabel = urbanArea
             ? 'S-10: Connects Metro Centres / Regional Cities / Major Urban Centres / Major Towns'
             : 'S-07: Connects Metro Centres / Regional Cities / Major Towns to each other';
@@ -588,8 +586,6 @@ function showRoadDetail(p, source) {
         // Regional roads use the Sydney-Metropolitan criteria set (R-05 / R-06) in urban areas and the
         // Regional & Remote set (R-01 / R-02) elsewhere — mirroring the State urban/rural split above.
         let html = '';
-        // Zone banner — which criteria set applies
-        html += '<div class="criteria-zone-banner ' + (urbanArea ? 'czb-urban' : 'czb-regional') + '">' + (urbanArea ? 'Urban Criteria' : 'Remote &amp; Regional Criteria') + '</div>';
         const rCentres = urbanArea
             ? 'R-05: Connects Metropolitan Centres, Major Urban Centres and Major Towns to each other'
             : 'R-01: Connects Urban Centres and Town Centres to each other';
