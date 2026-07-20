@@ -255,7 +255,7 @@ function renderMapLegend() {
     const liStatic = (swatch, label) => '<div class="legend-item legend-static">' + swatch + ' ' + label + '</div>';
     const sw = c => '<div class="legend-color" style="background:' + c + '"></div>';
     const dashSw = '<div class="legend-color legend-dash"></div>';
-    const townSw = '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>';
+    const townSw = '<div class="legend-color" style="background:transparent; width:24px; height:auto; display:flex; align-items:center; justify-content:center;"><span style="width:10px; height:10px; border-radius:50%; background:#57534e; display:block;"></span></div>';
     const vkeys = ['green', 'orange', 'red'];
     let h = '<h3>Map legend</h3>';
     if (currentTab === 'cv' || currentTab === 'sydney') {
