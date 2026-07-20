@@ -3,6 +3,8 @@
 // A road is many segments; group them so a click/hover affects the whole road.
 function roadKeyOf(p) {
     if (p.unit_excluded) return '';
+    const declared = (p.declared_road != null && String(p.declared_road).trim() !== '') ? String(p.declared_road).trim() : '';
+    if (declared) return declared;
     const unit = (p.road_unit != null && String(p.road_unit).trim() !== '') ? String(p.road_unit).trim() : '';
     if (unit) return unit;
     const n = (p.road_number != null && String(p.road_number).trim() !== '') ? String(p.road_number).trim() : '';
@@ -135,12 +137,19 @@ function evMeta(e, kind) {
     if (kind === 'dest') return (e.ftype || 'Key destination') + ' · ' + e.km + ' km';
     if (kind === 'employ') {
         const place = e.lga ? (' · ' + e.lga.replace(/\b\w/g, function (c) { return c.toUpperCase(); }).replace(/\B\w/g, function (c) { return c.toLowerCase(); })) : '';
-        const relation = e.relation === 'intersects'
-            ? 'intersects route'
-            : (typeof e.distance_m === 'number' && e.distance_m < 1000
-                ? Math.round(e.distance_m) + ' m gap'
-                : (+e.km || 0).toFixed(1) + ' km gap');
-        return (e.kind || 'Employment') + ' · ' + (e.tier || 'centre') + ' (' + e.ha + ' ha)' + place + ' · ' + relation;
+        const threshold = typeof e.size_threshold_ha === 'number' ? e.size_threshold_ha : null;
+        const sizeRule = threshold === null ? ''
+            : (e.size_qualifies === true ? ' · meets ≥' : ' · below ≥') + threshold + ' ha size rule';
+        const relation = e.network_access === true && typeof e.network_access_m === 'number' && e.network_access_m > 0
+            ? (e.network_access_m < 1000
+                ? Math.round(e.network_access_m) + ' m local-road access path'
+                : (e.network_access_m / 1000).toFixed(1) + ' km local-road access path')
+            : e.relation === 'intersects'
+                ? 'intersects route'
+                : (typeof e.distance_m === 'number' && e.distance_m < 1000
+                    ? Math.round(e.distance_m) + ' m gap'
+                    : (+e.km || 0).toFixed(1) + ' km gap');
+        return (e.kind || 'Employment') + ' · ' + e.ha + ' ha' + sizeRule + place + ' · ' + relation;
     }
     return e.km + ' km';
 }
@@ -176,10 +185,12 @@ function evEmploymentReview(items, minimumHa) {
         const intersects = e.relation === 'intersects';
         const enoughArea = (+e.ha || 0) >= minimumHa;
         const status = !intersects
-            ? 'Nearby only - does not intersect the road'
+            ? (e.network_access === true
+                ? 'Local-road access exists - does not directly intersect the selected road'
+                : 'Nearby only - does not intersect the selected road')
             : !enoughArea
                 ? 'Intersects road - below ' + minimumHa + ' ha threshold'
-                : 'Intersects road - meets land-area threshold';
+                : 'Intersects road - meets client-approved size-only rule';
         const click = e.zoneId
             ? 'fitToEmployment(\'' + e.zoneId + '\',' + JSON.stringify(e.link || []) + ')'
             : 'panToConn(' + e.lon + ',' + e.lat + ')';

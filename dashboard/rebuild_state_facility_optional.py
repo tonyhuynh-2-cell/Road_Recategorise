@@ -24,6 +24,12 @@ from network_connectivity import (
     road_components,
     route_coverage,
 )
+from rebuild_employment_centres import (
+    ASSESSMENT_BASIS as EMPLOYMENT_ASSESSMENT_BASIS,
+    EMPLOYMENT_AREA_HA,
+    employment_size_qualifies,
+    employment_size_threshold,
+)
 
 
 DASHBOARD = Path(__file__).resolve().parent
@@ -33,7 +39,6 @@ MINIMUM_COVERAGE = 0.70
 FACILITY_CONNECT_M = 3_000.0
 EMPLOYMENT_NETWORK_TOLERANCE_M = 50.0
 STATE_DEST_TYPES = {"International Airport", "Major Intermodal", "Major Port"}
-EMPLOYMENT_AREA_HA = {"remote": 5.0, "regional": 15.0, "urban": 40.0}
 TO_PROJECTED = Transformer.from_crs("EPSG:4326", PROJECTED_CRS, always_xy=True)
 
 
@@ -98,13 +103,18 @@ def facility_candidates(evidence: dict, zone: str) -> list[dict]:
     for item in evidence.get("dests", []):
         if item.get("ftype") in STATE_DEST_TYPES:
             candidates.append({**item, "facility_kind": "destination"})
-    minimum_hectares = EMPLOYMENT_AREA_HA.get(zone, 15.0)
+    minimum_hectares = employment_size_threshold(zone)
     for item in evidence.get("employment", []):
         if (
             item.get("relation") == "intersects"
-            and float(item.get("ha") or 0.0) >= minimum_hectares
+            and employment_size_qualifies(item.get("ha"), zone)
         ):
-            candidates.append({**item, "facility_kind": "employment"})
+            candidates.append({
+                **item,
+                "facility_kind": "employment",
+                "size_threshold_ha": minimum_hectares,
+                "assessment_basis": EMPLOYMENT_ASSESSMENT_BASIS,
+            })
     return candidates
 
 
@@ -148,6 +158,9 @@ def assign_facilities(
             "tier": item.get("tier"),
             "type": item.get("ftype") or item.get("cat") or item.get("kind"),
             "zone_id": item.get("zoneId"),
+            "source": item.get("source"),
+            "size_threshold_ha": item.get("size_threshold_ha"),
+            "assessment_basis": item.get("assessment_basis"),
         }
 
 
@@ -243,11 +256,12 @@ def evaluate_state_dest(
         "all_centre_names": all_centres,
         "all_facility_names": all_facilities,
         "qualifying_components": component_details,
-        "employment_area_proxy": any(
+        "employment_size_only": any(
             detail["kind"] == "employment" for detail in best_facilities
         ),
         "employment_only": best_facility_kinds == {"employment"},
-        "economic_value_assessed": False,
+        "employment_assessment_basis": EMPLOYMENT_ASSESSMENT_BASIS,
+        "employment_size_threshold_ha": employment_size_threshold(zone),
     }
 
 
@@ -266,9 +280,10 @@ def state_metadata(result: dict) -> dict:
         "dest_network_coverage": result["coverage"],
         "dest_network_segment_count": result["matched_segment_count"],
         "dest_network_km": result["matched_km"],
-        "dest_employment_area_proxy": result["employment_area_proxy"],
+        "dest_employment_size_only": result["employment_size_only"],
         "dest_employment_only": result["employment_only"],
-        "dest_economic_value_assessed": result["economic_value_assessed"],
+        "dest_employment_assessment_basis": result["employment_assessment_basis"],
+        "dest_employment_size_threshold_ha": result["employment_size_threshold_ha"],
     }
 
 
@@ -460,7 +475,7 @@ def main() -> None:
             "centre_network_tolerance_m": CENTRE_CONNECT_M,
             "facility_network_tolerance_m": FACILITY_CONNECT_M,
             "employment_area_hectares": EMPLOYMENT_AREA_HA,
-            "employment_economic_value_available": False,
+            "employment_assessment_basis": EMPLOYMENT_ASSESSMENT_BASIS,
         },
         "summary": {
             "roads": len(results),

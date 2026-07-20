@@ -142,9 +142,20 @@ function selectRoadFromSearch(key, matchedName, matchedRef) {
     const agg = (typeof NSW_AGG !== 'undefined' && NSW_AGG) || {};
     const a = agg[key];
     if (!a) return;
+    let selectedUnit = null;
+    if (a.declared_section_count > 1 && matchedName) {
+        const wanted = String(matchedName).trim().toUpperCase();
+        const matches = (a._mappedSections || []).filter(function (section) {
+            return (section.road_names || []).some(function (name) {
+                return String(name).trim().toUpperCase() === wanted;
+            });
+        });
+        if (matches.length === 1) selectedUnit = matches[0].unit;
+    }
     const selected = Object.assign({}, a, {
-        ref: matchedRef || null,
-        road_name: matchedName || a.road_name
+        ref: a.declared_section_count > 1 ? a.ref : (matchedRef || null),
+        road_name: a.road_name,
+        _selectedSectionUnit: selectedUnit
     });
     if (typeof traceCode === 'function') traceCode(
         'Search selected road: ' + roadName(selected),
@@ -159,8 +170,11 @@ function selectRoadFromSearch(key, matchedName, matchedRef) {
     if (typeof nswInView === 'function' && !nswInView(a)) switchTab('overview');
     const layers = (window.NSW_ROAD_LAYERS || {})[key] || [];
     if (layers.length) {
-        highlightRoad(layers, nswLayer, matchedName);
-        try { map.fitBounds(L.featureGroup(layers).getBounds().pad(0.25), { maxZoom: 13 }); } catch (e) { /* no bounds */ }
+        const framed = selectedUnit
+            ? layers.filter(function (layer) { return String(layer.feature.properties.road_unit || '') === selectedUnit; })
+            : layers;
+        highlightRoad(layers, nswLayer, selectedUnit ? null : matchedName, selectedUnit);
+        try { map.fitBounds(L.featureGroup(framed.length ? framed : layers).getBounds().pad(0.25), { maxZoom: 13 }); } catch (e) { /* no bounds */ }
     }
     showRoadDetail(selected, 'nsw');
 }

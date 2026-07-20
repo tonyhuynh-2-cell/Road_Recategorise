@@ -3,7 +3,7 @@
 // Load all data. Cache-bust so edits to data/ always load fresh (no stale browser cache).
 // Each resolved file advances the loading screen's progress bar — REAL progress, not simulated.
 const _bust = '?v=' + Date.now();
-const _loadTotal = 25; let _loadDone = 0;
+const _loadTotal = 28; let _loadDone = 0;
 const _loadTick = () => {
     _loadDone++;
     const bf = document.getElementById('loader-bar-fill');
@@ -15,6 +15,7 @@ const _f = u => fetch(u + _bust).then(r => r.json()).then(j => { _loadTick(); re
 Promise.all([
     _f('data/nsw_assessment.geojson'),
     _f('data/nsw_towns.geojson'),
+    _f('data/nsw_locality_centres.geojson').catch(() => ({ type: 'FeatureCollection', features: [] })),
     _f('data/clarence_valley_assessment.geojson'),
     _f('data/summary_stats.json'),
     _f('data/clarence_valley_boundary.geojson'),
@@ -24,25 +25,27 @@ Promise.all([
     _f('data/ref_overrides.json').catch(() => ({})),
     _f('data/nsw_urbanity.json').catch(() => []),
     _f('data/nsw_nltn.json').catch(() => []),
-    _f('data/nsw_unit_recat.json').catch(() => []),
-    _f('data/nsw_unit_criteria.json').catch(() => ({})),
+    _f('data/nsw_declared_recat.json').catch(() => []),
+    _f('data/nsw_declared_criteria.json').catch(() => ({})),
     _f('data/nltn_2020_road.geojson').catch(() => null),
     _f('data/nltn_meta.json').catch(() => []),
+    _f('data/nsw_declared_evidence.json').catch(() => ({})),
     _f('data/nsw_unit_evidence.json').catch(() => ({})),
     _f('data/cv_evidence.json').catch(() => ({})),
     _f('data/nltn_evidence.json').catch(() => ({})),
     _f('data/sua_outlines.json').catch(() => []),
     _f('data/employment_centre_outlines.json').catch(() => ({})),
-    _f('data/nsw_unit_nhvr.json').catch(() => ({})),
-    _f('data/nsw_unit_road_ext.json').catch(() => ({})),
-    _f('data/nsw_unit_adt.json').catch(() => ({})),
-    _f('data/nsw_unit_zone.json').catch(() => ({})),
-    _f('data/nsw_boundary.geojson').catch(() => null)
-]).then(([nswRoads, nswTowns, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, cvEvid, nltnEvid, suaOutlines, employmentOutlines, nhvr, roadExt, adt, zone, nswBoundary]) => {
+    _f('data/nsw_declared_nhvr.json').catch(() => ({})),
+    _f('data/nsw_declared_road_ext.json').catch(() => ({})),
+    _f('data/nsw_declared_adt.json').catch(() => ({})),
+    _f('data/nsw_declared_zone.json').catch(() => ({})),
+    _f('data/nsw_boundary.geojson').catch(() => null),
+    _f('data/nsw_declared_roads.json').catch(() => ({ roads: {}, section_to_road: {} }))
+]).then(([nswRoads, nswTowns, nswLocalityCentres, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, nswUnitEvid, cvEvid, nltnEvid, suaOutlines, employmentOutlines, nhvr, roadExt, adt, zone, nswBoundary, declaredRoads]) => {
     if (typeof traceCode === 'function') traceCode(
         'Dashboard data loaded',
         'The dashboard has fetched its prepared assessment files. From here, the browser builds map layers and panels from these already-processed results.',
-        "Promise.all([\n  _f('data/nsw_assessment.geojson'),\n  _f('data/nsw_unit_criteria.json'),\n  _f('data/nsw_unit_evidence.json'),\n  _f('data/nsw_unit_nhvr.json'),\n  _f('data/nsw_unit_adt.json')\n]).then(([nswRoads, nswCrit, nswEvid, nhvr, adt]) => {\n  // build map layers and UI from prepared road-unit files\n});",
+        "Promise.all([\n  _f('data/nsw_assessment.geojson'),\n  _f('data/nsw_declared_criteria.json'),\n  _f('data/nsw_declared_evidence.json'),\n  _f('data/nsw_declared_nhvr.json'),\n  _f('data/nsw_declared_adt.json')\n]).then(([nswRoads, nswCrit, nswEvid, nhvr, adt]) => {\n  // build map layers and UI from declared-road results\n});",
         (nswRoads.features || []).length.toLocaleString() + ' road segments loaded'
     );
     // Data fetched — the remaining boot time is aggregation + layer construction (the "draw" phase).
@@ -57,11 +60,13 @@ Promise.all([
     window.ADT = adt || {};
     // Urban / Regional / Remote zone per road (Remote = rural + west of the Newell Hwy) — data/nsw_zone.json.
     window.ZONE = zone || {};
-    window.NSW_CRIT = nswCrit || {};   // connected road-unit criteria (data/nsw_unit_criteria.json)
+    window.NSW_CRIT = nswCrit || {};   // one criteria result per declared road
+    window.DECLARED_ROADS = declaredRoads || { roads: {}, section_to_road: {} };
     // Per-road connectivity evidence (which centres / hospitals / ports / airports / intermodals each
     // road connects, with names + qualifying attributes + coords) — data/*_evidence.json.
     // Centres include both town points and Significant Urban Areas (kind:'sua', suaId -> SUA_OUTLINES).
     window.NSW_EVID = nswEvid || {};
+    window.NSW_UNIT_EVID = nswUnitEvid || {};
     window.CV_EVID = cvEvid || {};
     window.NLTN_EVID = nltnEvid || {};
     // Significant Urban Area boundary outlines (drawn as the "town perimeter" highlight on selection),
@@ -146,8 +151,8 @@ Promise.all([
 
     // === Build Map Layers ===
 
-    // NSW Roads — aggregate by connected/class-consistent road unit. TfNSW road_number values can
-    // contain several disconnected corridors, so roadKeyOf prefers the generated road_unit key.
+    // NSW Roads — aggregate by official declared road. Connected/class-consistent road units remain
+    // on each feature as selectable mapped sections, but do not compete as road-level verdicts.
     const NSW_BOOLS = ['has_pbs1', 'has_pbs2b', 'has_bdouble', 'is_key_freight_route', 'connects_major_town', 'connects_hospital'];
     const nswRoadAgg = {}, nswRoadLayers = {};
     nswRoads.features.forEach(f => {
@@ -174,7 +179,18 @@ Promise.all([
     // Also roll up urban/rural by length, and flag Nationally Significant State Roads
     // = State road predominantly (>=50% of length) on the National Land Transport Network.
     Object.values(nswRoadAgg).forEach(a => {
-        if (a.unit_primary_name) a.road_name = a.unit_primary_name;
+        const declared = (window.DECLARED_ROADS.roads || {})[roadKeyOf(a)] || null;
+        if (a.declared_primary_name) a.road_name = a.declared_primary_name;
+        else if (a.unit_primary_name) a.road_name = a.unit_primary_name;
+        if (declared) {
+            a._declared = declared;
+            a._mappedSections = declared.sections || [];
+            a._zones = declared.zones || [];
+            a._refs = declared.route_refs || [];
+            a.declared_section_count = declared.section_count || 1;
+            if (a._refs.length === 1) a.ref = a._refs[0];
+            else if (a._refs.length > 1) a.ref = null;
+        }
         a.status = ['red', 'orange', 'green'].reduce((best, s) => (a._byStatus[s] > a._byStatus[best] ? s : best), 'red');
         a._urban = a._urbanLen > a._ruralLen;
         // Nationally significant = State road predominantly (>=50% of length) on the National Land
@@ -301,11 +317,17 @@ Promise.all([
                 // aggregate's backfilled name (421 roads carry some unnamed segments).
                 const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                     ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                // Highlight the WHOLE road (every segment of the connected unit) with the clicked
-                // named section drawn dominant. Section-only highlighting stays available through
-                // the Sections dropdown (selectRoadSection, detail.js), an explicit pick.
-                highlightRoad(group(), nswLayer, segName);
-                const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
+                // A multi-part declared road keeps one title and verdict. The clicked connected unit
+                // is framed as its mapped section; one-part roads retain the named-section behavior.
+                const roadAgg = k && nswRoadAgg[k];
+                const mappedGroup = roadAgg && roadAgg.declared_section_count > 1;
+                const clickedUnit = mappedGroup ? feature.properties.road_unit : null;
+                highlightRoad(group(), nswLayer, mappedGroup ? null : segName, clickedUnit);
+                const agg = roadAgg ? Object.assign({}, roadAgg, {
+                    ref: mappedGroup ? roadAgg.ref : feature.properties.ref,
+                    road_name: mappedGroup ? roadAgg.road_name : segName,
+                    _selectedSectionUnit: clickedUnit
+                }) : feature.properties;
                 if (typeof traceCode === 'function') traceCode(
                     'Road clicked: ' + roadName(agg),
                     'The road key `k` is created when Leaflet builds each feature layer. The click handler closes over that key, so later it can find every segment belonging to the same road.',
@@ -337,6 +359,7 @@ Promise.all([
     // Expose the per-road layer groups and build the road-name / road-ID search index (js/search.js),
     // now that NSW_AGG + the road layers are ready. Search selects a road by jumping to it on the map.
     window.NSW_ROAD_LAYERS = nswRoadLayers;
+    if (typeof migrateFlaggedRoadKeys === 'function') migrateFlaggedRoadKeys();
     if (typeof initRoadSearch === 'function') initRoadSearch();
 
     // Clipped CV-inside roads — the same criteria-graded roads, but with their geometry trimmed to the
@@ -406,11 +429,18 @@ Promise.all([
                     L.DomEvent.stopPropagation(e);
                     // Shift+click = export custom-selection pick (same branch as the main overlay).
                     if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
-                    // Same blank-segment guard + whole-road highlight as the main overlay above.
+                    // Same declared-road identity + selected-section treatment as the main overlay.
                     const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                         ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                    highlightRoad(group(), cvClipLayer, segName);
-                    const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
+                    const roadAgg = k && nswRoadAgg[k];
+                    const mappedGroup = roadAgg && roadAgg.declared_section_count > 1;
+                    const clickedUnit = mappedGroup ? feature.properties.road_unit : null;
+                    highlightRoad(group(), cvClipLayer, mappedGroup ? null : segName, clickedUnit);
+                    const agg = roadAgg ? Object.assign({}, roadAgg, {
+                        ref: mappedGroup ? roadAgg.ref : feature.properties.ref,
+                        road_name: mappedGroup ? roadAgg.road_name : segName,
+                        _selectedSectionUnit: clickedUnit
+                    }) : feature.properties;
                     if (typeof traceCode === 'function') traceCode(
                         'Clipped CV road clicked: ' + roadName(agg),
                         'The clipped Clarence Valley layer also creates `k` before the click handler. The geometry is clipped to the LGA, but the lookup still uses the same statewide road key.',
@@ -439,6 +469,42 @@ Promise.all([
         onEachFeature: function(f, layer) {
             layer.bindTooltip(f.properties.name, { permanent: true, direction: 'right', offset: [7, 0], className: 'town-label', pane: 'townPane', opacity: 1 });
             layer.bindPopup(townPopup(f.properties));   // click pin → name + population
+        }
+    });
+
+    // Full candidate-centre inventory. UCL pins above show consolidated towns and cities; this
+    // companion SAL layer exposes the named suburbs/localities that can satisfy population-based
+    // centre tests. Smaller candidates appear only as the user zooms in, keeping statewide view
+    // readable while ensuring places such as Rutherford are not silently absent.
+    const localityBandLabel = {
+        regional_city: 'Regional City size band (20,000+)',
+        major_town: 'Major Town size band (7,000+)',
+        regional_town: 'Regional Town Centre size band (2,000+)',
+        remote_town: 'Remote Town Centre size band (1,000+)'
+    };
+    nswLocalityCentresLayer = L.geoJSON(nswLocalityCentres, {
+        pointToLayer: function(f, ll) {
+            const band = f.properties.size_band || 'remote_town';
+            return L.marker(ll, {
+                pane: 'townPane', keyboard: false,
+                icon: L.divIcon({
+                    className: 'locality-centre locality-' + band,
+                    html: '<span class="locality-dot"></span>', iconSize: [10, 10], iconAnchor: [5, 5]
+                })
+            });
+        },
+        onEachFeature: function(f, layer) {
+            const p = f.properties || {};
+            const band = p.size_band || 'remote_town';
+            layer.bindTooltip(p.name, {
+                permanent: true, direction: 'right', offset: [6, 0],
+                className: 'locality-label locality-label-' + band, pane: 'townPane', opacity: 1
+            });
+            layer.bindPopup('<div class="town-popup"><strong>' + p.name + '</strong>' +
+                '<div class="tp-meta">Suburb / locality (ABS SAL 2021)</div>' +
+                '<div class="tp-meta">Population ' + Number(p.population || 0).toLocaleString() + ' (2021 Census)</div>' +
+                '<div class="tp-meta">' + (localityBandLabel[band] || 'Population-based centre candidate') + '</div>' +
+                '<div class="tp-note">Candidate status depends on the road zone and the criterion being tested.</div></div>');
         }
     });
 

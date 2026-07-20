@@ -25,7 +25,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/
     attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
 }).addTo(map);
 
-let nswLayer, nswTownsLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, sydBoundaryLayer, nltnLayer, bypassLayer, localRoadsXLayer;
+let nswLayer, nswTownsLayer, nswLocalityCentresLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, sydBoundaryLayer, nltnLayer, bypassLayer, localRoadsXLayer;
 
 
 // Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
@@ -310,14 +310,17 @@ let selectedSource = null;
 // Track load start so the constant-speed loading bar can finish before fade-out
 const loadStart = performance.now();
 
-function highlightRoad(layers, sourceLayer, selectedName) {
+function highlightRoad(layers, sourceLayer, selectedName, selectedUnit) {
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = layers;
     selectedSource = sourceLayer;
     const wanted = String(selectedName || '').trim().toUpperCase();
+    const wantedUnit = String(selectedUnit || '').trim();
     layers.forEach(function (layer) {
-        const name = String((layer.feature && layer.feature.properties && layer.feature.properties.road_name) || '').trim().toUpperCase();
-        const exact = !wanted || name === wanted;
+        const properties = (layer.feature && layer.feature.properties) || {};
+        const name = String(properties.road_name || '').trim().toUpperCase();
+        const unit = String(properties.road_unit || '').trim();
+        const exact = wantedUnit ? unit === wantedUnit : (!wanted || name === wanted);
         layer.setStyle({
             weight: exact ? 6.5 : 4,
             opacity: exact ? 1 : 0.62,
@@ -376,7 +379,12 @@ function showRoadDistance(km) {
 function hideRoadDistance() { const el = document.getElementById('mw-distance'); if (el) el.hidden = true; }
 
 function updateTownLabels() {
-    map.getContainer().classList.toggle('labels-on', map.getZoom() >= LABEL_ZOOM);
+    const container = map.getContainer();
+    const zoom = map.getZoom();
+    container.classList.toggle('labels-on', zoom >= LABEL_ZOOM);
+    ['8', '10', '11', '12', '13'].forEach(function (level) {
+        container.classList.toggle('centres-z' + level, zoom >= Number(level));
+    });
 }
 
 map.on('zoomend', updateTownLabels);

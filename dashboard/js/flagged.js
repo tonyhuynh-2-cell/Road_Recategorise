@@ -55,6 +55,20 @@ function saveFlags() {
     catch (e) { /* storage blocked/full — pins simply stay session-only */ }
 }
 
+// Preserve pins created before declared-road grouping. A connected-unit key now resolves to its
+// parent declared road, so several old section pins may intentionally collapse to one road pin.
+function migrateFlaggedRoadKeys() {
+    const aliases = (window.DECLARED_ROADS && window.DECLARED_ROADS.section_to_road) || {};
+    let changed = false;
+    Array.from(flaggedRoads).forEach(function (key) {
+        if (isNltnKey(key) || !aliases[key] || aliases[key] === key) return;
+        flaggedRoads.delete(key);
+        flaggedRoads.add(aliases[key]);
+        changed = true;
+    });
+    if (changed) saveFlags();
+}
+
 // The flagged view owns the map scope on its own tab AND on a Road Detail opened from it
 // (mapContext stays 'flagged' there) — the same "detail keeps the lens it came from" rule the NSW
 // lenses follow via nswView. Read by nswInView/nswStyle (grading.js) and applyLegend (panels.js).

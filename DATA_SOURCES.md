@@ -2,7 +2,7 @@
 
 A plain-language map of every dataset behind the Road Recategorisation dashboard —
 what it is, where it was sourced, and what it drives on screen. Last updated
-**16 July 2026**.
+**20 July 2026**.
 
 Two kinds of data appear below:
 
@@ -12,12 +12,12 @@ Two kinds of data appear below:
   `scratchpad/` (spatial joins, geometry tests, roll-ups). Nothing here invents
   facts; derived files only re-shape what the sourced data already says.
 
-> **Integrity note.** The legacy criteria engine (`nsw_criteria.json` /
-> `nsw_recat.json`) is the input to the connected-road-unit build. The dashboard
-> reads `nsw_unit_criteria.json` / `nsw_unit_recat.json`, so disconnected corridors
-> cannot share a verdict, classification, route shield or evidence. The network-backed
-> LDR and S-08 rebuilds remain explicit engine inputs; their before/after results are recorded in
-> `network_ldr_comparison.json` and `network_state_facility_comparison.json`.
+> **Integrity note.** The dashboard scores one declared road once, even when the
+> source geometry is interrupted or divided into several connected map sections.
+> `nsw_declared_*.json` is the runtime assessment layer; `nsw_unit_*.json` remains
+> the section-level diagnostic layer. This prevents one official road from showing
+> conflicting overall verdicts while retaining the real mapped gaps and section
+> results for inspection. Known reused identifiers are kept as separate roads.
 
 ---
 
@@ -27,11 +27,13 @@ Two kinds of data appear below:
 |---|---|---|---|
 | `nsw_assessment.geojson` | TfNSW Road Network Categorisation | Sourced -> derived | Road overlay, sourced class and generated `road_unit` per segment |
 | `nsw_road_units.json` | Categorisation geometry + route references | Derived | Audit of connected/class-consistent assessment units |
-| `nsw_unit_criteria.json` / `nsw_unit_recat.json` | Criteria engine + road-unit rebuild | Derived | Dashboard verdicts and per-segment colours |
-| `nsw_unit_evidence.json` | Legacy evidence reassigned by unit geometry | Derived | Named centres/facilities shown for the selected corridor only |
+| `nsw_declared_roads.json` | Classified-road identity + connected-unit audit | Derived | One dashboard identity and verdict per declared road, with mapped-section drill-down |
+| `nsw_declared_criteria.json` / `nsw_declared_recat.json` | Criteria engine + declared-road roll-up | Derived | Dashboard verdicts and per-segment colours |
+| `nsw_declared_evidence.json` | Connected-unit evidence merged by declared road | Derived | Named centres/facilities shown for the complete declared road |
+| `nsw_unit_*.json` | Connected geometry rebuild | Derived | Section-level diagnostics retained for audit and regression testing |
 | `nsw_adt.json` | TfNSW Traffic Volume Counts (open data) | Sourced → joined | AADT + %HV in the detail panel & export |
 | `nhvr_networks.json` | NHVR gazetted-network map service | Sourced → joined | Road train / B-double / bypass status |
-| `employment_centres.json` + `employment_centre_outlines.json` | NSW Planning EPI land-zoning | Sourced → derived | Employment-centre areas, exact map polygons and road-gap evidence |
+| `employment_centres.json` + `employment_centre_outlines.json` | ELDM 2025 precincts + NSW Planning EPI land-zoning | Sourced → derived | Size-assessed employment centres, exact map polygons and road-gap evidence |
 | `nltn_2020_road.geojson` + `nsw_nltn.json` | NLTN Determination 2020 (data.gov.au) | Sourced → joined | Nationally Significant tab |
 | `nsw_towns.geojson` | ABS Census 2021 population centres | Sourced | Town/city pins + "connects centres" |
 | `sua_outlines.json` | ABS Significant Urban Areas 2021 | Sourced | Urban-area perimeters (highlights) |
@@ -81,16 +83,22 @@ tagged `admin_class` = **S**tate / **R**egional (Local roads are filtered out).
 **Route shields (A / B / D / M numbers)** — `nsw_refs.json`, `cv_refs.json`, with
 manual fixes in `ref_overrides.json`. Sourced from an OpenStreetMap route join.
 
-**Connected road units** — `rebuild_road_units.py` treats `road_number` as the
+**Declared roads and connected map sections** — `rebuild_road_units.py` treats `road_number` as the
 TfNSW administrative identifier, not a guaranteed single-road key. Within each
 identifier it groups geometry that connects within 200 m, bridges compatible
 same-name/same-route source gaps up to 1 km, and separates State from Regional
 sections. A disconnected component under 350 m is treated as a source fragment,
 not a separate assessment, when the same identifier has a larger component. The
-resulting `road_unit` drives map selection, search, classification, evidence,
-criteria and export. In the current build, 892 administrative road IDs produce
-984 assessment units; 74 IDs contain more than one unit. The audit records 130
-excluded micro-components covering 350 source features.
+resulting `road_unit` is a mapped section, not automatically a separate road.
+
+Above that diagnostic layer, the builder groups mapped sections that share the
+same official classified road number and current class. The dashboard
+then selects, scores, pins and exports the resulting `declared_road` once. The
+section dropdown can still frame every disconnected mapped part and disclose its
+diagnostic result. Identifier `0000057` is an explicit keep-separate exception
+because it is reused by West Wyalong-Condobolin, Tullamore-Nyngan and Goldfields,
+which are distinct corridors rather than separated pieces of one declared road.
+Unnumbered roads are not merged merely because they share a common street name.
 
 **Physical road topology** — the raw
 `nsw_road_segments_gda2020/nsw_road_segments.gpkg` contains 1,373,829 features
@@ -153,6 +161,14 @@ excluded.
   inside the metro saw ONE centre ("Sydney") and the connects-centres-to-each-
   other test was undecidable there. Urban roads' `nsw_evidence.json` centres[]
   lists the actual suburbs (kind `sal`).
+- **Map locality-centre inventory** (`dashboard/data/nsw_locality_centres.geojson`) —
+  built by `dashboard/build_map_locality_centres.py` from the official ABS ASGS
+  2021 SAL point service and the checked-in NSW SAL G01 population table. It
+  includes every mapped NSW SAL with at least 1,000 residents, the guide's lowest
+  remote Town Centre population floor. The dashboard progressively reveals
+  the 1,000 / 2,000 / 7,000 / 20,000 population bands by zoom. These are shown
+  as population-based **candidate centres**; the road zone and criterion still
+  determine whether an individual candidate qualifies for a particular test.
 - **Major hospitals** — `POI/Major_Hospitals_NSW.geojson` (NSW Health / AIHW
   MyHospitals), tiered by beds: Urban 400+, Regional 100+, Remote 15+.
 - **State facility criterion S-08 / S-11 (July 2026 re-score):** the guide
@@ -173,17 +189,33 @@ excluded.
   locations: Port Botany/Kembla/Newcastle, Moorebank/Enfield/Parkes, international &
   regional airports).
 - **Employment (commercial / industrial) centres** (`employment_centres.json`,
-  `employment_centre_outlines.json`) — **NSW Planning EPI land-zoning**
-  (`mapprod3.environment.nsw.gov.au …/EPI_Primary_Planning_Layers/MapServer/2`).
-  `rebuild_employment_centres.py` can fetch the source polygons to
-  `nsw_planning_employment_zones.geojson`, dissolve contiguous polygons by LGA
-  and zone class, and rebuild both dashboard files. Every Commercial (B1–B8,
-  E1, E2, MU1) and Industrial (IN1–IN4, E3–E5) centre is measured in **hectares**
-  and tiered Major ≥40 ha / Regional ≥15 ha / Local ≥5 ha. The current build
-  contains **1,851 centres** from **5,962 source polygons**. The outline file
-  contains the actual simplified polygon used on the map, not a display radius.
-  *(The dollar-value half of this criterion — an employment-density estimate — was
-  built and then removed at your request; it's recoverable in git history.)*
+  `employment_centre_outlines.json`) — **NSW Employment Lands Development
+  Monitor (ELDM) 2025 current precincts**, with **NSW Planning EPI land-zoning**
+  as the statewide fallback (`mapprod3.environment.nsw.gov.au …/
+  EPI_Primary_Planning_Layers/MapServer/2`). `rebuild_employment_centres.py`
+  loads current, zoned ELDM precincts of at least 5 ha and excludes the
+  Potential Future layer. Where ELDM exists it is authoritative: overlapping
+  EPI geometry is removed to avoid double counting. Outside ELDM coverage, EPI
+  Commercial (B1-B8, E1, E2, MU1) and Industrial (IN1-IN4, E3-E5) polygons are
+  dissolved by LGA and zone class. The current build contains **379 ELDM
+  precincts** and **1,367 EPI fallback centres**. The outline file contains the
+  actual simplified polygon used for both scoring and map display, not a radius.
+- **Employment scoring decision:** employment importance is assessed using the
+  client-approved **land-area-only** thresholds: Urban >=40 ha, Regional >=15 ha
+  and Remote >=5 ha. Economic value and the legacy Major/Regional/Local labels
+  are not scoring inputs. Every evidence row stores its applicable threshold,
+  source and size decision so the result is auditable.
+- **Regional employment access for R-02/R-06**
+  (`regional_employment_access.json`) — `regional_employment_access.py` tests
+  size-qualified employment polygons that do not directly intersect the
+  categorised road. A candidate must be within a 1.5 km direct gap and have a
+  continuous path of no more than 2 km through the NSW Transport Theme GDA2020
+  Road Segment network. The assessed route is reconciled to that network within
+  100 m and the access street must reach the employment polygon within 50 m.
+  The stored audit includes the measured shortest path and local source-segment
+  count. This network-access allowance is
+  specific to Regional R-02/R-06; State S-08/S-11 retains its direct-intersection
+  and size-threshold treatment.
 
 ---
 
@@ -192,14 +224,23 @@ excluded.
 **`nhvr_networks.json`** — per-road membership of the gazetted heavy-vehicle
 networks.
 
-- **Source:** the **NHVR** map service
-  (`maps.nhvr.gov.au …/NHVR/GazettedNetworks` and `…/Bypasses`):
+- **Source:** the **NHVR National Network Map** downloadable GeoPackages:
   - Road Train 32 m Approved Routes (layer 21) → the R-03 criterion
-  - B-double 19 m Approved Routes NSW (layer 17) → the R-04 mandatory
+  - GML/CML 19 m B-double Routes over 50 tonnes → the R-04 mandatory
   - Heavy-vehicle Bypasses
-- **How derived:** the service strips geometry, but *spatial-intersect counts* work
-  — each road's simplified, buffered polyline is POSTed and the network is "on" if
-  it intersects ≥1 feature (`scratchpad/nhvr_source.py`).
+- **R-04 method:** `dashboard/rebuild_bdouble_network.py` compares each source
+  line with approved NHVR road-segment geometry in Australian Albers (EPSG:3577).
+  It measures the actual line length inside a 50 m network tolerance. A road unit
+  passes when at least 80% of its length follows the approved network. Endpoint
+  touches and crossings therefore contribute only the metres that overlap; they
+  cannot approve an entire multi-kilometre source feature.
+- **Rebuild:** download the current NSW GML/CML 19 m B-double GeoPackage from the
+  map's **Download Network** action into `dashboard/data/geopackages/`, run
+  `python3 dashboard/rebuild_bdouble_network.py --network <file> --apply`, then
+  `python3 dashboard/rebuild_road_units.py --apply`.
+- **Important:** the downloaded network is an assessment input, not a legally
+  authorised network map. The live NHVR National Network Map remains the legal
+  reference.
 
 ---
 
@@ -223,7 +264,16 @@ networks.
 - **`nsw_zone.json`** (derived, `scratchpad/build_zones.py`) — **Urban / Regional /
   Remote**, where *Remote = rural AND west of the Newell Highway*. The Newell's
   alignment is pulled from the road network itself and its longitude interpolated at
-  each road's latitude. 507 urban / 296 regional / 89 remote.
+  each road's latitude. The connected-section and declared-road rebuild now derives
+  the zone directly from final segment lengths rather than inheriting a legacy
+  road-wide value. Urban distance must exceed rural distance; otherwise rural roads
+  are Regional or Remote according to which side of the Newell contains more length.
+  The current declared-road split is 516 Urban / 312 Regional / 93 Remote.
+- **Criteria-family integrity:** `rebuild_road_units.py` maps Urban to the urban
+  criteria family and Regional/Remote to the rural criteria family. Any row whose
+  stored criteria family disagrees is recomputed from its final geometry and evidence.
+  Unit and declared-road validation both fail the rebuild if even one mismatch remains.
+  The July 2026 correction reduced the known mismatch count from 89 to zero.
 - **Greater Sydney / NSW state boundary** — `POI/Greater_Sydney_GCCSA_2021.shp`,
   `POI/NSW_State_Boundary_2021.shp` (ABS ASGS 2021).
 - **LGA boundaries** — `scratchpad/nsw_lga.geojson` (ABS ASGS 2021 LGAs); used for
@@ -248,11 +298,18 @@ These are produced entirely from the datasets above:
 
 - **`nsw_criteria.json` / `nsw_recat.json`** — the criteria engine's per-road
   pass/fail against the State & Regional criteria, retained as rebuild inputs.
-- **Connected road-unit outputs** (`rebuild_road_units.py`) —
+- **Declared-road outputs** (`rebuild_road_units.py`) —
+  `nsw_declared_roads.json`, `nsw_declared_criteria.json`,
+  `nsw_declared_recat.json`, `nsw_declared_evidence.json`,
+  `nsw_declared_nhvr.json`, `nsw_declared_adt.json`,
+  `nsw_declared_road_ext.json`, `nsw_declared_zone.json` and
+  `export_declared_rows.json`. These are the dashboard's runtime identity,
+  assessment and export layer.
+- **Connected map-section outputs** (`rebuild_road_units.py`) —
   `nsw_unit_criteria.json`, `nsw_unit_recat.json`, `nsw_unit_evidence.json`,
   `nsw_unit_nhvr.json`, `nsw_unit_adt.json`, `nsw_unit_road_ext.json`,
-  `nsw_unit_zone.json` and `export_unit_rows.json`. These are the dashboard's
-  runtime assessment layer. `nsw_road_units.json` records the full audit.
+  `nsw_unit_zone.json` and `export_unit_rows.json`. These retain section-level
+  diagnostic results. `nsw_road_units.json` records the full topology audit.
 - **`nsw_evidence.json`, `cv_evidence.json`, `nltn_evidence.json`** — the named
   entities each road connects (the clickable "why" in the detail panel).
 - **`nsw_road_ext.json`** (`scratchpad/derive_local.py`) — pure-geometry topology:
@@ -268,12 +325,12 @@ These are produced entirely from the datasets above:
 - **Network-backed S-08/S-11** (`rebuild_state_facility_optional.py`) — requires a
   qualifying facility or commercial/industrial/employment area and an ABS centre
   on the same connected NSW Road Segment component. Employment areas must also
-  intersect the selected categorisation geometry and meet the guide's available
-  hectare threshold (Remote 5 ha; Regional 15 ha; Urban 40 ha). A 50 m network
+  intersect the selected categorisation geometry and meet the client-approved
+  size-only threshold (Remote 5 ha; Regional 15 ha; Urban 40 ha). A 50 m network
   tolerance only reconciles the categorisation line with its matching physical
   road centreline; it cannot turn a displayed polygon-to-road gap into a pass.
-  The missing economic-value threshold is disclosed in the detail panel and
-  comparison report. `rebuild_road_units.py` reruns this test for urban roads and
+  The size-only assessment basis is disclosed in the detail panel and comparison
+  report. `rebuild_road_units.py` reruns this test for urban roads and
   for each unit of split road identifiers. This preserves matching ABS centres
   and facilities without copying one road-wide result to disconnected sections.
 - **Exact employment-map evidence** (`rebuild_road_units.py`) — calculates the
@@ -282,6 +339,13 @@ These are produced entirely from the datasets above:
   labelled explicitly. A near miss keeps its measured distance and nearest-point
   connector, so the map can show even a small physical gap rather than implying
   contact from a representative point or fixed-radius circle.
+- **Short Regional employment access paths** (`regional_employment_access.py`) —
+  queries the 1.3-million-feature NSW Road Segment source around each nearby
+  size-qualified employment polygon and runs a shortest-path test through
+  endpoint-connected street segments. R-02/R-06 can use paths up to 2 km when
+  the polygon is no more than 1.5 km directly from the assessed road. The detail
+  panel reports the path length instead of relabelling the polygon as an
+  intersection.
 
 ---
 
@@ -292,7 +356,7 @@ These are produced entirely from the datasets above:
 | **Statewide load limits** on bridges/structures | Not sourced — fragmented across TfNSW + councils; shown as "assumed compliant". |
 | **Emergency evacuation routes** | **No statewide dataset exists** — only council PDFs + NSW SES *tsunami evacuation areas* (coastal polygons, not road routes). Investigated and confirmed unavailable. |
 | **Interstate towns within 100 km of the border** | Skipped (needs QLD/VIC/SA town data; only NSW census is on disk). |
-| **Commercial/industrial $-value (income)** | S-08 uses the hectare threshold as an explicit proxy and reports that the economic-value half is unavailable. The $ estimate was built then removed at your request. ABS place-of-work jobs (needed for a measured version) are only available via ABS TableBuilder, not a clean API. |
+| **Commercial/industrial economic value** | Deliberately excluded from scoring under the client-approved size-only method. The software does not infer jobs, freight output or income from the available polygons. |
 | **Location of road-wide AADT / road-train / bypass results inside split administrative IDs** | Existing derived files identify only the TfNSW road number, not the contributing station/network geometry. Split road units show these values as unavailable rather than copying one corridor's result to another. B-double and PBS-1 remain available from segment-level flags. |
 
 ---
