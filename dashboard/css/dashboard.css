@@ -167,6 +167,12 @@
         .map-legend .legend-item { margin-bottom: 8px; font-size: 12px; }
         .map-legend .legend-item:last-child { margin-bottom: 0; }
         @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
+        @media (max-width: 600px) {
+            .map-legend { width: 190px; max-height: 180px; padding: 10px 11px; }
+            .map-legend .legend-item { gap: 8px; margin-bottom: 6px; font-size: 11px; }
+            .map-legend h3 { margin-bottom: 8px; }
+            .code-trace.ct-bubble { left: 8px !important; right: auto !important; top: 64px !important; bottom: auto !important; }
+        }
         /* NSW spotlight (init.js): the mask + border outline. Light theme uses the layer's own white
            wash; dark theme swaps to a dark wash (the tile pane is inverted, so a white wash would glare)
            and a lighter border. CSS overrides the SVG presentation attributes Leaflet sets. */
@@ -424,10 +430,23 @@
         .rl-shield.rl-D { background: #7c3aed; }
         .leaflet-container.labels-on .town-label { display: block; }
         .leaflet-container.labels-on .town-pin { opacity: 0; }
+        .locality-centre { background: none !important; border: none !important; display: none; }
+        .locality-dot { display: block; width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; background: #fff; border: 2px solid #2563eb; box-shadow: 0 1px 3px rgba(28,25,23,.38); }
+        .locality-regional_city { display: block; }
+        .centres-z8 .locality-major_town,
+        .centres-z10 .locality-regional_town,
+        .centres-z11 .locality-remote_town { display: block; }
+        .leaflet-tooltip.locality-label { background: rgba(255,255,255,.94); border: 1px solid #bfdbfe; color: var(--ink); font: 500 10.5px var(--sans); padding: 2px 6px; border-radius: 4px; box-shadow: 0 1px 5px rgba(28,25,23,.12); white-space: nowrap; display: none; }
+        .leaflet-tooltip.locality-label::before { display: none !important; }
+        .centres-z11 .locality-label-regional_city,
+        .centres-z11 .locality-label-major_town,
+        .centres-z12 .locality-label-regional_town,
+        .centres-z13 .locality-label-remote_town { display: block; }
         /* Town pin click popup (name + population) */
         .leaflet-popup-content { margin: 9px 12px; }
         .town-popup strong { display: block; color: var(--ink); font: 600 13px var(--sans); }
         .town-popup .tp-meta { color: var(--muted); font: 400 11.5px var(--sans); margin-top: 2px; }
+        .town-popup .tp-note { color: var(--ink-soft); font: 400 10.5px/1.35 var(--sans); margin-top: 6px; max-width: 220px; }
 
         /* Connectivity evidence list in the Road Detail panel — the named entities a criterion connects */
         .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 5px; }

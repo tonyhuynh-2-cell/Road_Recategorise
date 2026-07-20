@@ -127,7 +127,7 @@ function buildXtest() {
         const stateCentresOpt = c.stateOpt && typeof c.stateOpt.centres === 'boolean'
             ? c.stateOpt.centres : c.opt.centres;
         const asStateOptMet = countOpt(c, ['traffic']) + (stateCentresOpt === true ? 1 : 0) + (stateDestOpt === true ? 1 : 0) + (ldrOpt ? 1 : 0);
-        // R-02/R-06 include Regional- and Major-tier commercial, industrial and employment centres.
+        // R-02/R-06 include employment centres that meet the road zone's client-approved size rule.
         // regionalOpt is computed independently so a State road can be tested as Regional without
         // borrowing the stricter State facility result in opt.dest.
         const regionalDestOpt = c.regionalOpt && typeof c.regionalOpt.dest === 'boolean'

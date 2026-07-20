@@ -23,8 +23,8 @@ Qualifying facilities (State set — stricter than R-02/R-06):
                    Urban 400+ / Regional 100+ / Remote 15+ beds);
   * dests[]      - ftype in {Major Port, Major Intermodal, International
                    Airport}; Regional Airports qualify for R-02 only;
-  * employment[] - tier in {Regional, Major} (the +$/hectare state-economic-
-                   generation thresholds); Local never qualifies.
+  * employment[] - meets the client-approved Urban land-area-only threshold
+                   of 40 ha; no economic-value estimate or legacy tier is used.
 
 Qualifying centres ("other centre types", per the guide's Point-of-interest
 definitions — Metropolitan Centres / Regional Cities / Major Towns & Major
@@ -61,13 +61,18 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from rebuild_employment_centres import (
+    ASSESSMENT_BASIS,
+    employment_size_qualifies,
+    employment_size_threshold,
+)
+
 
 APPLY = "--apply" in sys.argv
 DATA = Path(__file__).resolve().parent / "data"
 BAK = ".preStateUrbanDest.bak"
 CONNECT_KM = 0.2
 STATE_DEST_FTYPES = {"Major Port", "Major Intermodal", "International Airport"}
-EMPLOYMENT_TIERS = {"Regional", "Major"}
 RURAL_CENTRE_TYPES = {
     "Significant Urban Area",
     "Regional City",
@@ -203,7 +208,7 @@ def evaluate_state_dest(lines, evidence_row, area):
     add_points(components, evidence_row.get("dests"), "facilities",
                lambda item: item.get("ftype") in STATE_DEST_FTYPES)
     add_points(components, evidence_row.get("employment"), "facilities",
-               lambda item: item.get("tier") in EMPLOYMENT_TIERS)
+               lambda item: employment_size_qualifies(item.get("ha"), area))
 
     qualifying = [component for component in components if component["centres"] and component["facilities"]]
     best = qualifying[0] if qualifying else (components[0] if components else None)
@@ -219,6 +224,9 @@ def evaluate_state_dest(lines, evidence_row, area):
         "dest_all_centre_names": all_centres,
         "dest_all_facility_names": all_facilities,
         "dest_component_count": len(components),
+        "dest_employment_size_only": True,
+        "dest_employment_assessment_basis": ASSESSMENT_BASIS,
+        "dest_employment_size_threshold_ha": employment_size_threshold(area),
     }
 
 
