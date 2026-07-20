@@ -489,9 +489,9 @@
 
         /* Connectivity evidence list in the Road Detail panel — the named entities a criterion connects */
         .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 5px; }
-        .ev-item { display: flex; align-items: baseline; gap: 7px; font: 400 11.5px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; flex-wrap: wrap; }
+        .ev-item { display: flex; align-items: flex-start; gap: 7px; font: 400 11.5px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; flex-wrap: wrap; }
         .ev-item:hover .ev-name { text-decoration: underline; }
-        .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; position: relative; top: -1px; }
+        .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
         .ev-dot.ev-town { background: #1d4ed8; }
         .ev-dot.ev-sua { background: #1d4ed8; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #1d4ed8; }   /* urban area = ringed dot */
         .ev-dot.ev-hosp { background: #dc2626; }
