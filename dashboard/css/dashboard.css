@@ -227,7 +227,8 @@
 
         /* Collapsible card (Additional data: traffic + vehicle access + connectivity) */
         .collapsible-card .collapsible-header { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-        .collapsible-card .collapse-chevron { transition: transform .2s ease; font-size: 14px; color: var(--muted); }
+        .collapsible-card .collapse-chevron { transition: transform .2s ease, color .12s ease; font-size: 14px; color: var(--muted); }
+        .collapsible-card .collapsible-header:hover .collapse-chevron { color: var(--ink); }
         .collapsible-card.collapsed .collapse-chevron { transform: rotate(-90deg); }
         .collapsible-card.collapsed .collapsible-body { display: none; }
         .collapsible-card .collapsible-body { margin-top: 10px; }

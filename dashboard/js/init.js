@@ -146,6 +146,9 @@ Promise.all([
     // contain several disconnected corridors, so roadKeyOf prefers the generated road_unit key.
     const NSW_BOOLS = ['has_pbs1', 'has_pbs2b', 'has_bdouble', 'is_key_freight_route', 'connects_major_town', 'connects_hospital'];
     const nswRoadAgg = {}, nswRoadLayers = {};
+    // Layers grouped by gazetted road NUMBER (spans every unit of a multi-unit road) — lets a click
+    // on one unit light up the whole gazetted road, clicked unit purple, sibling units blue.
+    const nswNumLayers = {};
     nswRoads.features.forEach(f => {
         const k = roadKeyOf(f.properties); if (!k) return;
         const a = nswRoadAgg[k] || (nswRoadAgg[k] = Object.assign({}, f.properties, { status: 'red', _len: 0, _byStatus: { red: 0, orange: 0, green: 0 }, _urbanLen: 0, _ruralLen: 0, _nltnLen: 0, _names: [], _nameRefs: {} }));
@@ -284,6 +287,8 @@ Promise.all([
         onEachFeature: function(feature, layer) {
             const k = roadKeyOf(feature.properties);
             if (k) (nswRoadLayers[k] || (nswRoadLayers[k] = [])).push(layer);
+            const rnum = (feature.properties.unit_count > 1) ? String(feature.properties.road_number || '').trim() : '';
+            if (rnum) (nswNumLayers[rnum] || (nswNumLayers[rnum] = [])).push(layer);
             const group = () => (k && nswRoadLayers[k]) ? nswRoadLayers[k] : [layer];
             layer.bindTooltip(roadTooltip(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
             layer.on('click', function(e) {
@@ -297,10 +302,12 @@ Promise.all([
                 // aggregate's backfilled name (421 roads carry some unnamed segments).
                 const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                     ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                // Highlight the WHOLE road (every segment of the connected unit) with the clicked
-                // named section drawn dominant. Section-only highlighting stays available through
-                // the Sections dropdown (selectRoadSection, detail.js), an explicit pick.
-                highlightRoad(group(), nswLayer, segName);
+                // Highlight the WHOLE road with the clicked named section drawn dominant. For a
+                // multi-unit gazetted road, every sibling unit lights up too: clicked unit purple,
+                // the rest standard blue (highlightRoad's selectedUnitKey path). Section-only
+                // highlighting stays available through the Sections dropdown (selectRoadSection).
+                if (rnum && nswNumLayers[rnum]) highlightRoad(nswNumLayers[rnum], nswLayer, segName, k);
+                else highlightRoad(group(), nswLayer, segName);
                 const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                 if (typeof traceCode === 'function') traceCode(
                     'Road clicked: ' + roadName(agg),
@@ -389,23 +396,27 @@ Promise.all([
             lines.forEach(cs => clipLine(cs).forEach(s => { if (s.length >= 2) parts.push(s); }));
             if (parts.length) feats.push({ type: 'Feature', properties: p, geometry: { type: 'MultiLineString', coordinates: parts } });
         });
-        const cvClipLayers = {};
+        const cvClipLayers = {}, cvClipNumLayers = {};
         cvClipLayer = L.geoJSON({ type: 'FeatureCollection', features: feats }, {
             style: nswStyle,
             smoothFactor: 2.5,
             onEachFeature: function (feature, layer) {
                 const k = roadKeyOf(feature.properties);
                 if (k) (cvClipLayers[k] || (cvClipLayers[k] = [])).push(layer);
+                const rnum = (feature.properties.unit_count > 1) ? String(feature.properties.road_number || '').trim() : '';
+                if (rnum) (cvClipNumLayers[rnum] || (cvClipNumLayers[rnum] = [])).push(layer);
                 const group = () => (k && cvClipLayers[k]) ? cvClipLayers[k] : [layer];
                 layer.bindTooltip(roadTooltip(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
                 layer.on('click', function (e) {
                     L.DomEvent.stopPropagation(e);
                     // Shift+click = export custom-selection pick (same branch as the main overlay).
                     if (e.originalEvent && e.originalEvent.shiftKey && k && typeof toggleCustomRoad === 'function') { toggleCustomRoad(k); return; }
-                    // Same blank-segment guard + whole-road highlight as the main overlay above.
+                    // Same blank-segment guard + whole-road highlight as the main overlay above
+                    // (incl. the multi-unit purple/blue split).
                     const segName = (feature.properties.road_name && String(feature.properties.road_name).trim())
                         ? feature.properties.road_name : (k && nswRoadAgg[k] ? nswRoadAgg[k].road_name : feature.properties.road_name);
-                    highlightRoad(group(), cvClipLayer, segName);
+                    if (rnum && cvClipNumLayers[rnum]) highlightRoad(cvClipNumLayers[rnum], cvClipLayer, segName, k);
+                    else highlightRoad(group(), cvClipLayer, segName);
                     const agg = (k && nswRoadAgg[k]) ? Object.assign({}, nswRoadAgg[k], { ref: feature.properties.ref, road_name: segName }) : feature.properties;
                     if (typeof traceCode === 'function') traceCode(
                         'Clipped CV road clicked: ' + roadName(agg),

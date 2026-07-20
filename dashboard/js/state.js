@@ -261,13 +261,27 @@ let selectedSource = null;
 // Track load start so the constant-speed loading bar can finish before fade-out
 const loadStart = performance.now();
 
-function highlightRoad(layers, sourceLayer, selectedName) {
+// selectedUnitKey (optional): multi-unit gazetted roads pass ALL the road number's layers plus the
+// clicked unit's key — that unit draws purple, sibling units keep the standard blue highlight.
+function highlightRoad(layers, sourceLayer, selectedName, selectedUnitKey) {
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = layers;
     selectedSource = sourceLayer;
     const wanted = String(selectedName || '').trim().toUpperCase();
+    const unitKey = selectedUnitKey ? String(selectedUnitKey) : '';
     layers.forEach(function (layer) {
-        const name = String((layer.feature && layer.feature.properties && layer.feature.properties.road_name) || '').trim().toUpperCase();
+        const p = (layer.feature && layer.feature.properties) || {};
+        if (unitKey) {
+            const inUnit = roadKeyOf(p) === unitKey;
+            layer.setStyle({
+                weight: inUnit ? 6.5 : 5,
+                opacity: inUnit ? 1 : 0.9,
+                color: inUnit ? '#7c3aed' : '#2563eb',
+                dashArray: null
+            });
+            return;
+        }
+        const name = String(p.road_name || '').trim().toUpperCase();
         const exact = !wanted || name === wanted;
         layer.setStyle({
             weight: exact ? 6.5 : 4,
