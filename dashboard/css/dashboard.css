@@ -175,7 +175,7 @@
         .map-legend.ml-collapsed .legend-item,
         .map-legend.ml-collapsed .legend-sub,
         .map-legend.ml-collapsed .legend-static { display: none; }
-        .map-legend.ml-collapsed { padding-bottom: 13px; }
+        .map-legend.ml-collapsed { padding: 10px 13px; }
         .map-legend .legend-item { margin-bottom: 10px; font-size: 12px; }
         .map-legend .legend-item:last-child { margin-bottom: 0; }
         @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
