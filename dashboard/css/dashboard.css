@@ -293,6 +293,8 @@
         .cref .cref-section-urban h2 { color: #1e40af; border-bottom-color: #93c5fd; }
         .cref .cref-section-regional { background: #fffbeb; border-radius: 12px; padding: 18px 20px; margin: 24px -20px; border-left: 4px solid #d97706; }
         .cref .cref-section-regional h2 { color: #92400e; border-bottom-color: #fcd34d; }
+        .cref .cref-section-natsig { background: #f8fafc; border-radius: 12px; padding: 18px 20px; margin: 24px -20px; border: 1.5px solid #e2e8f0; }
+        .cref .cref-section-natsig h2 { color: #334155; border-bottom-color: #cbd5e1; }
         /* Zone colour key swatches (used in the criteria modal header) */
         .cref-zone-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
         .cref-zone-key-urban { background: #dbeafe; border: 2px solid #2563eb; }
