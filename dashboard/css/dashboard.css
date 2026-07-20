@@ -256,6 +256,7 @@
         .collapsible-card .collapsible-header:hover .collapse-chevron { opacity: .65; }
         .collapsible-card.collapsed .collapse-chevron { transform: rotate(-90deg); }
         .collapsible-card.collapsed .collapsible-body { display: none; }
+        .collapsible-card.collapsed .collapsible-header { margin-bottom: 0; }
         .collapsible-card .collapsible-body { margin-top: 10px; }
         .extra-section { margin-bottom: 14px; }
         .extra-section:last-child { margin-bottom: 0; }
