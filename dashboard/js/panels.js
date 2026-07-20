@@ -218,9 +218,11 @@ function applyLegend(opts) {
     refreshConnections();
     // Town/City pins
     if (nswTownsLayer) map.removeLayer(nswTownsLayer);
+    if (nswLocalityCentresLayer) map.removeLayer(nswLocalityCentresLayer);
     if (cvTownsLayer) map.removeLayer(cvTownsLayer);
     const towns = (currentTab === 'cv') ? cvTownsLayer : nswTownsLayer;   // Sydney reuses the statewide town pins
     if (towns && legendToggles.towns) map.addLayer(towns);
+    if (currentTab !== 'cv' && nswLocalityCentresLayer && legendToggles.towns) map.addLayer(nswLocalityCentresLayer);
     // Region boundary outlines — CV LGA on the CV tab, Sydney SUA on the Sydney tab (one at a time).
     if (cvBoundaryLayer) { if (currentTab === 'cv' && legendToggles.boundary) map.addLayer(cvBoundaryLayer); else map.removeLayer(cvBoundaryLayer); }
     if (sydBoundaryLayer) { if (currentTab === 'sydney' && legendToggles.boundary) map.addLayer(sydBoundaryLayer); else map.removeLayer(sydBoundaryLayer); }
@@ -255,7 +257,7 @@ function renderMapLegend() {
     const liStatic = (swatch, label) => '<div class="legend-item legend-static">' + swatch + ' ' + label + '</div>';
     const sw = c => '<div class="legend-color" style="background:' + c + '"></div>';
     const dashSw = '<div class="legend-color legend-dash"></div>';
-    const townSw = '<div class="legend-color" style="background:#57534e; width:9px; height:9px; border-radius:50%"></div>';
+    const townSw = '<div class="legend-color" style="background:transparent; width:24px; height:auto; display:flex; align-items:center; justify-content:center;"><span style="width:10px; height:10px; border-radius:50%; background:#57534e; display:block;"></span></div>';
     const vkeys = ['green', 'orange', 'red'];
     let h = '<h3>Map legend</h3>';
     if (currentTab === 'cv' || currentTab === 'sydney') {
@@ -273,14 +275,14 @@ function renderMapLegend() {
             // State / Regional lens rows from NSW_VIEW_META; Overview ('all') keeps the generic rows.
             const m = NSW_VIEW_META[nswView];
             const rows = m ? m.legend : [
-                ['#16a34a', 'Meets its criteria (≥2 optional)'],
-                ['#f59e0b', 'Meets 1 optional — may pass with ADT'],
-                ['#dc2626', 'Does not meet (→ downgrade)']
+                ['#16a34a', 'Meets its criteria'],
+                ['#f59e0b', 'Meets 1 optional (may pass with ADT)'],
+                ['#dc2626', 'Does not meet']
             ];
             rows.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
             h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         }
-        h += li('towns', townSw, currentTab === 'cv' ? 'Town centres / POIs' : 'Town / City — pin size scales with population');
+        h += li('towns', townSw, currentTab === 'cv' ? 'Town centres / POIs' : 'Centres / localities · zoom in');
         h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', currentTab === 'cv' ? 'LGA boundary (outline)' : 'Sydney outline');
         if (currentTab === 'cv')
             h += li('clip', '<div class="legend-color" style="background:transparent; border:1.5px solid #1c1917; height:11px; border-radius:2px"></div>', 'Show only roads inside the LGA');
@@ -293,11 +295,11 @@ function renderMapLegend() {
             h += li('orange', sw('#f59e0b'), 'Tested: meets 1 State criterion');
             h += li('red', sw('#dc2626'), 'Tested: meets no State criterion');
         } else if (lm) {
-            h += li('green', sw('#16a34a'), 'Tested: meets Regional (≥2 centres)');
+            h += li('green', sw('#16a34a'), 'Tested: meets Regional (≥ 2 centres)');
             h += li('orange', sw('#f59e0b'), 'Tested: 1 centre nearby');
-            h += li('red', sw('#dc2626'), 'Tested: no ≥2-centre link');
+            h += li('red', sw('#dc2626'), 'Tested: no ≥ 2-centre link');
         }
-        h += li('towns', townSw, 'Town / City — pin size scales with population');
+        h += li('towns', townSw, 'Centres / localities · zoom in');
     } else if (currentTab === 'fresh' || (currentTab === 'detail' && nswView === 'fresh' && !inFlaggedScope())) {
         // Best fit lens: the map encodes CATEGORY (blank-slate re-bin), not verdict — four
         // toggleable bins in the fresh palette + a static row explaining the dashed "likely" tier.
@@ -305,7 +307,7 @@ function renderMapLegend() {
         // legend must keep these rows too — not the generic verdict rows below.
         FRESH_CATS.forEach(k => { h += li(k, sw(FRESH_META[k].color), FRESH_META[k].label); });
         h += liStatic(dashSw, 'Dashed — provisional: gate passed, 1 of 2 optional');
-        h += li('towns', townSw, 'Town / City — pin size scales with population');
+        h += li('towns', townSw, 'Centres / localities · zoom in');
     } else if (NSW_LENSES.includes(currentTab) && NSW_VIEW_META[nswView]) {
         const m = NSW_VIEW_META[nswView];
         // Cross-criteria test active → the verdict rows describe the TARGET category's tiers.
@@ -314,13 +316,13 @@ function renderMapLegend() {
         legendRows.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
         if (nswView === 'nsr') h += liStatic('<div class="legend-color" style="background:#16a34a; opacity:0.45"></div>', 'Proposed corridor — not yet built (translucent)');
         else h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
-        h += li('towns', townSw, 'Town / City — pin size scales with population');
+        h += li('towns', townSw, 'Centres / localities · zoom in');
     } else {   // overview + detail
-        h += li('green', sw('#16a34a'), 'Meets its criteria (≥2 optional)');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 optional — may pass with ADT');
-        h += li('red', sw('#dc2626'), 'Does not meet (→ downgrade)');
+        h += li('green', sw('#16a34a'), 'Meets its criteria');
+        h += li('orange', sw('#f59e0b'), 'Meets 1 optional (may pass with ADT)');
+        h += li('red', sw('#dc2626'), 'Does not meet');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
-        h += li('towns', townSw, 'Town / City — pin size scales with population');
+        h += li('towns', townSw, 'Town/City');
     }
     // Local roads & street names (basemap label overlay) — a toggle on the road-map tabs; the labels
     // switch on once zoomed in (LOCAL_ZOOM), naming the local roads already drawn on the base map.

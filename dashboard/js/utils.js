@@ -3,6 +3,8 @@
 // A road is many segments; group them so a click/hover affects the whole road.
 function roadKeyOf(p) {
     if (p.unit_excluded) return '';
+    const declared = (p.declared_road != null && String(p.declared_road).trim() !== '') ? String(p.declared_road).trim() : '';
+    if (declared) return declared;
     const unit = (p.road_unit != null && String(p.road_unit).trim() !== '') ? String(p.road_unit).trim() : '';
     if (unit) return unit;
     const n = (p.road_number != null && String(p.road_number).trim() !== '') ? String(p.road_number).trim() : '';
@@ -133,7 +135,22 @@ function evMeta(e, kind) {
     }
     if (kind === 'hosp') return (e.cat || 'Major Hospital') + ' · ' + e.km + ' km';
     if (kind === 'dest') return (e.ftype || 'Key destination') + ' · ' + e.km + ' km';
-    if (kind === 'employ') return (e.kind || 'Employment') + ' · ' + (e.tier || 'centre') + ' (' + e.ha + ' ha) · ' + e.km + ' km';
+    if (kind === 'employ') {
+        const place = e.lga ? (' · ' + e.lga.replace(/\b\w/g, function (c) { return c.toUpperCase(); }).replace(/\B\w/g, function (c) { return c.toLowerCase(); })) : '';
+        const threshold = typeof e.size_threshold_ha === 'number' ? e.size_threshold_ha : null;
+        const sizeRule = threshold === null ? ''
+            : (e.size_qualifies === true ? ' · meets ≥' : ' · below ≥') + threshold + ' ha size rule';
+        const relation = e.network_access === true && typeof e.network_access_m === 'number' && e.network_access_m > 0
+            ? (e.network_access_m < 1000
+                ? Math.round(e.network_access_m) + ' m local-road access path'
+                : (e.network_access_m / 1000).toFixed(1) + ' km local-road access path')
+            : e.relation === 'intersects'
+                ? 'intersects route'
+                : (typeof e.distance_m === 'number' && e.distance_m < 1000
+                    ? Math.round(e.distance_m) + ' m gap'
+                    : (+e.km || 0).toFixed(1) + ' km gap');
+        return (e.kind || 'Employment') + ' · ' + e.ha + ' ha' + sizeRule + place + ' · ' + relation;
+    }
     return e.km + ' km';
 }
 // Centres list (towns + Significant Urban Areas). An SUA row frames its boundary on click; a town
@@ -152,10 +169,36 @@ function evCentres(items) {
 function evList(items, kind) {
     if (!items || !items.length) return '';
     return '<div class="ev-list">' + items.map(function (e) {
-        return '<div class="ev-item" onclick="panToConn(' + e.lon + ',' + e.lat + ')" title="Show on map">' +
+        const click = kind === 'employ' && e.zoneId
+            ? 'fitToEmployment(\'' + e.zoneId + '\',' + JSON.stringify(e.link || []) + ')'
+            : 'panToConn(' + e.lon + ',' + e.lat + ')';
+        return '<div class="ev-item" onclick="' + click + '" title="Show on map">' +
             '<span class="ev-dot ev-' + kind + '"></span>' +
             '<span class="ev-name">' + e.name + '</span>' +
             '<span class="ev-meta">' + evMeta(e, kind) + '</span></div>';
+    }).join('') + '</div>';
+}
+
+function evEmploymentReview(items, minimumHa) {
+    if (!items || !items.length) return '';
+    return '<div class="ev-list ev-review">' + items.map(function (e) {
+        const intersects = e.relation === 'intersects';
+        const enoughArea = (+e.ha || 0) >= minimumHa;
+        const status = !intersects
+            ? (e.network_access === true
+                ? 'Local-road access exists - does not directly intersect the selected road'
+                : 'Nearby only - does not intersect the selected road')
+            : !enoughArea
+                ? 'Intersects road - below ' + minimumHa + ' ha threshold'
+                : 'Intersects road - meets client-approved size-only rule';
+        const click = e.zoneId
+            ? 'fitToEmployment(\'' + e.zoneId + '\',' + JSON.stringify(e.link || []) + ')'
+            : 'panToConn(' + e.lon + ',' + e.lat + ')';
+        return '<div class="ev-item ev-review-item" onclick="' + click + '" title="Show exact boundary on map">' +
+            '<span class="ev-dot ev-employ ' + (intersects && enoughArea ? 'is-qualifying' : 'is-nearby') + '"></span>' +
+            '<span class="ev-copy"><span class="ev-name">' + e.name + '</span>' +
+            '<span class="ev-status">' + status + '</span></span>' +
+            '<span class="ev-meta">' + evMeta(e, 'employ') + '</span></div>';
     }).join('') + '</div>';
 }
 

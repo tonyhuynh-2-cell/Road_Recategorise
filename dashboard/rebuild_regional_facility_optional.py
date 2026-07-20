@@ -13,10 +13,9 @@ between a qualifying facility or employment centre and a qualifying centre:
 
 The legacy scorer only used hospitals, ports, airports and intermodals. It
 already displayed Commercial and Industrial evidence, but did not let that
-evidence satisfy R-02/R-06. This rebuild accepts only Regional- and
-Major-tier employment evidence, and requires it to share a connected road
-geometry component with a qualifying centre. Local employment centres do not
-qualify.
+evidence satisfy R-02/R-06. Employment evidence now qualifies by the
+client-approved land-area-only rule for the road zone (Urban 40 ha, Regional
+15 ha, Remote 5 ha); no economic-value estimate or legacy tier is used.
 
 The computed value is stored in regionalOpt.dest for every road so State roads
 can use the same accurate value when tested against the Regional criteria.
@@ -39,6 +38,12 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from rebuild_employment_centres import (
+    ASSESSMENT_BASIS,
+    employment_size_qualifies,
+    employment_size_threshold,
+)
+
 
 APPLY = "--apply" in sys.argv
 DATA = Path(__file__).resolve().parent / "data"
@@ -55,7 +60,6 @@ URBAN_CENTRE_TYPES = {
     "Regional City",
     "Major Town",
 }
-EMPLOYMENT_TIERS = {"Regional", "Major"}
 
 
 def log(*args):
@@ -176,7 +180,7 @@ def evaluate_regional_dest(lines, evidence_row, area):
         components,
         evidence_row.get("employment"),
         "facilities",
-        lambda item: item.get("tier") in EMPLOYMENT_TIERS,
+        lambda item: employment_size_qualifies(item.get("ha"), area),
     )
 
     qualifying = [component for component in components if component["centres"] and component["facilities"]]
@@ -192,6 +196,9 @@ def evaluate_regional_dest(lines, evidence_row, area):
         "dest_all_centre_names": all_centres,
         "dest_all_facility_names": all_facilities,
         "dest_component_count": len(components),
+        "dest_employment_size_only": True,
+        "dest_employment_assessment_basis": ASSESSMENT_BASIS,
+        "dest_employment_size_threshold_ha": employment_size_threshold(area),
     }
 
 

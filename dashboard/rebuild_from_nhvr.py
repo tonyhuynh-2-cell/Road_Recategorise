@@ -9,8 +9,9 @@ NHVR Heavy Vehicle Network exports in data/geopackages/:
   PBS Aggregate GML 2B   (S-06, Nat. Significant)  -> has_pbs2b / nltn_meta.pbs2b
   Road-train networks    (R-03, Regional optional) -> roadtrain
 
-Method matches the original process_*.py: a road is "on" a network if it runs
-within ~50 m (0.0005 deg) of an *Approved* segment of that network.
+Network access is measured as the share of road length within 50 m of approved
+network geometry. A crossing or endpoint touch therefore cannot approve an
+entire source feature.
 
 Verdict rule (reverse-engineered + validated to reproduce 100% of the current
 nsw_criteria.json): red if mandatory fails OR 0 optional met; orange if 1
@@ -25,6 +26,7 @@ from collections import defaultdict
 from pathlib import Path
 import geopandas as gpd
 import pandas as pd
+from rebuild_bdouble_network import ACCESS_THRESHOLD, DEFAULT_TOLERANCE_M, route_coverage
 warnings.filterwarnings("ignore", message=".*geographic CRS.*")
 
 APPLY = "--apply" in sys.argv
@@ -32,7 +34,6 @@ ROOT = Path(__file__).resolve().parent.parent          # project root
 DATA = ROOT / "dashboard" / "data"
 GPKG = DATA / "geopackages"
 MASTER = ROOT / "nsw_road_network_categorisation.geojson"
-BUF = 0.0005                                            # ~50 m, same as process_*.py
 LAYER = "hvn_road_segments"
 
 def log(*a): print(*a, flush=True)
@@ -83,12 +84,11 @@ def read_approved(files):
     return gpd.GeoDataFrame(out, geometry="geometry", crs="EPSG:4326")
 
 def on_network(roads, seg_gdf):
-    """True per road where the road runs within BUF of any segment."""
+    """True where enough of the road follows approved network geometry."""
     if seg_gdf is None or len(seg_gdf) == 0:
         return pd.Series(False, index=roads.index)
-    rb = gpd.GeoDataFrame(geometry=roads.geometry.buffer(BUF), crs=roads.crs)
-    j = gpd.sjoin(rb, seg_gdf, predicate="intersects", how="inner")
-    return roads.index.isin(j.index.unique())
+    values = route_coverage(roads, seg_gdf, DEFAULT_TOLERANCE_M)
+    return pd.Series(values, index=roads.index) >= ACCESS_THRESHOLD
 
 # ---------------------------------------------------------------- verdict rule
 def verdict_of(cls, opt_met, mand_pass):
@@ -110,6 +110,11 @@ log("="*64); log("REBUILD FROM NHVR GEOPACKAGES", "(APPLY)" if APPLY else "(DRY 
 log("\n[1] Classifying GeoPackages by network_name...")
 roles = load_networks()
 for r in roles: log(f"  {r:10} <- {len(roles[r])} file(s)")
+missing_roles = [role for role, files in roles.items() if not files]
+if APPLY and missing_roles:
+    log("  Missing required network files: " + ", ".join(missing_roles))
+    log("  Refusing a partial legacy rebuild; use rebuild_bdouble_network.py for B-double-only updates.")
+    sys.exit(1)
 
 log("\n[2] Loading approved segments per network...")
 nets = {}
@@ -122,17 +127,17 @@ roads = gpd.read_file(MASTER).set_crs("EPSG:4326", allow_override=True)
 roads["rn"] = roads["road_number"].apply(lambda v: str(v).strip() if v not in (None, "") else None)
 log(f"  segments={len(roads)}  distinct road_numbers={roads['rn'].nunique()}")
 
-log("\n[4] Computing per-segment network membership (buffer={}deg)...".format(BUF))
+log(f"\n[4] Computing per-segment network membership (coverage within {DEFAULT_TOLERANCE_M:g} m)...")
 for r in ("pbs1", "pbs2b", "bdouble", "roadtrain"):
     roads[r] = on_network(roads, nets[r])
     log(f"  segments on {r:10}: {int(roads[r].sum()):>6} / {len(roads)}")
 
 log("\n[5] Rolling up to road_number...")
-# pbs1 / pbs2b: on-network if ANY segment is (unchanged). B-double (R-04, Regional mandatory gate) and
-# road-train: require the MAJORITY of the road's LENGTH on the network, not merely any segment. A single
+# pbs1 / pbs2b: on-network if any qualifying source feature is. B-double (R-04, Regional mandatory gate)
+# and road-train require most of the road's length on the network, not merely any segment. A single
 # road_number can stitch several distinct roads together (e.g. 0000152 = Southgate / Grafton-Lawrence /
 # Lawrence-Yamba: only ~22% of length on the B-double network), so any-segment over-passes them.
-BD_THRESH = 0.5
+BD_THRESH = ACCESS_THRESHOLD
 _rr = roads.dropna(subset=["rn"]).copy()
 _rr["_len_m"] = _rr.to_crs(3577).geometry.length
 for _c in ("bdouble", "roadtrain"):
@@ -142,7 +147,7 @@ roll = _rr.groupby("rn")[["pbs1", "pbs2b"]].any()
 roll["bdouble"]   = ((_ag["_bd"] / _ag["_tot"]) >= BD_THRESH).reindex(roll.index).fillna(False).astype(bool)
 roll["roadtrain"] = ((_ag["_rt"] / _ag["_tot"]) >= BD_THRESH).reindex(roll.index).fillna(False).astype(bool)
 roll = roll[["pbs1", "pbs2b", "bdouble", "roadtrain"]]
-log(f"  road_numbers: {len(roll)}  (B-double / road-train: >= {int(BD_THRESH*100)}% of length; PBS: any segment)")
+log(f"  road_numbers: {len(roll)}  (B-double / road-train: >= {int(BD_THRESH*100)}% of length; PBS: any qualifying segment)")
 for r in ("pbs1","pbs2b","bdouble","roadtrain"):
     log(f"    on {r:10}: {int(roll[r].sum()):>4} / {len(roll)} roads")
 
@@ -249,9 +254,10 @@ log("  verifying NLTN PBS 2B membership (S-06) against refreshed gpkg...")
 nltn_geo = gpd.read_file(DATA/"nltn_2020_road.geojson").set_crs("EPSG:4326", allow_override=True)
 meta = read_orig("nltn_meta.json")
 assert len(nltn_geo) == len(meta), "nltn meta/geo length mismatch"
-nltn_buf = gpd.GeoDataFrame(geometry=nltn_geo.geometry.buffer(BUF), crs=nltn_geo.crs)
-pj = gpd.sjoin(nltn_buf, nets["pbs2b"], predicate="intersects", how="inner")
-on2b = set(pj.index)
+on2b = set(
+    index for index, passed in enumerate(on_network(nltn_geo, nets["pbs2b"]))
+    if passed
+)
 # pbs2b is a per-ROUTE property: a determination route is on PBS 2B if ANY of its
 # segments is (same any-segment rollup used for roads). Apply uniformly per group.
 groups = defaultdict(list)

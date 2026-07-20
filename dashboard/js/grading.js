@@ -1,5 +1,32 @@
 // grading.js — criteria→colour styling and lens membership (nswStyle / cvStyle / nswInView).
 
+// --- Orange sub-filter ---
+// Classifies each orange road by which single optional criterion it passes.
+// Used by the legend's "Why orange?" toggle group to highlight/dim subsets.
+// Returns: 'centres' | 'facilities' | 'other' | null (not orange or no criteria data).
+function orangeReason(roadKey) {
+    const c = (window.NSW_CRIT || {})[roadKey];
+    if (!c || c.verdict !== 'orange') return null;
+    const opt = c.opt || {};
+    if (opt.centres === true) return 'centres';
+    if (opt.dest === true) return 'facilities';
+    // hv (road train), two_state, ldr — all grouped as 'other'
+    if (opt.hv === true || opt.two_state === true || opt.ldr === true) return 'other';
+    return null;
+}
+
+// Active orange sub-filter: null = show all orange equally (default),
+// 'centres' | 'facilities' | 'other' = highlight that subset, dim the rest.
+let orangeSubFilter = null;
+
+function setOrangeSubFilter(value) {
+    orangeSubFilter = (value === orangeSubFilter) ? null : value;   // toggle off if same
+    // Re-style the map
+    if (nswLayer) nswLayer.setStyle(nswStyle);
+    if (cvClipLayer && map.hasLayer(cvClipLayer)) cvClipLayer.setStyle(nswStyle);
+    renderMapLegend();   // update the toggle button active states
+}
+
 // Style functions
 // The NSW road layer is shown through lenses (tabs): 'state' (all State roads, State criteria),
 // 'regional' (Regional roads, Regional criteria), 'all' (Overview, both). Each road is coloured by
@@ -74,8 +101,14 @@ function nswStyle(feature) {
     else if (currentTab === 'regional' && xLens.regional) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = x.asState; }
     if (!legendToggles[v]) return HIDDEN_STYLE;                       // verdict colour toggled off
     if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;    // route-numbered roads toggled off
+    // Orange sub-filter: when active, dim orange roads that don't match the selected reason.
+    let dimmed = false;
+    if (v === 'orange' && orangeSubFilter) {
+        const reason = orangeReason(roadKeyOf(p));
+        if (reason && reason !== orangeSubFilter) dimmed = true;
+    }
     // Flagged view: the pins keep their normal verdict colour, one weight bolder for focus.
-    return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: (p._w || 2) + (inFlaggedScope() ? 1 : 0), opacity: v === 'red' ? 0.85 : 1, lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
+    return { stroke: true, color: ROAD_COLORS[v] || '#a8a29e', weight: (p._w || 2) + (inFlaggedScope() ? 1 : 0), opacity: dimmed ? 0.2 : (v === 'red' ? 0.85 : 1), lineCap: 'round', lineJoin: 'round', dashArray: isDashed(p) ? '8 6' : null };
 }
 
 function cvStyle(feature) {
@@ -127,7 +160,7 @@ function buildXtest() {
         const stateCentresOpt = c.stateOpt && typeof c.stateOpt.centres === 'boolean'
             ? c.stateOpt.centres : c.opt.centres;
         const asStateOptMet = countOpt(c, ['traffic']) + (stateCentresOpt === true ? 1 : 0) + (stateDestOpt === true ? 1 : 0) + (ldrOpt ? 1 : 0);
-        // R-02/R-06 include Regional- and Major-tier commercial, industrial and employment centres.
+        // R-02/R-06 include employment centres that meet the road zone's client-approved size rule.
         // regionalOpt is computed independently so a State road can be tested as Regional without
         // borrowing the stricter State facility result in opt.dest.
         const regionalDestOpt = c.regionalOpt && typeof c.regionalOpt.dest === 'boolean'

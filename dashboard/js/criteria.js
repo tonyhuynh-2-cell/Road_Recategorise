@@ -6,7 +6,12 @@ let _criteriaSplit = false;
 function openCriteriaModal(sectionId) {
     const modal = document.getElementById('criteria-modal');
     if (!modal) return;
+    // Toggle: if already open, close it
+    if (!modal.hidden) { closeCriteriaModal(); return; }
     modal.hidden = false;
+    // Highlight the criteria button
+    var btn = document.getElementById('criteria-btn');
+    if (btn) btn.classList.add('criteria-btn-active');
     // Hide zoom controls when modal is open
     document.querySelectorAll('.leaflet-control-zoom').forEach(el => el.style.display = 'none');
     // Load the HTML content once
@@ -28,6 +33,9 @@ function openCriteriaModal(sectionId) {
 function closeCriteriaModal() {
     const modal = document.getElementById('criteria-modal');
     if (modal) modal.hidden = true;
+    // Remove highlight from the criteria button
+    var btn = document.getElementById('criteria-btn');
+    if (btn) btn.classList.remove('criteria-btn-active');
     // Restore zoom controls
     document.querySelectorAll('.leaflet-control-zoom').forEach(el => el.style.display = '');
     // Exit split mode

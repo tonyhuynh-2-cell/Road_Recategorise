@@ -9,10 +9,10 @@
 // workbook generation.
 //
 // Builds a colour-coded .xlsx workbook — Nationally Significant / State Roads / Regional Roads
-// sheets — from data/export_unit_rows.json (the same verdicts the map shows, plus each road's named
+// sheets — from data/export_declared_rows.json (the same one-per-road verdicts the map shows, plus
 // connections, criteria reasoning, road id, the LGA(s) it touches, and its length). Rows key to
-// the live road-unit aggregate by the hidden `_key` field. `Road ID` remains the sourced TfNSW
-// administrative number for users, which can legitimately repeat across connected road units. The
+// the live declared-road aggregate by the hidden `_key` field. `Road ID` remains the sourced TfNSW
+// administrative number for users, while `Mapped Sections` discloses physical source breaks. The
 // 'local' scope instead sheets the loaded suburb's council roads live (localExportRows, local.js).
 //
 // Styling: Categorisation cells are shaded green / amber / red to match the map legend; the Why and
@@ -34,7 +34,8 @@ const EXPORT_COLS = [
     { key: 'Zone', w: 22 },
     { key: 'Road ID', w: 12 },
     { key: 'LGA(s) Touched', w: 26, wrap: true },
-    { key: 'Length (km)', w: 10 }
+    { key: 'Length (km)', w: 10 },
+    { key: 'Mapped Sections', w: 14 }
 ];
 const VERDICT_FILL = {            // Categorisation shading (Excel's good / neutral / bad palette)
     green:  { fill: 'FFC6EFCE', font: 'FF006100' },
@@ -435,8 +436,8 @@ function exportToExcel(scope, keys, fbBtn) {
 
     Promise.all([
         loadExcelJS(),
-        fetch('data/export_unit_rows.json?v=' + Date.now()).then(r => {
-            if (!r.ok) throw new Error('export_unit_rows.json ' + r.status);
+        fetch('data/export_declared_rows.json?v=' + Date.now()).then(r => {
+            if (!r.ok) throw new Error('export_declared_rows.json ' + r.status);
             return r.json();
         })
     ]).then(function (parts) {

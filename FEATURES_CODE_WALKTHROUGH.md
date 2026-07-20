@@ -500,11 +500,26 @@ info = {
 
 Regional facility connectivity is assessed separately from the State facility
 criterion. R-02/R-06 can use named hospitals, ports, airports and intermodals,
-as well as Regional- or Major-tier commercial, industrial and employment
-centres. A Local-tier site does not qualify. The rebuild requires a qualifying
+as well as employment centres that meet the client-approved size-only threshold
+for the road zone: Urban 40 ha, Regional 15 ha or Remote 5 ha. Economic value and
+legacy tier labels are not scoring inputs. The rebuild requires a qualifying
 facility and a qualifying centre to occur on the same connected road component,
 so a disconnected road-number group cannot earn the criterion by combining
 evidence from different pieces of geometry.
+
+When a size-qualified employment polygon does not directly intersect the
+categorised road, `regional_employment_access.py` can still establish the
+connection through ordinary access streets. The polygon must be within 1.5 km
+of the assessed road and the NSW Road Segment network must contain a continuous
+path no longer than 2 km. This is a shortest-path topology test, not a larger
+display buffer.
+
+```python
+path_m = shortest_access_path(route_geometry, employment_polygon, local_segments)
+
+item["network_access"] = path_m is not None and path_m <= 2_000
+item["network_access_m"] = round(path_m) if path_m is not None else None
+```
 
 ```python
 qualifying = [
@@ -1209,31 +1224,54 @@ The dashboard only mentions separate components when qualifying source and town
 evidence exists but is split between those components. It does not present every
 small geometry break as a reason the road failed.
 
-## 32. Network-Backed State Facility Connectivity (S-08)
+## 32. Network-Backed State Facility Connectivity (S-08/S-11)
 
 What it is:
 
-S-08 tests whether a non-urban State road connects a qualifying major facility
-or commercial/industrial/employment area to another centre type. Nearby map
-items alone do not pass the criterion; both sides must be on the same connected
-NSW road-network component.
+S-08 tests non-urban State roads and S-11 applies the equivalent test to urban
+State roads. Each asks whether a qualifying major facility or employment area
+connects to another centre type. Nearby map items alone do not pass the criterion;
+both sides must be on the same connected NSW road-network component.
 
 What the code does:
 
 `rebuild_state_facility_optional.py` reuses the cached NSW Road Segment corridor,
 assigns ABS UCL/SUA centres and eligible facility evidence to each component, and
-passes S-08 when one component contains both. Employment land uses the guide's
-Remote 5 ha or Regional 15 ha threshold. The dashboard discloses that the separate
-economic-value threshold is unavailable. For road numbers containing several
-named sections, the detail panel selects evidence for the section that was clicked.
+passes the criterion when one component contains both. Employment land must
+intersect the selected road geometry and meet the client-approved size-only
+threshold: Remote 5 ha, Regional 15 ha or Urban 40 ha. Economic value is not
+part of the assessment.
+
+`rebuild_employment_centres.py` uses current ELDM 2025 employment precincts as
+the authoritative source where available and removes overlapping NSW Planning
+EPI geometry. EPI zoning remains the statewide fallback, while potential-future
+ELDM precincts are excluded. `rebuild_road_units.py` measures each source polygon
+boundary against the selected road. `state.js` renders that real outline; a
+non-intersecting polygon is dashed and linked to the road by the exact shortest
+measured gap. This keeps context visible without presenting a near miss as a
+connection.
+
+For road numbers divided into several assessment units, `rebuild_road_units.py`
+assigns every matched physical road segment to its nearest compatible unit and
+reruns the same component test for each unit. Urban road identifiers are rerun as
+well so S-11 uses the same evidence rules. The matching ABS centres and
+facilities are written into that unit's evidence. This avoids both failure modes:
+dropping centres that were absent from the older evidence file, and copying a
+road-wide pass to an unrelated section.
 
 Key files:
 
 - `dashboard/rebuild_state_facility_optional.py`
+- `dashboard/rebuild_employment_centres.py`
+- `dashboard/rebuild_road_units.py`
 - `dashboard/network_connectivity.py`
 - `dashboard/data/network_state_facility_comparison.json`
 - `dashboard/data/nsw_criteria.json`
+- `dashboard/data/nsw_unit_criteria.json`
+- `dashboard/data/nsw_unit_evidence.json`
+- `dashboard/data/employment_centre_outlines.json`
 - `dashboard/js/detail.js`
+- `dashboard/js/state.js`
 - `dashboard/js/grading.js`
 
 Snippet:
@@ -1251,35 +1289,73 @@ result = {
 }
 ```
 
-## 33. Connected Road Assessment Units
+Employment areas first earn candidate status from their exact geometry:
+
+```python
+if item["relation"] == "intersects" and employment_size_qualifies(item["ha"], road_zone):
+    candidates.append({**item, "facility_kind": "employment"})
+
+zone_point, road_point = nearest_points(zone_geometry, road_geometry)
+item["link"] = [to_lonlat(zone_point), to_lonlat(road_point)]
+```
+
+That direct-intersection snippet is the State S-08/S-11 rule. Regional
+R-02/R-06 instead accepts a size-qualified polygon when it intersects or
+has `network_access == true`; the evidence row keeps the measured path so the
+map can still show the real polygon-to-route gap.
+
+For split road identifiers, the unit rebuild uses that evaluator again:
+
+```python
+unit_matches = assign_network_segments(source_matches, units)
+
+for unit in units:
+    result = evaluate_state_dest(
+        unit_route,
+        unit_matches[unit["key"]],
+        unit_zone,
+        centres,
+        evidence,
+    )
+```
+
+## 33. Declared Roads and Connected Map Sections
 
 What it is:
 
 TfNSW `road_number` is an administrative identifier and can cover disconnected
-roads, mixed State/Regional sections and several names. The dashboard therefore
-uses a generated `road_unit` as its real selection and assessment key.
+geometry, mixed State/Regional sections and several names. A physical break in
+the source geometry does not necessarily mean the government has declared two
+different roads. The dashboard therefore has two identities: `road_unit` for a
+connected mapped section and `declared_road` for the road that owns the verdict.
 
 What the code does:
 
-`rebuild_road_units.py` groups segments by administrative ID and current class,
-connects endpoints within 200 m, bridges modest compatible source gaps, and gives
-each resulting corridor a stable unit key. Disconnected components under 350 m
-are marked as source fragments instead of becoming standalone assessments when a
-larger component exists for that identifier. Evidence is assigned to nearby
-units; split units are reassessed independently. Values that only exist at the
-old road-number level are left unavailable instead of being copied across
-corridors.
+`rebuild_road_units.py` first groups segments by administrative ID and current
+class, connects endpoints within 200 m, bridges modest compatible source gaps,
+and gives each connected corridor a stable unit key. Each unit receives its own
+diagnostic evidence and result.
 
-`roadKeyOf()` prefers `road_unit`, so map highlighting, search, details, pins,
-cross-tests and exports all use the same identity. A click strongly highlights
-the exact named section and softly highlights its other connected aliases.
+The same builder then groups units into declared roads when they share an official
+classified road number and current class. Known reused identifiers such as
+`0000057` remain separate, and unnumbered common-name roads are not merged. A grouped road starts from the road-level criteria and
+rechecks mandatory network coverage across all sections, so a pass on one piece
+cannot hide a failure elsewhere. Its evidence is the deduplicated union of its
+member sections.
+
+`roadKeyOf()` prefers `declared_road`, so map highlighting, search, details, pins,
+cross-tests and exports all use one road identity and one verdict. The Sections
+dropdown frames each real connected piece without changing the road-level score,
+and the audit retains every unit's diagnostic verdict.
 
 Key files:
 
 - `dashboard/rebuild_road_units.py`
 - `dashboard/data/nsw_road_units.json`
+- `dashboard/data/nsw_declared_roads.json`
+- `dashboard/data/nsw_declared_*.json`
 - `dashboard/data/nsw_unit_*.json`
-- `dashboard/data/export_unit_rows.json`
+- `dashboard/data/export_declared_rows.json`
 - `dashboard/js/utils.js`
 - `dashboard/js/init.js`
 - `dashboard/js/search.js`
@@ -1292,10 +1368,16 @@ grouped_indexes[(road_number, admin_class)].append(segment_index)
 
 for component in connected_groups(component_geometries):
     properties["road_unit"] = unit_key
+
+if all_sections_belong_to_one_declared_road(source_id, units):
+    for unit in units:
+        section_to_road[unit["key"]] = source_id
+        properties["declared_road"] = source_id
 ```
 
 ```javascript
 function roadKeyOf(p) {
+    if (p.declared_road) return p.declared_road;
     if (p.road_unit) return p.road_unit;
     return p.road_number;
 }

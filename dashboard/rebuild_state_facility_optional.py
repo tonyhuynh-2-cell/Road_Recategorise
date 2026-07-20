@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild non-urban State facility connectivity (S-08) from road topology."""
+"""Evaluate State facility connectivity (S-08/S-11) from road topology."""
 
 from __future__ import annotations
 
@@ -24,6 +24,12 @@ from network_connectivity import (
     road_components,
     route_coverage,
 )
+from rebuild_employment_centres import (
+    ASSESSMENT_BASIS as EMPLOYMENT_ASSESSMENT_BASIS,
+    EMPLOYMENT_AREA_HA,
+    employment_size_qualifies,
+    employment_size_threshold,
+)
 
 
 DASHBOARD = Path(__file__).resolve().parent
@@ -31,8 +37,8 @@ DATA = DASHBOARD / "data"
 DEFAULT_RAW = Path.home() / "Desktop" / "IPWEA" / "data" / "raw"
 MINIMUM_COVERAGE = 0.70
 FACILITY_CONNECT_M = 3_000.0
+EMPLOYMENT_NETWORK_TOLERANCE_M = 50.0
 STATE_DEST_TYPES = {"International Airport", "Major Intermodal", "Major Port"}
-EMPLOYMENT_AREA_HA = {"remote": 5.0, "regional": 15.0}
 TO_PROJECTED = Transformer.from_crs("EPSG:4326", PROJECTED_CRS, always_xy=True)
 
 
@@ -97,35 +103,64 @@ def facility_candidates(evidence: dict, zone: str) -> list[dict]:
     for item in evidence.get("dests", []):
         if item.get("ftype") in STATE_DEST_TYPES:
             candidates.append({**item, "facility_kind": "destination"})
-    minimum_hectares = EMPLOYMENT_AREA_HA.get(zone, 15.0)
+    minimum_hectares = employment_size_threshold(zone)
     for item in evidence.get("employment", []):
-        if float(item.get("ha") or 0.0) >= minimum_hectares:
-            candidates.append({**item, "facility_kind": "employment"})
+        if (
+            item.get("relation") == "intersects"
+            and employment_size_qualifies(item.get("ha"), zone)
+        ):
+            candidates.append({
+                **item,
+                "facility_kind": "employment",
+                "size_threshold_ha": minimum_hectares,
+                "assessment_basis": EMPLOYMENT_ASSESSMENT_BASIS,
+            })
     return candidates
 
 
-def assign_facilities(components: list[dict], evidence: dict, zone: str) -> None:
+def assign_facilities(
+    components: list[dict],
+    evidence: dict,
+    zone: str,
+    employment_geometries: dict[str, object] | None = None,
+) -> None:
     for component in components:
         component["facilities"] = {}
     for item in facility_candidates(evidence, zone):
-        if item.get("lon") is None or item.get("lat") is None:
-            continue
-        x, y = TO_PROJECTED.transform(float(item["lon"]), float(item["lat"]))
-        point = Point(x, y)
-        distances = [point.distance(component["geometry"]) for component in components]
+        geometry = None
+        if item["facility_kind"] == "employment" and employment_geometries:
+            geometry = employment_geometries.get(str(item.get("zoneId") or ""))
+        if geometry is None:
+            if item.get("lon") is None or item.get("lat") is None:
+                continue
+            x, y = TO_PROJECTED.transform(float(item["lon"]), float(item["lat"]))
+            geometry = Point(x, y)
+        distances = [geometry.distance(component["geometry"]) for component in components]
         if not distances:
             continue
         component_index = min(range(len(distances)), key=distances.__getitem__)
-        if distances[component_index] > FACILITY_CONNECT_M:
+        maximum_distance = (
+            EMPLOYMENT_NETWORK_TOLERANCE_M
+            if item["facility_kind"] == "employment"
+            else FACILITY_CONNECT_M
+        )
+        if distances[component_index] > maximum_distance:
             continue
-        key = (str(item.get("name") or "Facility"), item["facility_kind"])
+        name = str(item.get("name") or "Facility")
+        lga = str(item.get("lga") or "").strip().title()
+        display_name = f"{name} ({lga})" if lga and item["facility_kind"] == "employment" else name
+        key = (str(item.get("zoneId") or display_name), item["facility_kind"])
         components[component_index]["facilities"][key] = {
-            "name": key[0],
-            "kind": key[1],
+            "name": display_name,
+            "kind": item["facility_kind"],
             "distance_km": round(distances[component_index] / 1000.0, 2),
             "ha": item.get("ha"),
             "tier": item.get("tier"),
-            "type": item.get("ftype") or item.get("cat"),
+            "type": item.get("ftype") or item.get("cat") or item.get("kind"),
+            "zone_id": item.get("zoneId"),
+            "source": item.get("source"),
+            "size_threshold_ha": item.get("size_threshold_ha"),
+            "assessment_basis": item.get("assessment_basis"),
         }
 
 
@@ -159,12 +194,13 @@ def evaluate_state_dest(
     evidence: dict,
     zone: str,
     sections: list[dict],
+    employment_geometries: dict[str, object] | None = None,
 ) -> dict:
     components = road_components(segments)
     assign_section_names(components, sections)
     for component in components:
         assign_centres(component, centres, zone)
-    assign_facilities(components, evidence or {}, zone)
+    assign_facilities(components, evidence or {}, zone, employment_geometries)
 
     qualifying = [
         component
@@ -220,11 +256,12 @@ def evaluate_state_dest(
         "all_centre_names": all_centres,
         "all_facility_names": all_facilities,
         "qualifying_components": component_details,
-        "employment_area_proxy": any(
+        "employment_size_only": any(
             detail["kind"] == "employment" for detail in best_facilities
         ),
         "employment_only": best_facility_kinds == {"employment"},
-        "economic_value_assessed": False,
+        "employment_assessment_basis": EMPLOYMENT_ASSESSMENT_BASIS,
+        "employment_size_threshold_ha": employment_size_threshold(zone),
     }
 
 
@@ -243,9 +280,10 @@ def state_metadata(result: dict) -> dict:
         "dest_network_coverage": result["coverage"],
         "dest_network_segment_count": result["matched_segment_count"],
         "dest_network_km": result["matched_km"],
-        "dest_employment_area_proxy": result["employment_area_proxy"],
+        "dest_employment_size_only": result["employment_size_only"],
         "dest_employment_only": result["employment_only"],
-        "dest_economic_value_assessed": result["economic_value_assessed"],
+        "dest_employment_assessment_basis": result["employment_assessment_basis"],
+        "dest_employment_size_threshold_ha": result["employment_size_threshold_ha"],
     }
 
 
@@ -437,7 +475,7 @@ def main() -> None:
             "centre_network_tolerance_m": CENTRE_CONNECT_M,
             "facility_network_tolerance_m": FACILITY_CONNECT_M,
             "employment_area_hectares": EMPLOYMENT_AREA_HA,
-            "employment_economic_value_available": False,
+            "employment_assessment_basis": EMPLOYMENT_ASSESSMENT_BASIS,
         },
         "summary": {
             "roads": len(results),

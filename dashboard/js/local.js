@@ -104,8 +104,8 @@ function styleLocalX(f) {
 //       dataset PLUS the SUA centroids, de-duplicated by name tokens — 'Grafton' the town and
 //       'Grafton' the Significant Urban Area are ONE centre, and a compound SUA ('Albury -
 //       Wodonga') never re-counts a town it already contains;
-//   (b) connects ≥1 major facility — hospital / port / airport / intermodal / Major-tier
-//       employment centre from the statewide assessment evidence (R-02/R-06 / S-08/S-11).
+//   (b) connects ≥1 major facility — hospital / port / airport / intermodal / an employment
+//       centre meeting the client-approved Urban ≥40 ha size-only rule (R-02/R-06 / S-08/S-11).
 // ≥2 met → green, 1 → orange, 0 → red. Verdicts are earned from the data, never forced.
 
 // NAMED centre points for the Regional test = every town PLUS the SUA centroids. Built once.
@@ -130,7 +130,8 @@ function xtStateCentrePts() {
     return window._XT_CENTRES_STATE;
 }
 // Major facilities for the State test: the union of every named hospital / port / airport /
-// intermodal / Major-tier employment centre in the statewide assessment evidence
+// intermodal / employment centre meeting the client-approved Urban ≥40 ha size-only rule in the
+// statewide assessment evidence
 // (data/nsw_evidence.json — the same evidence the road criteria grade against). Built once.
 function xtFacilityPts() {
     if (window._XT_FACILITIES) return window._XT_FACILITIES;
@@ -148,7 +149,7 @@ function xtFacilityPts() {
         const e = ev[k];
         (e.hospitals || []).forEach(function (x) { add(x, 'hospital'); });
         (e.dests || []).forEach(function (x) { add(x, x.ftype || 'port/airport'); });
-        (e.employment || []).forEach(function (x) { if (x.tier === 'Major') add(x, 'employment'); });
+        (e.employment || []).forEach(function (x) { if ((+x.ha || 0) >= 40) add(x, 'employment ≥40 ha'); });
     }
     window._XT_FACILITIES = { pts: pts, names: names };
     return window._XT_FACILITIES;
