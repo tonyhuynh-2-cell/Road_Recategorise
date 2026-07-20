@@ -297,8 +297,8 @@
         .cref .cref-section-natsig h2 { color: #334155; border-bottom-color: #cbd5e1; }
         /* Zone colour key swatches (used in the criteria modal header) */
         .cref-zone-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
-        .cref-zone-key-urban { background: #dbeafe; border: 2px solid #2563eb; }
-        .cref-zone-key-regional { background: #fef3c7; border: 2px solid #d97706; }
+        .cref-zone-key-urban { background: #f8faff; border: 2px solid #93c5fd; }
+        .cref-zone-key-regional { background: #fffdf7; border: 2px solid #fcd34d; }
         .cref-table { width: 100%; border-collapse: collapse; font: 400 12.5px/1.5 var(--sans); margin-bottom: 18px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
         .cref-table th { text-align: left; font-weight: 700; color: #fff; padding: 9px 12px;
             background: #44403c; border-bottom: 1px solid var(--line); font-size: 11px;
