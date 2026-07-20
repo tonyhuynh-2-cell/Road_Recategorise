@@ -149,12 +149,12 @@
         /* Legend */
         .legend { margin-top: 4px; }
         .legend h3 { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 11px; }
-        .legend-item { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; font: 400 12.5px/1.3 var(--sans); color: var(--ink-soft); cursor: pointer; user-select: none; transition: opacity .12s ease; }
+        .legend-item { display: flex; align-items: center; gap: 14px; margin-bottom: 9px; font: 400 12.5px/1.3 var(--sans); color: var(--ink-soft); cursor: pointer; user-select: none; transition: opacity .12s ease; }
         .legend-item[data-legend-key]:hover { opacity: 0.7; }
         .legend-item.legend-off { opacity: 0.3; }
         .legend-item.legend-static { cursor: default; }
         .legend-item.legend-static:hover { opacity: 1; }
-        .legend-color { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+        .legend-color { width: 24px; height: 3px; border-radius: 2px; flex-shrink: 0; }
         .legend-color.legend-dash { height: 0; border-top: 3px dashed #57534e; border-radius: 0; }
         /* Floating map legend — top-right of the map, over the tiles */
         .map-legend { position: absolute; top: 14px; right: 14px; z-index: 600; width: 252px; max-height: calc(100% - 28px);
@@ -164,7 +164,7 @@
         .map-legend::-webkit-scrollbar { width: 7px; }
         .map-legend::-webkit-scrollbar-thumb { background: #e0ddda; border-radius: 4px; }
         .map-legend h3 { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 11px; }
-        .map-legend .legend-item { margin-bottom: 8px; font-size: 12px; }
+        .map-legend .legend-item { margin-bottom: 10px; font-size: 12px; }
         .map-legend .legend-item:last-child { margin-bottom: 0; }
         @media (max-width: 920px) { .map-legend { top: 8px; right: 8px; width: 220px; } }
         /* NSW spotlight (init.js): the mask + border outline. Light theme uses the layer's own white
@@ -216,10 +216,10 @@
         @media (max-width: 920px) {
             .code-trace { left: 8px; top: 60px; width: calc(100% - 16px); max-height: 38vh; }
         }
-        /* "Highlights" sub-heading + the round connection swatches (kept in a 22px box so labels align) */
-        .legend-sub { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 11px; }
-        .legend-swatch { width: 22px; display: inline-flex; justify-content: center; flex-shrink: 0; }
-        .legend-pin { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        /* "Highlights" sub-heading + the round connection swatches (kept in a 24px box so labels align) */
+        .legend-sub { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 12px; }
+        .legend-swatch { width: 24px; display: inline-flex; justify-content: center; flex-shrink: 0; }
+        .legend-pin { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
         /* Note — same full 1.5px surround as the cards, in mid-GREY (var(--muted) reads on both
            themes; padding compensates so the box geometry stays put) */
