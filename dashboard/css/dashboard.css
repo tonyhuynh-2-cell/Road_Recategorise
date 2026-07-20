@@ -45,20 +45,20 @@
            primary half one-click-exports the whole workbook; the nested caret button (divided off on
            the right) opens the scope dropdown. Each half inverts to a solid fill on its own hover; the
            caret half also stays filled while the menu is open. */
-        .export-split { display: flex; width: 100%; border: 1.5px solid var(--ink); border-radius: 10px;
+        .export-split { display: flex; width: 100%; border: 1.5px solid var(--line); border-radius: 10px;
             overflow: hidden; transition: box-shadow .15s ease; }
-        .export-split:hover { box-shadow: 0 4px 12px rgba(28,25,23,.2); }
+        .export-split:hover { box-shadow: 0 4px 12px rgba(28,25,23,.1); }
         .export-link { display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
-            padding: 11px 14px; border: none; background: var(--bg); color: var(--ink); font: 600 13px var(--sans);
+            padding: 11px 14px; border: none; background: var(--bg); color: var(--ink-soft); font: 600 13px var(--sans);
             letter-spacing: .01em; user-select: none; transition: background .15s ease, color .15s ease; }
-        .export-main { flex: 1; border-right: 1.5px solid var(--ink); }   /* the divider between the two halves */
+        .export-main { flex: 1; border-right: 1.5px solid var(--line); }
         .export-caret-btn { flex: none; padding: 11px 13px; }
-        .export-link:hover { background: var(--ink); color: var(--bg); }
-        .export-caret-btn[aria-expanded="true"] { background: var(--ink); color: var(--bg); }
+        .export-link:hover { background: var(--bg-soft); color: var(--ink); }
+        .export-caret-btn[aria-expanded="true"] { background: var(--bg-soft); color: var(--ink); }
         .export-link:disabled { opacity: .55; cursor: default; pointer-events: none; }
         .export-link .export-label { border-bottom: none; padding-bottom: 0; }
-        .export-ico { font-size: 15px; line-height: 1; opacity: 1; }
-        .export-caret { font-size: 11px; transition: transform .18s ease; }
+        .export-ico { line-height: 1; opacity: 1; flex-shrink: 0; }
+        .export-caret { transition: transform .18s ease; flex-shrink: 0; }
         .export-caret-btn[aria-expanded="true"] .export-caret { transform: rotate(180deg); }
 
         .detail-back { background: none; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font: 500 12px/1.2 var(--sans); cursor: pointer; padding: 7px 11px; margin-bottom: 10px; margin-top: -8px; display: inline-flex; align-items: center; gap: 5px; transition: border-color .15s ease, color .15s ease, background .15s ease; }
