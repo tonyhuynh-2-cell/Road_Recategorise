@@ -564,6 +564,13 @@
             <span class="bt-mark" aria-hidden="true"></span>
             <span class="bt-label">HV bypass only</span>
         </label>
+        <!-- Locality-centre pins (suburb/locality SAL candidates, dots+labels appear with zoom).
+             Off by default; this toggle re-adds the layer. See toggleLocalities() in panels.js. -->
+        <label class="bypass-toggle locality-toggle" title="Show suburb / locality centre pins (ABS SAL 2021 candidates)">
+            <input type="checkbox" onchange="toggleLocalities(this.checked)">
+            <span class="bt-mark" aria-hidden="true"></span>
+            <span class="bt-label">Localities</span>
+        </label>
         <!-- Map widgets (bottom-right, above the HV bypass toggle): a scale bar + minimalist compass, plus
              a selected-road distance readout that appears above the scale when a road is selected.
              updateScale() / showRoadDistance() live in js/state.js. -->

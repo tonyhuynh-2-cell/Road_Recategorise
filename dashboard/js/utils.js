@@ -35,7 +35,9 @@ function isDashed(p) { return !!(p.ref) || isHighSpeed(p); }
 // Render one criteria row. state: true=pass, false=fail, null/undefined=not assessed (warn).
 function critItem(state, label, value, anchorId) {
     const icon = state === true ? ICON.pass : state === false ? ICON.fail : ICON.warn;
-    return '<div class="criteria-item"' + (anchorId ? ' id="' + anchorId + '"' : '') + '><span class="criteria-icon">' + icon + '</span><div class="criteria-text"><div class="criteria-label">' + label + '</div>' + (value ? '<div class="criteria-value">' + value + '</div>' : '') + '</div></div>';
+    // data-crit-state lets the criteria reference modal mirror this row's verdict (criteria.js)
+    const ds = state === true ? 'pass' : state === false ? 'fail' : 'warn';
+    return '<div class="criteria-item" data-crit-state="' + ds + '"' + (anchorId ? ' id="' + anchorId + '"' : '') + '><span class="criteria-icon">' + icon + '</span><div class="criteria-text"><div class="criteria-label">' + label + '</div>' + (value ? '<div class="criteria-value">' + value + '</div>' : '') + '</div></div>';
 }
 
 function scrollToCriterion(id) {

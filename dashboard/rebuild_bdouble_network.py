@@ -28,7 +28,13 @@ DATA = DASHBOARD / "data"
 DEFAULT_NETWORK = DATA / "geopackages" / "nhvr_hvn_11240521.gpkg"
 NETWORK_LAYER = "hvn_road_segments"
 PROJECTED_CRS = "EPSG:3577"
-DEFAULT_TOLERANCE_M = 50.0
+# 100 m (was 50 m): the NHVR exports trace OSM ways, which sit 58–97 m from the TfNSW
+# centreline along dual carriageways and realignments. At 50 m those offsets read as
+# "no coverage" — MR211 Holbrook Rd measured 79.4% (gate FAIL) with ~10 km of phantom
+# gaps; at 100 m it reads 92.3% with only the genuinely unapproved Wagga approach
+# (north of Red Hill Rd) uncovered. 100 m clears every offset artifact observed while
+# staying well under typical parallel-street spacing.
+DEFAULT_TOLERANCE_M = 100.0
 ACCESS_THRESHOLD = 0.80
 
 

@@ -279,8 +279,8 @@ function ensureMaskShown() {
 // verdict colours + dashed/towns/boundary, plus the "Highlights" group: c_centre/c_hosp/c_dest/
 // c_employ = the on-select connection rings. clip = CV tab only, hide roads outside the LGA outline.
 let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
-    bypass: false, local: true, c_centre: true, c_hosp: true, c_dest: true, c_employ: true,
-    fnat: true, fstate: true, freg: true, flocal: true };   // Fresh-assessment category bins
+    bypass: false, local: true, localities: false, c_centre: true, c_hosp: true, c_dest: true, c_employ: true,
+    fnat: true, fstate: true, freg: true, flocal: true };   // Fresh-assessment category bins; localities = suburb/locality pins (bottom-right toggle)
 
 // Cross-criteria (reclassification) test — folded into the State / Regional / Local tabs (there is
 // no separate Cross-test tab). state/regional hold the segmented control's active MODE (false = own
