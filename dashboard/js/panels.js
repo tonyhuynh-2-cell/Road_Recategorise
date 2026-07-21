@@ -664,7 +664,20 @@ const _lensCounts = {};   // non-cross per-lens counts are static after load —
 function nswViewCounts() {
     if (nswView === 'nsr') {
         const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };
-        return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total, greenKm: 0, orangeKm: 0, redKm: 0 };   // carry red, don't force 0
+        // Compute km for nationally significant roads from NSW_AGG
+        let gKm = 0, oKm = 0, rKm = 0;
+        const crit = window.NSW_CRIT || {};
+        for (const k in NSW_AGG) {
+            const a = NSW_AGG[k];
+            if (!a._nsr) continue;
+            const cr = crit[k];
+            const nat = (cr && cr.nat) || 'orange';
+            const len = a._len || 0;
+            if (nat === 'green') gKm += len;
+            else if (nat === 'orange') oKm += len;
+            else rKm += len;
+        }
+        return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total, greenKm: gKm, orangeKm: oKm, redKm: rKm };
     }
     // Cross-criteria test on: count each road by its verdict AGAINST the target category (the
     // lens's active mode — asReg / asNat on the State lens, asState on the Regional lens) so the
@@ -788,6 +801,7 @@ function refreshFresh() {
     const F = buildFresh();
     const RANK = { fnat: 3, fstate: 2, freg: 1, flocal: 0 };
     const counts = { fnat: 0, fstate: 0, freg: 0, flocal: 0 };
+    const km = { fnat: 0, fstate: 0, freg: 0, flocal: 0 };
     let total = 0, keep = 0, up = 0, down = 0, likely = 0;
     for (const k in NSW_AGG) {
         const a = NSW_AGG[k];
@@ -795,6 +809,7 @@ function refreshFresh() {
         const f = F[k]; if (!f) continue;
         total++;
         counts[f.cat]++;
+        km[f.cat] += a._len || 0;
         if (f.tier === 'likely') likely++;
         // Today's standing: Nat. Significant tab membership (_nsr), else the administrative class.
         const cur = a._nsr ? 'fnat' : (a.admin_class === 'S' ? 'fstate' : 'freg');
@@ -804,10 +819,10 @@ function refreshFresh() {
     const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of the network' : '';
     set('fresh-total', total.toLocaleString());
-    set('fresh-nat', counts.fnat.toLocaleString());   set('fresh-nat-sub', pct(counts.fnat));
-    set('fresh-state', counts.fstate.toLocaleString()); set('fresh-state-sub', pct(counts.fstate));
-    set('fresh-reg', counts.freg.toLocaleString());   set('fresh-reg-sub', pct(counts.freg));
-    set('fresh-local', counts.flocal.toLocaleString()); set('fresh-local-sub', pct(counts.flocal));
+    set('fresh-nat', counts.fnat.toLocaleString());   set('fresh-nat-sub', pct(counts.fnat) + ' · ' + Math.round(km.fnat).toLocaleString() + ' km');
+    set('fresh-state', counts.fstate.toLocaleString()); set('fresh-state-sub', pct(counts.fstate) + ' · ' + Math.round(km.fstate).toLocaleString() + ' km');
+    set('fresh-reg', counts.freg.toLocaleString());   set('fresh-reg-sub', pct(counts.freg) + ' · ' + Math.round(km.freg).toLocaleString() + ' km');
+    set('fresh-local', counts.flocal.toLocaleString()); set('fresh-local-sub', pct(counts.flocal) + ' · ' + Math.round(km.flocal).toLocaleString() + ' km');
     set('fresh-move', keep.toLocaleString() + ' roads keep their current tier · ' +
         up.toLocaleString() + ' would move up · ' + down.toLocaleString() + ' would move down · ' +
         likely.toLocaleString() + ' of the ' + total.toLocaleString() + ' are provisional (dashed — 1 of 2 optional)');
