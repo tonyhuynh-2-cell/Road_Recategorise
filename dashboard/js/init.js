@@ -61,6 +61,9 @@ Promise.all([
     // Urban / Regional / Remote zone per road (Remote = rural + west of the Newell Hwy) — data/nsw_zone.json.
     window.ZONE = zone || {};
     window.NSW_CRIT = nswCrit || {};   // one criteria result per declared road
+    // Save original verdicts for reset after criteria overrides
+    window._ORIG_VERDICTS = {};
+    for (var _k in window.NSW_CRIT) { window._ORIG_VERDICTS[_k] = window.NSW_CRIT[_k].verdict; }
     window.DECLARED_ROADS = declaredRoads || { roads: {}, section_to_road: {} };
     // Per-road connectivity evidence (which centres / hospitals / ports / airports / intermodals each
     // road connects, with names + qualifying attributes + coords) — data/*_evidence.json.
@@ -500,7 +503,7 @@ Promise.all([
             const p = f.properties || {};
             const band = p.size_band || 'remote_town';
             layer.bindTooltip(p.name, {
-                permanent: true, direction: 'right', offset: [6, 0],
+                permanent: false, direction: 'right', offset: [6, 0],
                 className: 'locality-label locality-label-' + band, pane: 'townPane', opacity: 1
             });
             layer.bindPopup('<div class="town-popup"><strong>' + p.name + '</strong>' +

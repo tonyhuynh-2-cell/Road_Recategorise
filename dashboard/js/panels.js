@@ -560,6 +560,7 @@ function groupBreakdownHTML(rows) {
 // the whole-network / per-region count scans below are computed once per scope and cached. Tab switches
 // then read O(1) instead of re-scanning every road each time. scope: 'all' (Overview) | 'cv' | 'syd'.
 const _scopeCounts = {};
+window._scopeCountsRef = _scopeCounts;
 function scopeCounts(scope) {
     if (_scopeCounts[scope]) return _scopeCounts[scope];
     let g = 0, o = 0, r = 0, greenKm = 0, orangeKm = 0, redKm = 0;
