@@ -11,50 +11,33 @@ let _crossTestRerender = false;
 // Named-sections dropdown context: the open road's key (set by showRoadDetail).
 let _sectionCtx = null;
 
-// Sections dropdown pick: frame one connected mapped section while retaining the declared road's
-// single verdict and evidence. Single-section roads still support their named-street dropdown.
-function selectRoadSection(value) {
+// Sections dropdown pick: re-open the SAME road titled by the chosen section, and frame that
+// section's segments on the map. Road-level data (verdict, criteria, evidence) is unchanged —
+// only the title and the map framing follow the section.
+function selectRoadSection(name) {
     if (!_sectionCtx || typeof NSW_AGG === 'undefined') return;
     const aggRec = NSW_AGG[_sectionCtx.key];
     if (!aggRec) return;
-    const allSegs = (window.NSW_ROAD_LAYERS || {})[_sectionCtx.key] || [];
-    const declared = (window.DECLARED_ROADS && window.DECLARED_ROADS.roads)
-        ? window.DECLARED_ROADS.roads[_sectionCtx.key] : null;
-    let segs = allSegs;
-    let detailRoad = Object.assign({}, aggRec);
-    let traceLabel = 'Entire declared road';
-    let selectedName = null;
-    let selectedUnit = null;
-    if (String(value).slice(0, 5) === 'unit:') {
-        const unitKey = String(value).slice(5);
-        segs = allSegs.filter(l => String(l.feature.properties.road_unit || '') === unitKey);
-        const section = declared && (declared.sections || []).find(s => s.unit === unitKey);
-        detailRoad._selectedSectionUnit = unitKey;
-        detailRoad.ref = section && section.route_refs && section.route_refs.length === 1 ? section.route_refs[0] : null;
-        traceLabel = section ? ('Mapped section: ' + titleCase(section.name || 'unnamed')) : unitKey;
-        selectedUnit = unitKey;
-    } else if (String(value).slice(0, 5) === 'name:') {
-        const name = String(value).slice(5);
-        segs = allSegs.filter(l => String(l.feature.properties.road_name || '').trim() === name);
-        detailRoad.road_name = name;
-        detailRoad.ref = segs.length ? (segs[0].feature.properties.ref || null) : null;
-        traceLabel = 'Named section: ' + titleCase(name);
-        selectedName = name;
-    }
     if (typeof traceCode === 'function') traceCode(
-        traceLabel,
-        'The dropdown frames one mapped section of the declared road. Its section result remains diagnostic; the road-level criteria are not re-assessed.',
-        "function selectRoadSection(value) {\n  const road = NSW_AGG[key];\n  const sectionLayers = layers.filter(layer => layer.feature.properties.road_unit === value);\n  showRoadDetail(road, 'nsw'); // declared-road criteria remain active\n}",
-        'road=' + _sectionCtx.key + ', selection=' + value
+        'Section picked: ' + titleCase(name),
+        'The sections dropdown swaps which named section of the same gazetted road titles the panel, then frames that stretch on the map. Nothing is re-assessed.',
+        "function selectRoadSection(name) {\n  const agg = Object.assign({}, NSW_AGG[key], { road_name: name });\n  fitBounds(segments named `name`);\n  showRoadDetail(agg, 'nsw');\n}",
+        'road=' + _sectionCtx.key + ', section=' + name
     );
+    // Frame AND highlight the chosen section's segments (whole road if none match).
+    const allSegs = (window.NSW_ROAD_LAYERS || {})[_sectionCtx.key] || [];
+    const segs = allSegs.filter(l => String(l.feature.properties.road_name || '').trim() === name);
     if (segs.length && typeof map !== 'undefined') {
         let b = segs[0].getBounds();
         segs.forEach(l => { b = b.extend(l.getBounds()); });
         map.fitBounds(b.pad(0.25), { maxZoom: 13 });   // short sections must not zoom to street level
     }
-    if (typeof highlightRoad === 'function' && typeof nswLayer !== 'undefined')
-        highlightRoad(allSegs, nswLayer, selectedName, selectedUnit);
-    showRoadDetail(detailRoad, 'nsw');
+    if (typeof highlightSection === 'function')
+        highlightSection(name);
+    // The route shield belongs to the SECTION being shown, not to the segment originally clicked —
+    // a road can carry a shield on one stretch only (e.g. the motorway overlap of a Main Road).
+    const secRef = segs.length ? (segs[0].feature.properties.ref || null) : null;
+    showRoadDetail(Object.assign({}, aggRec, { ref: secRef, road_name: name }), 'nsw');
 }
 
 function applyCrossTest(mode) {
@@ -85,9 +68,6 @@ function showRoadDetail(p, source) {
     document.getElementById('detail-empty').style.display = 'none';
     document.getElementById('detail-content').style.display = 'block';
     detailLayout('road');
-    const detailKey = roadKeyOf(p);
-    const declaredMeta = (source === 'nsw' && window.DECLARED_ROADS && window.DECLARED_ROADS.roads)
-        ? window.DECLARED_ROADS.roads[detailKey] : null;
     // Reset cross-test dropdown when opening a new road — show the road's own category as default
     const _xtSel = document.getElementById('detail-crosstest-select');
     if (_xtSel) {
@@ -102,12 +82,7 @@ function showRoadDetail(p, source) {
         }
     }
     // Selected-road distance readout (bottom-right, above the scale). _len is the road length in km.
-    let displayedLength = typeof p._len === 'number' ? p._len : null;
-    if (p._selectedSectionUnit && declaredMeta) {
-        const selectedSection = (declaredMeta.sections || []).find(s => s.unit === p._selectedSectionUnit);
-        if (selectedSection) displayedLength = selectedSection.length_km;
-    }
-    if (typeof showRoadDistance === 'function') showRoadDistance(displayedLength);
+    if (typeof showRoadDistance === 'function') showRoadDistance(typeof p._len === 'number' ? p._len : null);
 
     // Connectivity evidence for this road (named centres / hospitals / destinations it connects).
     // Centres mix town points and Significant Urban Areas (kind:'sua') — the urban area a road runs
@@ -117,62 +92,32 @@ function showRoadDetail(p, source) {
     // Real network membership (NHVR spatial intersect) + geometry-derived topology for this road.
     const nh = (window.NHVR || {})[roadKeyOf(p)] || {};
     const rx = (window.ROAD_EXT || {})[roadKeyOf(p)] || {};
-    // A declared-road result uses evidence from every mapped section, but when the
-    // user frames one section the map should highlight that section's relationships
-    // only. The criteria cards below remain the declared-road assessment.
-    const mapEvidence = (source === 'nsw' && p._selectedSectionUnit && window.NSW_UNIT_EVID)
-        ? (window.NSW_UNIT_EVID[p._selectedSectionUnit] || evd)
-        : evd;
-    showConnections({
-        centres: mapEvidence.centres || [], hospitals: mapEvidence.hospitals || [],
-        dests: mapEvidence.dests || [], employment: mapEvidence.employment || []
-    });
+    showConnections({ centres: evCent, hospitals: evHosps, dests: evDests, employment: evEmploy });   // ring/outline + label on the map
 
     document.getElementById('detail-road-name').innerHTML = roadLabel(p);
-    // Road number line: one declared-road identity, followed by transparent mapped-section context.
+    // Road number line: the gazetted series label only (HW/MR/SR/TO/RR per the Schedule's numbering
+    // key), with the source ID shown when it distinguishes several connected assessment units.
     const noLbl = roadNoLabel(p);
     const numBits = [];
     if (noLbl && noLbl !== roadName(p)) numBits.push(noLbl);
     if (isHighSpeed(p)) numBits.push('Motorway / freeway');
-    if (declaredMeta && (declaredMeta.route_refs || []).length > 1)
-        numBits.push('routes ' + declaredMeta.route_refs.join(', '));
-    if (declaredMeta && declaredMeta.section_count > 1) {
-        numBits.push(declaredMeta.section_count + ' mapped sections');
-        if (p._selectedSectionUnit) {
-            const selectedIndex = (declaredMeta.sections || []).findIndex(s => s.unit === p._selectedSectionUnit);
-            if (selectedIndex >= 0) numBits.push('viewing section ' + (selectedIndex + 1));
-        }
-    }
+    if (p.unit_count > 1 && p.road_number) numBits.push('administrative ID ' + p.road_number);
+    if (p.unit_count > 1) numBits.push('connected assessment unit ' + (p.unit_ordinal || '?') + ' of ' + p.unit_count);
     document.getElementById('detail-road-number').textContent = numBits.join(' · ');
-    // Multi-part declared roads expose each connected mapped section. A one-part road with several
-    // street names retains the existing named-section picker.
+    // Named-sections dropdown — one gazetted road can run through several named roads (e.g. MR152:
+    // Grafton · Maclean · Lawrence-Yamba · Yamba…). The clicked segment's section is pre-selected;
+    // picking another re-titles the card and frames that stretch (selectRoadSection below). Hidden
+    // for single-name roads. NSW_AGG is a top-level `let` (state.js) — a LEXICAL global, not window.*
     const secWrap = document.getElementById('detail-sections-wrap');
     if (secWrap) {
         const aggRec = (source === 'nsw' && typeof NSW_AGG !== 'undefined') ? NSW_AGG[roadKeyOf(p)] : null;
         const rawNames = (aggRec && aggRec._names) ? aggRec._names : [];
-        const mappedSections = declaredMeta ? (declaredMeta.sections || []) : [];
-        const secLabel = secWrap.querySelector('label');
-        if (mappedSections.length > 1) {
+        if (rawNames.length > 1) {
             _sectionCtx = { key: roadKeyOf(p) };
-            if (secLabel) secLabel.textContent = 'Mapped sections:';
-            const secSel = document.getElementById('detail-sections-select');
-            const picked = p._selectedSectionUnit || '';
-            const options = ['<option value="all"' + (!picked ? ' selected' : '') + '>Entire declared road</option>'];
-            mappedSections.forEach(function (section, index) {
-                const refs = (section.route_refs || []).length ? ' · ' + section.route_refs.join('/') : '';
-                const label = 'Section ' + (index + 1) + ' · ' + titleCase(section.name || 'Unnamed') +
-                    refs + ' · ' + Number(section.length_km || 0).toFixed(1) + ' km';
-                options.push('<option value="unit:' + section.unit + '"' + (picked === section.unit ? ' selected' : '') + '>' + label + '</option>');
-            });
-            secSel.innerHTML = options.join('');
-            secWrap.style.display = 'flex';
-        } else if (rawNames.length > 1) {
-            _sectionCtx = { key: roadKeyOf(p) };
-            if (secLabel) secLabel.textContent = 'Named sections:';
             const secSel = document.getElementById('detail-sections-select');
             const curName = roadName(p);
             secSel.innerHTML = rawNames.map(n =>
-                '<option value="name:' + String(n).replace(/"/g, '&quot;') + '"' + (titleCase(n) === curName ? ' selected' : '') + '>' +
+                '<option value="' + String(n).replace(/"/g, '&quot;') + '"' + (titleCase(n) === curName ? ' selected' : '') + '>' +
                 titleCase(n) + '</option>').join('');
             secWrap.style.display = 'flex';
         } else {
@@ -182,11 +127,7 @@ function showRoadDetail(p, source) {
     }
     const isState = p.admin_class === 'S';
     const zone = (source === 'nsw' && window.ZONE) ? window.ZONE[roadKeyOf(p)] : null;
-    const zoneNames = { urban: 'Urban', regional: 'Regional', remote: 'Remote (west of Newell Hwy)' };
-    const declaredZoneValues = declaredMeta && declaredMeta.zones ? declaredMeta.zones : [];
-    const zoneLabel = declaredZoneValues.length > 1
-        ? declaredZoneValues.map(value => zoneNames[value] || titleCase(value)).join(' and ')
-        : zoneNames[zone];
+    const zoneLabel = { urban: 'Urban', regional: 'Regional', remote: 'Remote (west of Newell Hwy)' }[zone];
     // Under the Best fit lens the map colours by earned bin — say which bin this road earned,
     // right next to the current class it would move from. FRESH_META labels are "Name — rule";
     // only the name belongs here.
@@ -196,7 +137,7 @@ function showRoadDetail(p, source) {
           (freshBin.tier === 'likely' ? ' <span style="color:var(--muted)">(provisional)</span>' : '')
         : '';
     document.getElementById('detail-admin-class').innerHTML = 'Current Classification: <strong>' + (isState ? 'State Road' : 'Regional Road') + '</strong>' +
-        (zoneLabel ? ' <span style="color:var(--muted)">· ' + zoneLabel + (declaredZoneValues.length > 1 ? ' zones' : ' zone') + '</span>' : '') +
+        (zoneLabel ? ' <span style="color:var(--muted)">· ' + zoneLabel + ' zone</span>' : '') +
         (p._nsr ? ' <span style="color:var(--muted)">· on the National Land Transport Network</span>' : '') +
         freshLine;
 
@@ -225,15 +166,9 @@ function showRoadDetail(p, source) {
         ? c.stateOpt.centres : !!(c && c.opt && c.opt.centres);
     const regionalCentresPass = (c && c.regionalOpt && typeof c.regionalOpt.centres === 'boolean')
         ? c.regionalOpt.centres : !!(c && c.opt && c.opt.centres);
-    const stateCriterionNames = new Set((c && c.stateOpt && c.stateOpt.centre_names) || []);
-    const regionalCriterionNames = new Set((c && c.regionalOpt && c.regionalOpt.centre_names) || []);
-    const stateCriterionCentres = stateCriterionNames.size
-        ? evCent.filter(function (item) { return stateCriterionNames.has(item.name); }) : evCent;
-    const regionalCriterionCentres = regionalCriterionNames.size
-        ? evCent.filter(function (item) { return regionalCriterionNames.has(item.name); }) : evCent;
     const urbanArea = c ? c.area === 'urban' : !!p._urban;
-    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts, spatially joined to the
-    // newest completed-year count on the mapped road. Threshold depends on category + urban/rural —
+    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts (data/nsw_adt.json), spatially
+    // joined to the busiest count station on the road. Threshold depends on category + urban/rural —
     // under a State/Regional cross-test the TARGET category's thresholds apply (effState).
     const ad = (source === 'nsw' && window.ADT) ? window.ADT[roadKeyOf(p)] : null;
     const effState = xtMode === 'state' ? true : xtMode === 'regional' ? false : isState;
@@ -241,11 +176,6 @@ function showRoadDetail(p, source) {
     const hvThr = effState ? 8 : 6;
     const par = rx.parallel_state_20;   // true = a State Road closely parallels this one (geometry test)
     const bd = nh.bdouble19;
-    const bdCoverage = typeof nh.bdouble19Coverage === 'number' ? nh.bdouble19Coverage : null;
-    const bdPercent = bdCoverage === null ? null : (bd === false
-        ? Math.floor(bdCoverage * 1000) / 10
-        : Math.round(bdCoverage * 1000) / 10);
-    const bdCoverageText = bdPercent === null ? '' : ' (' + bdPercent.toFixed(1) + '% of selected road)';
     const pbs1 = c ? !!c.mand.pbs1 : !!p.has_pbs1;
     // Parallel-State mandatory, with the guidance exception: "Road does not closely parallel an
     // existing State Road unless it has similar traffic volumes." 'Similar' is implemented as this
@@ -306,23 +236,14 @@ function showRoadDetail(p, source) {
         const componentKm = fmtKm(regionalDestInfo.dest_component_km);
         const centres = regionalDestInfo.dest_centre_names || [];
         const facilities = regionalDestInfo.dest_facility_names || [];
-        const facilityDetails = regionalDestInfo.dest_facility_details || [];
         const allCentres = regionalDestInfo.dest_all_centre_names || centres;
         const allFacilities = regionalDestInfo.dest_all_facility_names || facilities;
         const components = regionalDestInfo.dest_component_count || 0;
         const target = urbanArea ? 'Major Urban Centre or Major Town' : 'Town/Urban Centre';
-        const employmentThreshold = regionalDestInfo.dest_employment_size_threshold_ha;
         const bits = [];
         if (regionalDestPass === true) {
             bits.push('Connected component' + (componentKm ? ' ' + componentKm : ''));
             bits.push(nameList(facilities, 'qualifying facility/employment centre') + ' to ' + nameList(centres, target));
-            const accessPaths = facilityDetails
-                .map(function (item) { return item.access_path_km; })
-                .filter(function (value) { return typeof value === 'number' && value > 0; });
-            if (accessPaths.length) bits.push('shortest local-road access path ' + Math.min.apply(null, accessPaths).toFixed(1) + ' km');
-            if (facilityDetails.some(function (item) { return item.kind === 'employment'; }) && typeof employmentThreshold === 'number') {
-                bits.push('employment assessed by client-approved ≥' + employmentThreshold + ' ha size-only rule');
-            }
             if (components > 1) bits.push(components + ' disconnected geometry components in source data');
             return bits.join(' · ');
         }
@@ -330,7 +251,7 @@ function showRoadDetail(p, source) {
             if (allFacilities.length && allCentres.length) {
                 bits.push('No connected component contains both a qualifying facility/employment centre and a ' + target);
             } else {
-                if (!allFacilities.length) bits.push('needs a named facility or a size-qualified employment centre');
+                if (!allFacilities.length) bits.push('needs a named facility or Regional/Major employment centre');
                 if (!allCentres.length) bits.push('needs a ' + target + ' connection');
             }
             if (components > 1) bits.push(components + ' disconnected geometry components in source data');
@@ -348,13 +269,12 @@ function showRoadDetail(p, source) {
         const components = stateDestInfo.dest_component_count || 0;
         const networkMethod = stateDestInfo.dest_method === 'nsw_road_segment_network';
         const networkCoverage = stateDestInfo.dest_network_coverage;
-        const employmentThreshold = stateDestInfo.dest_employment_size_threshold_ha;
         const bits = [];
         if (stateDestPass === true) {
             bits.push('Connected ' + (networkMethod ? 'NSW road-network ' : '') + 'component' + (componentKm ? ' ' + componentKm : ''));
             bits.push(nameList(facilities, 'qualifying facility/employment area') + ' to ' + nameList(centres, 'another centre type'));
             if ((displayComponent && displayComponent.employment_only === true) || (!displayComponent && stateDestInfo.dest_employment_only === true)) {
-                bits.push('employment assessed by client-approved ≥' + employmentThreshold + ' ha size-only rule');
+                bits.push('employment land-area threshold used; economic value unavailable');
             }
             if (networkMethod && typeof networkCoverage === 'number' && networkCoverage < 0.9) {
                 bits.push('NSW road-network match ' + Math.round(networkCoverage * 100) + '%');
@@ -367,8 +287,8 @@ function showRoadDetail(p, source) {
                 if (components > 1) bits.push('evidence is split across ' + components + ' road-network components');
             } else {
                 if (!allFacilities.length && evEmploy.length) {
-                    const minimumHa = typeof employmentThreshold === 'number' ? employmentThreshold : (urbanArea ? 40 : zone === 'remote' ? 5 : 15);
-                    bits.push('No employment polygon both intersects the selected road and meets the client-approved ' + minimumHa + ' ha size-only rule');
+                    const minimumHa = urbanArea ? 40 : zone === 'remote' ? 5 : 15;
+                    bits.push('No employment polygon both intersects the road and meets the ' + minimumHa + ' ha threshold');
                 } else if (!allFacilities.length) bits.push('needs a qualifying hospital, port, intermodal, international airport or employment area');
                 if (!allCentres.length) bits.push('needs a connection to another centre type');
             }
@@ -536,7 +456,7 @@ function showRoadDetail(p, source) {
     } else if (ad) {
         // Statewide AADT now available for this road (TfNSW count station).
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (aadtPass ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + adtThr.toLocaleString() + ' (' + (urbanArea ? 'urban' : 'rural') + ' ' + (effState ? 'State' : 'Regional') + (xtMode ? ' — cross-test' : '') + ') · TfNSW count, ' + ad.year + '</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">' + (hvPass === true ? ICON.pass : hvPass === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · selected from ' + ad.stations + ' matched stations' : '') + '</div></div></div>';
+            '<div class="criteria-item"><span class="criteria-icon">' + (hvPass === true ? ICON.pass : hvPass === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · busiest of ' + ad.stations + ' stations' : '') + '</div></div></div>';
     } else {
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">No TfNSW count station on this road · ' + (effState ? 'State threshold >' + adtThr.toLocaleString() : 'Regional threshold >' + adtThr.toLocaleString()) + (xtMode ? ' (cross-test)' : '') + '</div></div></div>';
     }
@@ -585,7 +505,7 @@ function showRoadDetail(p, source) {
         // R-04 now uses the real NHVR 19m B-double network (falls back to the prior flag if unknown).
         mandEl.innerHTML =
             critItem(bdPass, 'R-04: GML/CML 19m B-double access (50+ tonnes)',
-                bd === true ? 'NHVR-approved 19m B-double route' + bdCoverageText : bd === false ? 'Does not meet the 80% route-coverage threshold' + bdCoverageText : 'Facilitates movement of 19m B-double routes', 'crit-mand-bdouble') +
+                bd === true ? 'NHVR-approved 19m B-double route' : bd === false ? 'Not on the NHVR 19m B-double network' : 'Facilitates movement of 19m B-double routes', 'crit-mand-bdouble') +
             critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant');
     }
 
@@ -650,7 +570,7 @@ function showRoadDetail(p, source) {
         const cLabel = urbanArea
             ? 'S-10: Connects Metro Centres / Regional Cities / Major Urban Centres / Major Towns'
             : 'S-07: Connects Metro Centres / Regional Cities / Major Towns to each other';
-        html += critItem(stateCentresPass, cLabel, centresVal(stateCentresPass, stateCriterionCentres), 'crit-opt-centres') + evCentres(stateCriterionCentres);
+        html += critItem(stateCentresPass, cLabel, centresVal(stateCentresPass, evCent), 'crit-opt-centres') + evCentres(evCent);
         // LDR is an unnumbered State optional criterion. It needs a connected long-distance
         // component joining a State-tier centre to a Town Centre, not just route length.
         if (!urbanArea) html += xtMode
@@ -672,7 +592,7 @@ function showRoadDetail(p, source) {
         const rDest = urbanArea
             ? 'R-06: Connects Major/Regional Hospitals / Major Ports / Intermodals / Airports / Employment Centres to Major Urban Centres or Major Towns'
             : 'R-02: Connects Major/Regional Hospitals / Ports / Airports / Employment Centres to Town/Urban Centres';
-        html += critItem(regionalCentresPass, rCentres, centresVal(regionalCentresPass, regionalCriterionCentres), 'crit-opt-centres') + evCentres(regionalCriterionCentres);
+        html += critItem(regionalCentresPass, rCentres, centresVal(regionalCentresPass, evCent), 'crit-opt-centres') + evCentres(evCent);
         html += critItem(regionalDestPass, rDest, regionalDestValue(), 'crit-opt-dest') + facilityRows;
         // Rural-only optional criteria — hidden for urban Regional roads (R-05/R-06 set).
         if (!urbanArea) html += roadTrainRow + twoStateRow;
@@ -694,7 +614,7 @@ function showRoadDetail(p, source) {
     }
 
     // Vehicle access — road train, 19m B-double and HV bypass come from the real NHVR networks
-    // (data/nhvr_networks.json, length coverage). PBS Level 2B (S-06) stays on the Nat. Significant tab.
+    // (data/nhvr_networks.json, spatial intersect). PBS Level 2B (S-06) stays on the Nat. Significant tab.
     const va = function (ok, label, on, off) {
         const icon = ok === true ? ICON.pass : ok === false ? ICON.fail : ICON.warn;
         const val = ok === true ? on : ok === false ? off : 'NHVR status unavailable';
@@ -702,7 +622,7 @@ function showRoadDetail(p, source) {
     };
     document.getElementById('detail-vehicle-access').innerHTML =
         va(!!p.has_pbs1, 'PBS Level 1', 'Facilitates PBS Level 1 access', 'No PBS Level 1 access') +
-        va(nh.bdouble19 === undefined ? !!p.has_bdouble : nh.bdouble19, 'GML/CML 19m B-double (50+ tonnes)', 'NHVR-approved 19m B-double route' + bdCoverageText, 'Below the 80% route-coverage threshold' + bdCoverageText) +
+        va(nh.bdouble19 === undefined ? !!p.has_bdouble : nh.bdouble19, 'GML/CML 19m B-double (50+ tonnes)', 'NHVR-approved 19m B-double route', 'Not on the 19m B-double network') +
         va(nh.roadtrain, 'Road train (32m)', 'NHVR-approved road train route', 'Not on the road train network') +
         va(nh.bypass, 'Heavy-vehicle bypass', 'On an NHVR heavy-vehicle bypass', 'Not on a bypass route');
 
@@ -710,11 +630,10 @@ function showRoadDetail(p, source) {
     // above (c.opt) so the two cards can never contradict. NLTN membership is a separate factual tag.
     const connCentres = c ? (isState ? stateCentresPass : regionalCentresPass) : (!!p.connects_major_town || !!p.connects_regional_city);
     const connDest = c ? (isState ? stateDestPass === true : regionalDestPass === true) : !!p.connects_hospital;
-    const countedCentres = isState ? stateCriterionCentres : regionalCriterionCentres;
     const nFac = evDests.length + evHosps.length;
     document.getElementById('detail-connectivity').innerHTML =
         critItem(!!p._nltn, 'On the National Land Transport Network', p._nltn ? 'Carries segment(s) of the national freight network' : 'Not on the NLTN') +
-        critItem(connCentres, 'Connects centres', countedCentres.length ? (countedCentres.length + ' named above') : (connCentres ? 'Per assessment' : 'None within range')) +
+        critItem(connCentres, 'Connects centres', evCent.length ? (evCent.length + ' named above') : (connCentres ? 'Per assessment' : 'None within range')) +
         critItem(connDest, 'Connects hospitals / ports / airports', nFac ? (nFac + ' named above') : (connDest ? 'Per assessment' : 'None within range'));
 
     // Copy traffic data into the collapsible "Additional data" section
@@ -774,11 +693,7 @@ function detailLayout(mode) {
     set('detail-card-optional', true, nltn ? 'Mandatory criteria' : 'Optional criteria (must meet ≥2)');
     set('detail-card-vehicle', false);
     set('detail-card-connectivity', false);
-    // No title arg: set()'s textContent write would wipe the expand chevron out of the header.
-    // The card also starts minimised again for every road opened.
-    const extra = document.getElementById('detail-card-extra');
-    if (extra) extra.classList.add('collapsed');
-    set('detail-card-extra', !nltn);
+    set('detail-card-extra', !nltn, 'Additional data');
 }
 
 // Road Detail for an NLTN 2020 line (the Nationally Significant lens). Graded by the national
