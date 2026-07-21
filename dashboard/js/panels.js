@@ -820,16 +820,27 @@ function refreshOverview() {
     // Sydney / CV region cards, but nothing on this panel renders it.)
     const { g, o, r } = scopeCounts('all');
     const total = g + o + r;
-    // Compute total network length
-    var totalKm = 0;
+    // Compute total network length and per-verdict km
+    var totalKm = 0, greenKm = 0, orangeKm = 0, redKm = 0;
     var agg = (typeof NSW_AGG !== 'undefined') ? NSW_AGG : {};
-    for (var k in agg) { var a = agg[k]; if (a.admin_class === 'S' || a.admin_class === 'R') totalKm += a._len || 0; }
+    var crit = window.NSW_CRIT || {};
+    for (var k in agg) {
+        var a = agg[k];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        var len = a._len || 0;
+        totalKm += len;
+        var cr = crit[k];
+        var v = (cr && cr.verdict) || a.status;
+        if (v === 'green') greenKm += len;
+        else if (v === 'orange') orangeKm += len;
+        else redKm += len;
+    }
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     document.getElementById('ov-total').textContent = total.toLocaleString();
     document.getElementById('ov-total-sub').textContent = 'State & Regional roads · ' + Math.round(totalKm).toLocaleString() + ' km · ' + NSW_SEG_TOTAL.toLocaleString() + ' segments';
-    document.getElementById('ov-green').textContent = g.toLocaleString(); document.getElementById('ov-green-pct').textContent = pct(g);
-    document.getElementById('ov-orange').textContent = o.toLocaleString(); document.getElementById('ov-orange-pct').textContent = pct(o);
-    document.getElementById('ov-red').textContent = r.toLocaleString(); document.getElementById('ov-red-pct').textContent = pct(r);
+    document.getElementById('ov-green').textContent = g.toLocaleString(); document.getElementById('ov-green-pct').textContent = pct(g) + ' · ' + Math.round(greenKm).toLocaleString() + ' km';
+    document.getElementById('ov-orange').textContent = o.toLocaleString(); document.getElementById('ov-orange-pct').textContent = pct(o) + ' · ' + Math.round(orangeKm).toLocaleString() + ' km';
+    document.getElementById('ov-red').textContent = r.toLocaleString(); document.getElementById('ov-red-pct').textContent = pct(r) + ' · ' + Math.round(redKm).toLocaleString() + ' km';
     // Map restyle is owned by the follow-up showNSW()->applyLegend() in switchTab/init (avoids styling
     // all ~17k paths twice per tab switch); this panel refresher only updates the stats.
 }
