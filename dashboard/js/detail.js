@@ -720,6 +720,9 @@ function showRoadDetail(p, source) {
     // Copy traffic data into the collapsible "Additional data" section
     const extraTraffic = document.getElementById('detail-traffic-extra');
     if (extraTraffic) extraTraffic.innerHTML = document.getElementById('detail-traffic').innerHTML;
+
+    // Keep the criteria reference modal in sync with this road's assessment (criteria.js)
+    if (typeof refreshCriteriaModal === 'function') refreshCriteriaModal();
 }
 
 // The active cross-test mode for a Road Detail: the lens this detail was opened from (or the
@@ -767,6 +770,7 @@ function detailLayout(mode) {
         if (title) { const h = card.querySelector('h3'); if (h) h.textContent = title; }
     };
     const nltn = mode === 'nltn';
+    window._detailIsNltn = nltn;   // criteria.js: NLTN details always map to the Nat.Sig criteria section
     // For regular roads: hide standalone traffic/vehicle/connectivity (they're in the collapsible card)
     // For NLTN: show traffic (as "Determination route") and hide the collapsible extra card
     set('detail-card-traffic', nltn, nltn ? 'Determination route' : 'Traffic data');

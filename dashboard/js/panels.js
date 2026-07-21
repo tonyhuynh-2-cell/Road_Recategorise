@@ -90,7 +90,11 @@ function switchTab(tab) {
 }
 
 // Road Detail is shown on a road click (it's not a tab) — return to the view that was open.
-function backFromDetail() { switchTab(lastViewTab || 'overview'); }
+function backFromDetail() {
+    switchTab(lastViewTab || 'overview');
+    // Leaving Road Detail: the criteria reference modal drops its road-specific annotations
+    if (typeof refreshCriteriaModal === 'function') refreshCriteriaModal();
+}
 
 // The five map lenses that live in the sidebar's ONE dropdown control (#lens-select, index.html);
 // the other views (Sydney / Clarence Valley / Flagged / Detail) stay individual buttons.
@@ -222,7 +226,9 @@ function applyLegend(opts) {
     if (cvTownsLayer) map.removeLayer(cvTownsLayer);
     const towns = (currentTab === 'cv') ? cvTownsLayer : nswTownsLayer;   // Sydney reuses the statewide town pins
     if (towns && legendToggles.towns) map.addLayer(towns);
-    if (currentTab !== 'cv' && nswLocalityCentresLayer && legendToggles.towns) map.addLayer(nswLocalityCentresLayer);
+    // Suburb/locality-centre pins (dots + labels appearing with zoom): OFF by default, shown via
+    // the bottom-right "Localities" toggle. Their SAL candidates feed the criteria regardless.
+    if (currentTab !== 'cv' && nswLocalityCentresLayer && legendToggles.localities) map.addLayer(nswLocalityCentresLayer);
     // Region boundary outlines — CV LGA on the CV tab, Sydney SUA on the Sydney tab (one at a time).
     if (cvBoundaryLayer) { if (currentTab === 'cv' && legendToggles.boundary) map.addLayer(cvBoundaryLayer); else map.removeLayer(cvBoundaryLayer); }
     if (sydBoundaryLayer) { if (currentTab === 'sydney' && legendToggles.boundary) map.addLayer(sydBoundaryLayer); else map.removeLayer(sydBoundaryLayer); }
@@ -338,6 +344,13 @@ function renderMapLegend() {
 // HV bypass isolate (bottom-left checkbox): ON hides every other legend layer + highlight and shows
 // ONLY the NHVR heavy-vehicle bypass overlay; OFF restores the exact previous toggle state.
 let _bypassSaved = null;
+// Bottom-right "Localities" checkbox — shows/hides the suburb/locality centre pins (zoom-gated
+// dots + labels). Purely a display toggle: the SAL candidates feed the criteria either way.
+function toggleLocalities(on) {
+    legendToggles.localities = !!on;
+    applyLegend();
+}
+
 function toggleBypassIsolate(on) {
     if (typeof traceCode === 'function') traceCode(
         'HV bypass isolate: ' + (on ? 'on' : 'off'),

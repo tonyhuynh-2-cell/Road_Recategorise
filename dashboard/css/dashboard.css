@@ -315,6 +315,33 @@
         .cref-table tr:last-child td { border-bottom: none; }
         .cref-table tr:hover td { background: #f0f9ff; }
         .cref-table td strong { color: var(--ink); font-weight: 700; }
+        /* Road-aware criteria reference: banner + per-row verdict tints + "why" sub-rows (criteria.js) */
+        #cref-road-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            margin: 0 0 16px; padding: 11px 14px; border: 1.5px solid #7c3aed; border-radius: 10px;
+            background: #f5f3ff; }
+        .cref-banner-text { font: 400 12.5px/1.5 var(--sans); color: var(--ink-soft); }
+        .cref-banner-text em { font-style: normal; font-weight: 600; color: #5b21b6; }
+        .cref-banner-btn { flex-shrink: 0; font: 600 11px var(--sans); color: #5b21b6; background: #fff;
+            border: 1px solid #c4b5fd; border-radius: 7px; padding: 6px 10px; cursor: pointer; }
+        .cref-banner-btn:hover { background: #ede9fe; }
+        .cref-table tr.cref-pass td { background: #f0fdf4; }
+        .cref-table tr.cref-fail td { background: #fef2f2; }
+        .cref-table tr.cref-warn td { background: #fafaf9; }
+        .cref-row-badge { display: block; margin-top: 5px; font: 700 10px var(--mono); letter-spacing: .04em; }
+        tr.cref-pass .cref-row-badge { color: #16a34a; }
+        tr.cref-fail .cref-row-badge { color: #dc2626; }
+        tr.cref-warn .cref-row-badge { color: #a8a29e; }
+        .cref-table tr.cref-why-row td { padding: 8px 12px 11px; border-top: none; }
+        .cref-table tr.cref-why-row.cref-pass td { background: #f0fdf4; box-shadow: inset 3px 0 0 #16a34a; }
+        .cref-table tr.cref-why-row.cref-fail td { background: #fef2f2; box-shadow: inset 3px 0 0 #dc2626; }
+        .cref-table tr.cref-why-row.cref-warn td { box-shadow: inset 3px 0 0 #d6d3d1; }
+        .cref-why-cell { font: 400 11.5px/1.55 var(--sans); color: var(--muted); }
+        .cref-why-main { display: block; margin-bottom: 4px; color: var(--ink-soft); }
+        .cref-poi-head { display: block; font: 600 10.5px var(--sans); text-transform: uppercase;
+            letter-spacing: .05em; color: var(--faint); margin: 6px 0 3px; }
+        .cref-poi { display: block; padding-left: 4px; }
+        .cref-poi-pass { color: #15803d; }
+        .cref-poi-fail { color: #b91c1c; }
         /* No black focus box when a road / green line is clicked (canvas + SVG interactive layers). */
         .leaflet-container:focus,
         .leaflet-container *:focus,
@@ -548,6 +575,9 @@
             width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
         .bypass-toggle input:focus-visible + .bt-mark { outline: 2px solid #93b4d8; outline-offset: 1px; }
         .bt-label { white-space: nowrap; }
+        /* Localities pin toggle — same chrome, parked to the LEFT of the HV bypass toggle */
+        .locality-toggle { right: 153px; }
+        .locality-toggle input:checked + .bt-mark { background: #2563eb; border-color: #2563eb; }
 
         /* --- Map widgets (bottom-right, above the HV bypass toggle): distance readout + compass + scale --- */
         .map-widgets { position: absolute; right: 12px; bottom: 64px; z-index: 600; display: flex;
