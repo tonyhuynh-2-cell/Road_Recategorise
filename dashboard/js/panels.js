@@ -573,9 +573,10 @@ function groupBreakdownHTML(rows) {
 // the whole-network / per-region count scans below are computed once per scope and cached. Tab switches
 // then read O(1) instead of re-scanning every road each time. scope: 'all' (Overview) | 'cv' | 'syd'.
 const _scopeCounts = {};
+window._scopeCountsRef = _scopeCounts;
 function scopeCounts(scope) {
     if (_scopeCounts[scope]) return _scopeCounts[scope];
-    let g = 0, o = 0, r = 0;
+    let g = 0, o = 0, r = 0, greenKm = 0, orangeKm = 0, redKm = 0;
     const grp = {
         'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
         'Regional Roads': { green: 0, orange: 0, red: 0, total: 0 }
@@ -588,10 +589,13 @@ function scopeCounts(scope) {
         const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
         const v = (cr && cr.verdict) || a.status;
         const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
-        if (v === 'green') g++; else if (v === 'orange') o++; else r++;
+        const len = a._len || 0;
+        if (v === 'green') { g++; greenKm += len; }
+        else if (v === 'orange') { o++; orangeKm += len; }
+        else { r++; redKm += len; }
         grp[group][v]++; grp[group].total++;
     }
-    return (_scopeCounts[scope] = { g: g, o: o, r: r, grp: grp });
+    return (_scopeCounts[scope] = { g: g, o: o, r: r, greenKm: greenKm, orangeKm: orangeKm, redKm: redKm, grp: grp });
 }
 
 // CV / Sydney tab stats — the Overview breakdown filtered to one region (roads touching the Clarence
@@ -605,14 +609,14 @@ function refreshRegion(key) {
         "function refreshRegion(key) {\n  const { g, o, r, grp } = scopeCounts(key);\n  set(key + '-green', g.toLocaleString());\n  set(key + '-orange', o.toLocaleString());\n  set(key + '-red', r.toLocaleString());\n}",
         key === 'cv' ? 'Clarence Valley roads tagged with _inCV' : 'Sydney roads tagged with _inSyd'
     );
-    const { g, o, r, grp } = scopeCounts(key);
+    const { g, o, r, greenKm, orangeKm, redKm, grp } = scopeCounts(key);
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     set(key + '-total', total.toLocaleString());
-    set(key + '-green', g.toLocaleString()); set(key + '-green-pct', pct(g));
-    set(key + '-orange', o.toLocaleString()); set(key + '-orange-pct', pct(o));
-    set(key + '-red', r.toLocaleString()); set(key + '-red-pct', pct(r));
+    set(key + '-green', g.toLocaleString()); set(key + '-green-pct', pct(g) + ' · ' + Math.round(greenKm).toLocaleString() + ' km');
+    set(key + '-orange', o.toLocaleString()); set(key + '-orange-pct', pct(o) + ' · ' + Math.round(orangeKm).toLocaleString() + ' km');
+    set(key + '-red', r.toLocaleString()); set(key + '-red-pct', pct(r) + ' · ' + Math.round(redKm).toLocaleString() + ' km');
     const grpRows = [natSigGroupRow(nltnRegionCounts(key)), ...Object.entries(grp)].filter(Boolean);
     const gb = document.getElementById(key + '-group-breakdown'); if (gb) gb.innerHTML = groupBreakdownHTML(grpRows);
 }
@@ -674,7 +678,20 @@ const _lensCounts = {};   // non-cross per-lens counts are static after load —
 function nswViewCounts() {
     if (nswView === 'nsr') {
         const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };
-        return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total };   // carry red, don't force 0
+        // Compute km for nationally significant roads from NSW_AGG
+        let gKm = 0, oKm = 0, rKm = 0;
+        const crit = window.NSW_CRIT || {};
+        for (const k in NSW_AGG) {
+            const a = NSW_AGG[k];
+            if (!a._nsr) continue;
+            const cr = crit[k];
+            const nat = (cr && cr.nat) || 'orange';
+            const len = a._len || 0;
+            if (nat === 'green') gKm += len;
+            else if (nat === 'orange') oKm += len;
+            else rKm += len;
+        }
+        return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total, greenKm: gKm, orangeKm: oKm, redKm: rKm };
     }
     // Cross-criteria test on: count each road by its verdict AGAINST the target category (the
     // lens's active mode — asReg / asNat on the State lens, asState on the Regional lens) so the
@@ -682,7 +699,7 @@ function nswViewCounts() {
     const mode = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional) || false;
     if (!mode && _lensCounts[nswView]) return _lensCounts[nswView];   // static verdict counts — O(1)
     const X = mode ? buildXtest() : null;
-    const c = { green: 0, orange: 0, red: 0, total: 0 };
+    const c = { green: 0, orange: 0, red: 0, total: 0, greenKm: 0, orangeKm: 0, redKm: 0 };
     for (const k in NSW_AGG) {
         const a = NSW_AGG[k];
         if (!nswInView(a)) continue;
@@ -690,6 +707,10 @@ function nswViewCounts() {
         if (mode) { const x = X[k]; v = x ? (mode === 'natsig' ? x.asNat : mode === 'regional' ? x.asReg : x.asState) : 'red'; }
         else { const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null; v = (cr && cr.verdict) || a.status; }
         if (c[v] !== undefined) c[v]++;
+        var len = a._len || 0;
+        if (v === 'green') c.greenKm += len;
+        else if (v === 'orange') c.orangeKm += len;
+        else c.redKm += len;
         c.total++;
     }
     if (!mode) _lensCounts[nswView] = c;
@@ -751,13 +772,13 @@ function refreshNswView() {
     const oLbl = mode === 'natsig' ? 'Meets 1 criterion' : m.oLabel;
     document.getElementById('nsw-green-label').textContent = mode ? ('Would meet ' + xm.short) : m.gLabel;
     document.getElementById('nsw-green').textContent = c.green.toLocaleString();
-    document.getElementById('nsw-green-pct').textContent = pct(c.green);
+    document.getElementById('nsw-green-pct').textContent = pct(c.green) + (c.greenKm ? ' · ' + Math.round(c.greenKm).toLocaleString() + ' km' : '');
     document.getElementById('nsw-orange-label').textContent = oLbl;
     document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();
-    document.getElementById('nsw-orange-pct').textContent = pct(c.orange);
+    document.getElementById('nsw-orange-pct').textContent = pct(c.orange) + (c.orangeKm ? ' · ' + Math.round(c.orangeKm).toLocaleString() + ' km' : '');
     document.getElementById('nsw-red-label').textContent = mode ? ('Would not meet ' + xm.short) : (hideRed ? m.rLabel : (m.rLabel || 'Does not meet'));
     document.getElementById('nsw-red').textContent = c.red.toLocaleString();
-    document.getElementById('nsw-red-pct').textContent = pct(c.red);
+    document.getElementById('nsw-red-pct').textContent = pct(c.red) + (c.redKm ? ' · ' + Math.round(c.redKm).toLocaleString() + ' km' : '');
     // Verdict distribution bar — the green/orange(/red) split for this lens, mirroring the Overview's
     // "by road group" bars. Nat. Significant is 2-tier (green/orange, no red — orange takes the
     // remainder); State/Regional are 3-tier (red fills the remainder). Local has no such panel.
@@ -794,6 +815,7 @@ function refreshFresh() {
     const F = buildFresh();
     const RANK = { fnat: 3, fstate: 2, freg: 1, flocal: 0 };
     const counts = { fnat: 0, fstate: 0, freg: 0, flocal: 0 };
+    const km = { fnat: 0, fstate: 0, freg: 0, flocal: 0 };
     let total = 0, keep = 0, up = 0, down = 0, likely = 0;
     for (const k in NSW_AGG) {
         const a = NSW_AGG[k];
@@ -801,6 +823,7 @@ function refreshFresh() {
         const f = F[k]; if (!f) continue;
         total++;
         counts[f.cat]++;
+        km[f.cat] += a._len || 0;
         if (f.tier === 'likely') likely++;
         // Today's standing: Nat. Significant tab membership (_nsr), else the administrative class.
         const cur = a._nsr ? 'fnat' : (a.admin_class === 'S' ? 'fstate' : 'freg');
@@ -810,10 +833,10 @@ function refreshFresh() {
     const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of the network' : '';
     set('fresh-total', total.toLocaleString());
-    set('fresh-nat', counts.fnat.toLocaleString());   set('fresh-nat-sub', pct(counts.fnat));
-    set('fresh-state', counts.fstate.toLocaleString()); set('fresh-state-sub', pct(counts.fstate));
-    set('fresh-reg', counts.freg.toLocaleString());   set('fresh-reg-sub', pct(counts.freg));
-    set('fresh-local', counts.flocal.toLocaleString()); set('fresh-local-sub', pct(counts.flocal));
+    set('fresh-nat', counts.fnat.toLocaleString());   set('fresh-nat-sub', pct(counts.fnat) + ' · ' + Math.round(km.fnat).toLocaleString() + ' km');
+    set('fresh-state', counts.fstate.toLocaleString()); set('fresh-state-sub', pct(counts.fstate) + ' · ' + Math.round(km.fstate).toLocaleString() + ' km');
+    set('fresh-reg', counts.freg.toLocaleString());   set('fresh-reg-sub', pct(counts.freg) + ' · ' + Math.round(km.freg).toLocaleString() + ' km');
+    set('fresh-local', counts.flocal.toLocaleString()); set('fresh-local-sub', pct(counts.flocal) + ' · ' + Math.round(km.flocal).toLocaleString() + ' km');
     set('fresh-move', keep.toLocaleString() + ' roads keep their current tier · ' +
         up.toLocaleString() + ' would move up · ' + down.toLocaleString() + ' would move down · ' +
         likely.toLocaleString() + ' of the ' + total.toLocaleString() + ' are provisional (dashed — 1 of 2 optional)');
@@ -833,16 +856,27 @@ function refreshOverview() {
     // Sydney / CV region cards, but nothing on this panel renders it.)
     const { g, o, r } = scopeCounts('all');
     const total = g + o + r;
-    // Compute total network length
-    var totalKm = 0;
+    // Compute total network length and per-verdict km
+    var totalKm = 0, greenKm = 0, orangeKm = 0, redKm = 0;
     var agg = (typeof NSW_AGG !== 'undefined') ? NSW_AGG : {};
-    for (var k in agg) { var a = agg[k]; if (a.admin_class === 'S' || a.admin_class === 'R') totalKm += a._len || 0; }
+    var crit = window.NSW_CRIT || {};
+    for (var k in agg) {
+        var a = agg[k];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        var len = a._len || 0;
+        totalKm += len;
+        var cr = crit[k];
+        var v = (cr && cr.verdict) || a.status;
+        if (v === 'green') greenKm += len;
+        else if (v === 'orange') orangeKm += len;
+        else redKm += len;
+    }
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     document.getElementById('ov-total').textContent = total.toLocaleString();
     document.getElementById('ov-total-sub').textContent = 'State & Regional roads · ' + Math.round(totalKm).toLocaleString() + ' km · ' + NSW_SEG_TOTAL.toLocaleString() + ' segments';
-    document.getElementById('ov-green').textContent = g.toLocaleString(); document.getElementById('ov-green-pct').textContent = pct(g);
-    document.getElementById('ov-orange').textContent = o.toLocaleString(); document.getElementById('ov-orange-pct').textContent = pct(o);
-    document.getElementById('ov-red').textContent = r.toLocaleString(); document.getElementById('ov-red-pct').textContent = pct(r);
+    document.getElementById('ov-green').textContent = g.toLocaleString(); document.getElementById('ov-green-pct').textContent = pct(g) + ' · ' + Math.round(greenKm).toLocaleString() + ' km';
+    document.getElementById('ov-orange').textContent = o.toLocaleString(); document.getElementById('ov-orange-pct').textContent = pct(o) + ' · ' + Math.round(orangeKm).toLocaleString() + ' km';
+    document.getElementById('ov-red').textContent = r.toLocaleString(); document.getElementById('ov-red-pct').textContent = pct(r) + ' · ' + Math.round(redKm).toLocaleString() + ' km';
     // Map restyle is owned by the follow-up showNSW()->applyLegend() in switchTab/init (avoids styling
     // all ~17k paths twice per tab switch); this panel refresher only updates the stats.
 }

@@ -1,5 +1,118 @@
 // grading.js — criteria→colour styling and lens membership (nswStyle / cvStyle / nswInView).
 
+// --- Criteria overrides ---
+// When active, force specific criteria to pass for ALL roads, recomputing verdicts in real time.
+var criteriaOverrides = {};
+
+function openOverridesPanel() {
+    var modal = document.getElementById('overrides-modal');
+    if (!modal) return;
+    if (!modal.hidden) { closeOverridesPanel(); return; }
+    modal.hidden = false;
+}
+function closeOverridesPanel() {
+    var modal = document.getElementById('overrides-modal');
+    if (modal) modal.hidden = true;
+}
+function resetCriteriaOverrides() {
+    document.querySelectorAll('#overrides-modal input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+    // Restore original verdicts
+    var crit = window.NSW_CRIT || {};
+    var orig = window._ORIG_VERDICTS || {};
+    for (var k in orig) {
+        if (crit[k]) crit[k].verdict = orig[k];
+    }
+    applyCriteriaOverrides();
+}
+function applyCriteriaOverrides() {
+    criteriaOverrides = {
+        pbs1: !!document.getElementById('ov-pbs1').checked,
+        bdouble: !!document.getElementById('ov-bdouble').checked,
+        parallel: !!document.getElementById('ov-parallel').checked,
+        traffic: !!document.getElementById('ov-traffic').checked,
+        centres: !!document.getElementById('ov-centres').checked,
+        dest: !!document.getElementById('ov-dest').checked,
+        hv: !!document.getElementById('ov-hv').checked,
+        ldr: !!document.getElementById('ov-ldr').checked,
+        twostate: !!document.getElementById('ov-twostate').checked
+    };
+    // Recompute verdicts in NSW_CRIT so sidebar stats pick them up
+    var crit = window.NSW_CRIT || {};
+    var counts = { green: 0, orange: 0, red: 0 };
+    for (var k in crit) {
+        var c = crit[k];
+        if (c.cls !== 'State' && c.cls !== 'Regional') continue;
+        var v = computeOverriddenVerdict(c);
+        c.verdict = v;
+        counts[v] = (counts[v] || 0) + 1;
+    }
+    // Update _roadStatus on map features
+    if (typeof nswLayer !== 'undefined' && nswLayer) {
+        nswLayer.eachLayer(function(layer) {
+            var p = layer.feature && layer.feature.properties;
+            if (!p || (p.admin_class !== 'S' && p.admin_class !== 'R')) return;
+            var ck = roadKeyOf(p);
+            var cr = crit[ck];
+            if (cr) p._roadStatus = cr.verdict;
+        });
+        nswLayer.setStyle(nswStyle);
+    }
+    // Invalidate cached cross-test / fresh / scope counts
+    window.XTEST = null;
+    window.FRESH = null;
+    // Clear scope counts cache so sidebar refreshes with new verdicts
+    var sc = window._scopeCountsRef;
+    if (sc) { for (var key in sc) delete sc[key]; }
+    // Refresh the active sidebar panel
+    if (typeof currentTab !== 'undefined') {
+        if (currentTab === 'overview' && typeof refreshOverview === 'function') refreshOverview();
+        else if (currentTab === 'fresh' && typeof refreshFresh === 'function') refreshFresh();
+        else if ((currentTab === 'state' || currentTab === 'regional' || currentTab === 'nsr') && typeof refreshNswView === 'function') refreshNswView();
+        else if (currentTab === 'cv' && typeof refreshCV === 'function') refreshCV();
+        else if (currentTab === 'sydney' && typeof refreshSydney === 'function') refreshSydney();
+    }
+    // Show impact summary
+    var total = counts.green + counts.orange + counts.red;
+    var el = document.getElementById('overrides-impact');
+    if (el && total) {
+        el.innerHTML = '<strong>Impact:</strong> ' +
+            '<span style="color:#16a34a">' + counts.green + ' green (' + Math.round(counts.green/total*100) + '%)</span> · ' +
+            '<span style="color:#f59e0b">' + counts.orange + ' orange (' + Math.round(counts.orange/total*100) + '%)</span> · ' +
+            '<span style="color:#dc2626">' + counts.red + ' red (' + Math.round(counts.red/total*100) + '%)</span>';
+    }
+}
+
+function computeOverriddenVerdict(c) {
+    var isState = c.cls === 'State';
+    // Mandatory gates
+    var mandPass = true;
+    if (isState) {
+        var pbs1 = criteriaOverrides.pbs1 || (c.mand && c.mand.pbs1 !== false);
+        var parallel = criteriaOverrides.parallel || (c.mand && c.mand.parallel !== false);
+        mandPass = pbs1 && parallel;
+    } else {
+        var bd = criteriaOverrides.bdouble || (c.mand && c.mand.bdouble !== false);
+        mandPass = bd;
+    }
+    // Optional criteria count
+    var opt = c.opt || {};
+    var optMet = 0;
+    if (criteriaOverrides.centres || opt.centres === true) optMet++;
+    if (criteriaOverrides.dest || opt.dest === true) optMet++;
+    if (criteriaOverrides.traffic || opt.traffic === true) optMet++;
+    if (!isState) {
+        if (criteriaOverrides.hv || opt.hv === true) optMet++;
+        if (criteriaOverrides.twostate || opt.two_state === true) optMet++;
+    } else {
+        if (criteriaOverrides.ldr || opt.ldr === true) optMet++;
+    }
+    // Verdict
+    if (!mandPass) return 'red';
+    if (optMet >= 2) return 'green';
+    if (optMet === 1) return 'orange';
+    return 'red';
+}
+
 // --- Orange sub-filter ---
 // Classifies each orange road by which single optional criterion it passes.
 // Used by the legend's "Why orange?" toggle group to highlight/dim subsets.
