@@ -562,7 +562,7 @@ function groupBreakdownHTML(rows) {
 const _scopeCounts = {};
 function scopeCounts(scope) {
     if (_scopeCounts[scope]) return _scopeCounts[scope];
-    let g = 0, o = 0, r = 0;
+    let g = 0, o = 0, r = 0, greenKm = 0, orangeKm = 0, redKm = 0;
     const grp = {
         'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
         'Regional Roads': { green: 0, orange: 0, red: 0, total: 0 }
@@ -575,10 +575,13 @@ function scopeCounts(scope) {
         const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
         const v = (cr && cr.verdict) || a.status;
         const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
-        if (v === 'green') g++; else if (v === 'orange') o++; else r++;
+        const len = a._len || 0;
+        if (v === 'green') { g++; greenKm += len; }
+        else if (v === 'orange') { o++; orangeKm += len; }
+        else { r++; redKm += len; }
         grp[group][v]++; grp[group].total++;
     }
-    return (_scopeCounts[scope] = { g: g, o: o, r: r, grp: grp });
+    return (_scopeCounts[scope] = { g: g, o: o, r: r, greenKm: greenKm, orangeKm: orangeKm, redKm: redKm, grp: grp });
 }
 
 // CV / Sydney tab stats — the Overview breakdown filtered to one region (roads touching the Clarence
@@ -592,14 +595,14 @@ function refreshRegion(key) {
         "function refreshRegion(key) {\n  const { g, o, r, grp } = scopeCounts(key);\n  set(key + '-green', g.toLocaleString());\n  set(key + '-orange', o.toLocaleString());\n  set(key + '-red', r.toLocaleString());\n}",
         key === 'cv' ? 'Clarence Valley roads tagged with _inCV' : 'Sydney roads tagged with _inSyd'
     );
-    const { g, o, r, grp } = scopeCounts(key);
+    const { g, o, r, greenKm, orangeKm, redKm, grp } = scopeCounts(key);
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     set(key + '-total', total.toLocaleString());
-    set(key + '-green', g.toLocaleString()); set(key + '-green-pct', pct(g));
-    set(key + '-orange', o.toLocaleString()); set(key + '-orange-pct', pct(o));
-    set(key + '-red', r.toLocaleString()); set(key + '-red-pct', pct(r));
+    set(key + '-green', g.toLocaleString()); set(key + '-green-pct', pct(g) + ' · ' + Math.round(greenKm).toLocaleString() + ' km');
+    set(key + '-orange', o.toLocaleString()); set(key + '-orange-pct', pct(o) + ' · ' + Math.round(orangeKm).toLocaleString() + ' km');
+    set(key + '-red', r.toLocaleString()); set(key + '-red-pct', pct(r) + ' · ' + Math.round(redKm).toLocaleString() + ' km');
     const grpRows = [natSigGroupRow(nltnRegionCounts(key)), ...Object.entries(grp)].filter(Boolean);
     const gb = document.getElementById(key + '-group-breakdown'); if (gb) gb.innerHTML = groupBreakdownHTML(grpRows);
 }
@@ -661,7 +664,7 @@ const _lensCounts = {};   // non-cross per-lens counts are static after load —
 function nswViewCounts() {
     if (nswView === 'nsr') {
         const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };
-        return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total };   // carry red, don't force 0
+        return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total, greenKm: 0, orangeKm: 0, redKm: 0 };   // carry red, don't force 0
     }
     // Cross-criteria test on: count each road by its verdict AGAINST the target category (the
     // lens's active mode — asReg / asNat on the State lens, asState on the Regional lens) so the
@@ -669,7 +672,7 @@ function nswViewCounts() {
     const mode = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional) || false;
     if (!mode && _lensCounts[nswView]) return _lensCounts[nswView];   // static verdict counts — O(1)
     const X = mode ? buildXtest() : null;
-    const c = { green: 0, orange: 0, red: 0, total: 0 };
+    const c = { green: 0, orange: 0, red: 0, total: 0, greenKm: 0, orangeKm: 0, redKm: 0 };
     for (const k in NSW_AGG) {
         const a = NSW_AGG[k];
         if (!nswInView(a)) continue;
@@ -677,6 +680,10 @@ function nswViewCounts() {
         if (mode) { const x = X[k]; v = x ? (mode === 'natsig' ? x.asNat : mode === 'regional' ? x.asReg : x.asState) : 'red'; }
         else { const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null; v = (cr && cr.verdict) || a.status; }
         if (c[v] !== undefined) c[v]++;
+        var len = a._len || 0;
+        if (v === 'green') c.greenKm += len;
+        else if (v === 'orange') c.orangeKm += len;
+        else c.redKm += len;
         c.total++;
     }
     if (!mode) _lensCounts[nswView] = c;
@@ -738,13 +745,13 @@ function refreshNswView() {
     const oLbl = mode === 'natsig' ? 'Meets 1 criterion' : m.oLabel;
     document.getElementById('nsw-green-label').textContent = mode ? ('Would meet ' + xm.short) : m.gLabel;
     document.getElementById('nsw-green').textContent = c.green.toLocaleString();
-    document.getElementById('nsw-green-pct').textContent = pct(c.green);
+    document.getElementById('nsw-green-pct').textContent = pct(c.green) + (c.greenKm ? ' · ' + Math.round(c.greenKm).toLocaleString() + ' km' : '');
     document.getElementById('nsw-orange-label').textContent = oLbl;
     document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();
-    document.getElementById('nsw-orange-pct').textContent = pct(c.orange);
+    document.getElementById('nsw-orange-pct').textContent = pct(c.orange) + (c.orangeKm ? ' · ' + Math.round(c.orangeKm).toLocaleString() + ' km' : '');
     document.getElementById('nsw-red-label').textContent = mode ? ('Would not meet ' + xm.short) : (hideRed ? m.rLabel : (m.rLabel || 'Does not meet'));
     document.getElementById('nsw-red').textContent = c.red.toLocaleString();
-    document.getElementById('nsw-red-pct').textContent = pct(c.red);
+    document.getElementById('nsw-red-pct').textContent = pct(c.red) + (c.redKm ? ' · ' + Math.round(c.redKm).toLocaleString() + ' km' : '');
     // Verdict distribution bar — the green/orange(/red) split for this lens, mirroring the Overview's
     // "by road group" bars. Nat. Significant is 2-tier (green/orange, no red — orange takes the
     // remainder); State/Regional are 3-tier (red fills the remainder). Local has no such panel.
