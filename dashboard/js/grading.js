@@ -9,10 +9,14 @@ function openOverridesPanel() {
     if (!modal) return;
     if (!modal.hidden) { closeOverridesPanel(); return; }
     modal.hidden = false;
+    var btn = document.getElementById('overrides-btn');
+    if (btn) btn.classList.add('criteria-btn-active');
 }
 function closeOverridesPanel() {
     var modal = document.getElementById('overrides-modal');
     if (modal) modal.hidden = true;
+    var btn = document.getElementById('overrides-btn');
+    if (btn) btn.classList.remove('criteria-btn-active');
 }
 function resetCriteriaOverrides() {
     document.querySelectorAll('#overrides-modal input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
