@@ -16,6 +16,12 @@ function closeOverridesPanel() {
 }
 function resetCriteriaOverrides() {
     document.querySelectorAll('#overrides-modal input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+    // Reset sliders to defaults
+    var defaults = { 'ov-bdouble-pct': 80, 'ov-adt-state': 10000, 'ov-adt-regional': 7000, 'ov-town-pop': 2000, 'ov-major-pop': 7000, 'ov-emp-urban': 40, 'ov-emp-regional': 15, 'ov-emp-remote': 5 };
+    for (var id in defaults) {
+        var el = document.getElementById(id);
+        if (el) { el.value = defaults[id]; updateSliderLabel(el); }
+    }
     // Restore original verdicts
     var crit = window.NSW_CRIT || {};
     var orig = window._ORIG_VERDICTS || {};
@@ -23,6 +29,23 @@ function resetCriteriaOverrides() {
         if (crit[k]) crit[k].verdict = orig[k];
     }
     applyCriteriaOverrides();
+}
+
+// Slider label formatter
+function updateSliderLabel(el) {
+    var val = Number(el.value);
+    var labelEl = document.getElementById(el.id + '-val');
+    if (!labelEl) return;
+    if (el.id === 'ov-bdouble-pct') labelEl.textContent = val + '%';
+    else if (el.id.indexOf('ov-emp') === 0) labelEl.textContent = val + ' ha';
+    else labelEl.textContent = val.toLocaleString();
+}
+
+// Debounced apply — prevents lag while dragging sliders
+var _overrideTimer = null;
+function applyCriteriaOverridesDebounced() {
+    if (_overrideTimer) clearTimeout(_overrideTimer);
+    _overrideTimer = setTimeout(applyCriteriaOverrides, 80);
 }
 function applyCriteriaOverrides() {
     criteriaOverrides = {
@@ -36,13 +59,26 @@ function applyCriteriaOverrides() {
         ldr: !!document.getElementById('ov-ldr').checked,
         twostate: !!document.getElementById('ov-twostate').checked
     };
+    // Read slider values
+    var bdEl = document.getElementById('ov-bdouble-pct');
+    var adtSEl = document.getElementById('ov-adt-state');
+    var adtREl = document.getElementById('ov-adt-regional');
+    var tpEl = document.getElementById('ov-town-pop');
+    var mpEl = document.getElementById('ov-major-pop');
+    window._overrideSliders = {
+        bdoublePct: bdEl ? Number(bdEl.value) : 80,
+        adtState: adtSEl ? Number(adtSEl.value) : 10000,
+        adtRegional: adtREl ? Number(adtREl.value) : 7000,
+        townPop: tpEl ? Number(tpEl.value) : 2000,
+        majorPop: mpEl ? Number(mpEl.value) : 7000
+    };
     // Recompute verdicts in NSW_CRIT so sidebar stats pick them up
     var crit = window.NSW_CRIT || {};
     var counts = { green: 0, orange: 0, red: 0 };
     for (var k in crit) {
         var c = crit[k];
         if (c.cls !== 'State' && c.cls !== 'Regional') continue;
-        var v = computeOverriddenVerdict(c);
+        var v = computeOverriddenVerdict(c, k);
         c.verdict = v;
         counts[v] = (counts[v] || 0) + 1;
     }
@@ -82,8 +118,10 @@ function applyCriteriaOverrides() {
     }
 }
 
-function computeOverriddenVerdict(c) {
+function computeOverriddenVerdict(c, roadKey) {
     var isState = c.cls === 'State';
+    var sliders = window._overrideSliders || {};
+
     // Mandatory gates
     var mandPass = true;
     if (isState) {
@@ -91,21 +129,85 @@ function computeOverriddenVerdict(c) {
         var parallel = criteriaOverrides.parallel || (c.mand && c.mand.parallel !== false);
         mandPass = pbs1 && parallel;
     } else {
-        var bd = criteriaOverrides.bdouble || (c.mand && c.mand.bdouble !== false);
+        // B-double: use slider threshold against actual coverage
+        var bdThreshold = (sliders.bdoublePct != null) ? sliders.bdoublePct / 100 : 0.8;
+        var nhvrData = (window.NHVR || {})[roadKey] || {};
+        var bdCov = nhvrData.bdouble_coverage;
+        var bd;
+        if (criteriaOverrides.bdouble) {
+            bd = true;
+        } else if (bdCov != null) {
+            bd = bdCov >= bdThreshold;
+        } else {
+            bd = c.mand && c.mand.bdouble !== false;
+        }
         mandPass = bd;
     }
+
     // Optional criteria count
     var opt = c.opt || {};
     var optMet = 0;
-    if (criteriaOverrides.centres || opt.centres === true) optMet++;
+
+    // Centres: re-evaluate with population slider
+    if (criteriaOverrides.centres || opt.centres === true) {
+        // Check if population slider changes the result
+        if (criteriaOverrides.centres) {
+            optMet++;
+        } else if (sliders.townPop !== 2000 || sliders.majorPop !== 7000) {
+            // Re-filter centres from evidence
+            var evid = (window.NSW_EVID || {})[roadKey] || {};
+            var centres = evid.centres || [];
+            var qualifying = centres.filter(function(ctr) {
+                var pop = ctr.population || 0;
+                if (ctr.kind === 'sua') return true; // SUAs always qualify
+                if (pop >= (sliders.majorPop || 7000)) return true; // Major Town+
+                if (pop >= (sliders.townPop || 2000)) return !isState || c.area === 'urban'; // Town Centre (not for rural State)
+                return false;
+            });
+            var distinctNames = {};
+            qualifying.forEach(function(ctr) { distinctNames[ctr.name] = 1; });
+            if (Object.keys(distinctNames).length >= 2) optMet++;
+        } else {
+            optMet++;
+        }
+    } else if (sliders.townPop < 2000 || sliders.majorPop < 7000) {
+        // Lower thresholds might make previously-failing roads pass
+        var evid2 = (window.NSW_EVID || {})[roadKey] || {};
+        var centres2 = evid2.centres || [];
+        var qualifying2 = centres2.filter(function(ctr) {
+            var pop = ctr.population || 0;
+            if (ctr.kind === 'sua') return true;
+            if (pop >= (sliders.majorPop || 7000)) return true;
+            if (pop >= (sliders.townPop || 2000)) return !isState || c.area === 'urban';
+            return false;
+        });
+        var distinctNames2 = {};
+        qualifying2.forEach(function(ctr) { distinctNames2[ctr.name] = 1; });
+        if (Object.keys(distinctNames2).length >= 2) optMet++;
+    }
+
+    // Facilities/employment
     if (criteriaOverrides.dest || opt.dest === true) optMet++;
-    if (criteriaOverrides.traffic || opt.traffic === true) optMet++;
+
+    // Traffic: use AADT slider
+    if (criteriaOverrides.traffic || opt.traffic === true) {
+        optMet++;
+    } else if (sliders.adtState || sliders.adtRegional) {
+        var adtData = (window.ADT || {})[roadKey];
+        if (adtData && adtData.adt != null) {
+            var threshold = isState ? (sliders.adtState || 10000) : (sliders.adtRegional || 7000);
+            if (adtData.adt >= threshold) optMet++;
+        }
+    }
+
+    // Road train (Regional only)
     if (!isState) {
         if (criteriaOverrides.hv || opt.hv === true) optMet++;
         if (criteriaOverrides.twostate || opt.two_state === true) optMet++;
     } else {
         if (criteriaOverrides.ldr || opt.ldr === true) optMet++;
     }
+
     // Verdict
     if (!mandPass) return 'red';
     if (optMet >= 2) return 'green';
