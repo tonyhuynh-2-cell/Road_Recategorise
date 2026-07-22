@@ -609,7 +609,28 @@ function refreshRegion(key) {
         "function refreshRegion(key) {\n  const { g, o, r, grp } = scopeCounts(key);\n  set(key + '-green', g.toLocaleString());\n  set(key + '-orange', o.toLocaleString());\n  set(key + '-red', r.toLocaleString());\n}",
         key === 'cv' ? 'Clarence Valley roads tagged with _inCV' : 'Sydney roads tagged with _inSyd'
     );
-    const { g, o, r, greenKm, orangeKm, redKm, grp } = scopeCounts(key);
+    // When a category lens is active (State/Regional), filter the region stats to only that class.
+    const lensClass = (nswView === 'state') ? 'S' : (nswView === 'regional') ? 'R' : null;
+    let g = 0, o = 0, r = 0, greenKm = 0, orangeKm = 0, redKm = 0;
+    const grp = {
+        'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
+        'Regional Roads': { green: 0, orange: 0, red: 0, total: 0 }
+    };
+    for (const k in NSW_AGG) {
+        const a = NSW_AGG[k];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        if (key === 'cv' && !a._inCV) continue;
+        if (key === 'syd' && !a._inSyd) continue;
+        if (lensClass && a.admin_class !== lensClass) continue;
+        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
+        const v = (cr && cr.verdict) || a.status;
+        const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
+        const len = a._len || 0;
+        if (v === 'green') { g++; greenKm += len; }
+        else if (v === 'orange') { o++; orangeKm += len; }
+        else { r++; redKm += len; }
+        grp[group][v]++; grp[group].total++;
+    }
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
