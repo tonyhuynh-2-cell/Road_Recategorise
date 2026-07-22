@@ -280,6 +280,7 @@
         /* Criteria modal — overlays the map area */
         .criteria-modal { position: absolute; inset: 0; z-index: 700; display: flex; flex-direction: column;
             background: rgba(255,255,255,.98); backdrop-filter: blur(4px); animation: cmFadeIn .2s ease; }
+        #overrides-modal { background: rgba(255,255,255,.60); backdrop-filter: blur(8px); }
         .criteria-modal[hidden] { display: none; }
         @keyframes cmFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         .cm-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
@@ -520,8 +521,8 @@
         .town-popup .tp-note { color: var(--ink-soft); font: 400 10.5px/1.35 var(--sans); margin-top: 6px; max-width: 220px; }
 
         /* Connectivity evidence list in the Road Detail panel — the named entities a criterion connects */
-        .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 5px; }
-        .ev-item { display: flex; align-items: flex-start; gap: 7px; font: 400 11.5px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; flex-wrap: wrap; }
+        .ev-list { margin: 1px 0 10px 27px; display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+        .ev-item { display: flex; align-items: flex-start; gap: 7px; font: 400 11.5px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; flex-wrap: wrap; min-width: 0; }
         .ev-item:hover .ev-name { text-decoration: underline; }
         .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
         .ev-dot.ev-town { background: #1d4ed8; }
@@ -529,12 +530,12 @@
         .ev-dot.ev-hosp { background: #dc2626; }
         .ev-dot.ev-dest { background: #7c3aed; }
         .ev-dot.ev-employ { background: #0f766e; }
-        .ev-dot.ev-employ.is-nearby { background: #fff; border: 1.5px dashed #64748b; }
+        .ev-dot.ev-employ.is-nearby { background: #f59e0b; }
         .ev-dot.ev-employ.is-qualifying { box-shadow: 0 0 0 2px #ccfbf1; }
-        .ev-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
+        .ev-name { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
         .ev-meta { color: var(--faint); font-size: 10.5px; margin-left: auto; white-space: nowrap; text-align: right; }
         .ev-review-item { padding: 2px 0; flex-wrap: wrap; }
-        .ev-review-item .ev-dot { margin-top: 6px; }
+        .ev-review-item .ev-dot { margin-top: 4px; }
         .ev-review-item .ev-copy { flex-basis: calc(100% - 22px); }
         .ev-review-item .ev-meta { flex-basis: 100%; margin-left: 15px; text-align: right; white-space: normal; word-break: break-word; }
         .ev-copy { display: flex; min-width: 0; flex-direction: column; flex: 1; }
