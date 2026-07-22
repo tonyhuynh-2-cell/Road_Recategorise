@@ -25,7 +25,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/
     attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
 }).addTo(map);
 
-let nswLayer, nswTownsLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, sydBoundaryLayer, nltnLayer, bypassLayer, localRoadsXLayer;
+let nswLayer, nswTownsLayer, nswLocalityCentresLayer, cvLayer, cvClipLayer, cvBoundaryLayer, cvTownsLayer, sydBoundaryLayer, nltnLayer, bypassLayer, localRoadsXLayer;
 
 
 // Dedicated pane for the NLTN 2020 reference network. It sits ABOVE the road overlay (z-index 400)
@@ -391,7 +391,12 @@ function showRoadDistance(km) {
 function hideRoadDistance() { const el = document.getElementById('mw-distance'); if (el) el.hidden = true; }
 
 function updateTownLabels() {
-    map.getContainer().classList.toggle('labels-on', map.getZoom() >= LABEL_ZOOM);
+    var container = map.getContainer();
+    var zoom = map.getZoom();
+    container.classList.toggle('labels-on', zoom >= LOCAL_ZOOM);
+    ['8', '10', '11', '12', '13'].forEach(function (level) {
+        container.classList.toggle('centres-z' + level, zoom >= Number(level));
+    });
 }
 
 map.on('zoomend', updateTownLabels);
