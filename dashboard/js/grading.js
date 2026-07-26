@@ -122,6 +122,29 @@ function applyCriteriaOverrides() {
     }
 }
 
+// Connectivity-centre pass for the overrides panel — the client mirror of the pipeline's
+// connectivity_centre_names (rebuild_road_units.py): drop the metro capital bubble (a centre
+// >= 100k that is NOT a suburb — Greater Sydney + the four big SUAs), then require >= 2 distinct
+// centres at the zone's Major-Town floor (urban 10k / regional 7k / remote 5k, from window.ZONE).
+// The major-town slider, when moved off its 7,000 default, replaces the zone floor globally — a
+// uniform-threshold what-if. At the default it reproduces each road's base opt.centres exactly.
+function overrideCentrePass(roadKey) {
+    var sliders = window._overrideSliders || {};
+    var centres = ((window.NSW_EVID || {})[roadKey] || {}).centres || [];
+    var ZFLOOR = { urban: 10000, regional: 7000, remote: 5000 };
+    var zone = (window.ZONE || {})[roadKey] || 'regional';
+    var floor = (sliders.majorPop != null && sliders.majorPop !== 7000)
+        ? sliders.majorPop : (ZFLOOR[zone] || 7000);
+    var names = {};
+    for (var i = 0; i < centres.length; i++) {
+        var ctr = centres[i];
+        var pop = ctr.pop || ctr.population || 0;   // evidence field is `pop`
+        if (pop >= 100000 && ctr.kind !== 'sal') continue;   // metro capital bubble -> NatSig only
+        if (pop >= floor && ctr.name) names[ctr.name] = 1;
+    }
+    return Object.keys(names).length >= 2;
+}
+
 function computeOverriddenVerdict(c, roadKey) {
     var isState = c.cls === 'State';
     var sliders = window._overrideSliders || {};
@@ -129,9 +152,11 @@ function computeOverriddenVerdict(c, roadKey) {
     // Mandatory gates
     var mandPass = true;
     if (isState) {
-        var pbs1 = criteriaOverrides.pbs1 || (c.mand && c.mand.pbs1 !== false);
-        var parallel = criteriaOverrides.parallel || (c.mand && c.mand.parallel !== false);
-        mandPass = pbs1 && parallel;
+        // Base verdict_of gates State on PBS-1 ONLY — the parallel-State-road value is stored in
+        // mand but never scored — so the panel must match, else roads with parallel=false wrongly
+        // read red here while the map shows them green/orange. (The 'parallel' override checkbox is
+        // therefore inert, mirroring the base rule; kept for layout.)
+        mandPass = criteriaOverrides.pbs1 || (c.mand && c.mand.pbs1 !== false);
     } else {
         // B-double: use slider threshold against actual coverage
         var bdThreshold = (sliders.bdoublePct != null) ? sliders.bdoublePct / 100 : 0.8;
@@ -152,43 +177,11 @@ function computeOverriddenVerdict(c, roadKey) {
     var opt = c.opt || {};
     var optMet = 0;
 
-    // Centres: re-evaluate with population slider
-    if (criteriaOverrides.centres || opt.centres === true) {
-        // Check if population slider changes the result
-        if (criteriaOverrides.centres) {
-            optMet++;
-        } else if (sliders.townPop !== 2000 || sliders.majorPop !== 7000) {
-            // Re-filter centres from evidence
-            var evid = (window.NSW_EVID || {})[roadKey] || {};
-            var centres = evid.centres || [];
-            var qualifying = centres.filter(function(ctr) {
-                var pop = ctr.population || 0;
-                if (ctr.kind === 'sua') return true; // SUAs always qualify
-                if (pop >= (sliders.majorPop || 7000)) return true; // Major Town+
-                if (pop >= (sliders.townPop || 2000)) return !isState || c.area === 'urban'; // Town Centre (not for rural State)
-                return false;
-            });
-            var distinctNames = {};
-            qualifying.forEach(function(ctr) { distinctNames[ctr.name] = 1; });
-            if (Object.keys(distinctNames).length >= 2) optMet++;
-        } else {
-            optMet++;
-        }
-    } else if (sliders.townPop < 2000 || sliders.majorPop < 7000) {
-        // Lower thresholds might make previously-failing roads pass
-        var evid2 = (window.NSW_EVID || {})[roadKey] || {};
-        var centres2 = evid2.centres || [];
-        var qualifying2 = centres2.filter(function(ctr) {
-            var pop = ctr.population || 0;
-            if (ctr.kind === 'sua') return true;
-            if (pop >= (sliders.majorPop || 7000)) return true;
-            if (pop >= (sliders.townPop || 2000)) return !isState || c.area === 'urban';
-            return false;
-        });
-        var distinctNames2 = {};
-        qualifying2.forEach(function(ctr) { distinctNames2[ctr.name] = 1; });
-        if (Object.keys(distinctNames2).length >= 2) optMet++;
-    }
+    // Centres (S-10/R-05): drop the metro capital bubble + Major-Town floor by zone, via
+    // overrideCentrePass (mirrors the base rule). The "force centres" checkbox still forces a pass;
+    // otherwise the major-town slider drives the floor. (The town-population slider no longer affects
+    // centres — the connectivity rule is a single Major-Town floor, with no separate Town tier.)
+    if (criteriaOverrides.centres || overrideCentrePass(roadKey)) optMet++;
 
     // Facilities/employment
     if (criteriaOverrides.dest || opt.dest === true) optMet++;
