@@ -620,63 +620,6 @@
                 <label class="override-toggle"><input type="checkbox" id="ov-hv" onchange="applyCriteriaOverrides()"><span>Assume road-train access (Regional)</span></label>
                 <label class="override-toggle"><input type="checkbox" id="ov-ldr" onchange="applyCriteriaOverrides()"><span>Assume long-distance rural route (State)</span></label>
                 <label class="override-toggle"><input type="checkbox" id="ov-twostate" onchange="applyCriteriaOverrides()"><span>Assume links two State roads (Regional)</span></label>
-                <h3 style="font:600 10px var(--sans); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 10px;">Threshold adjustments</h3>
-                <div class="override-slider">
-                    <label>B-double coverage required</label>
-                    <div class="slider-row">
-                        <input type="range" id="ov-bdouble-pct" min="0" max="100" value="80" step="5" oninput="updateSliderLabel(this); applyCriteriaOverridesDebounced()">
-                        <span class="slider-val" id="ov-bdouble-pct-val">80%</span>
-                    </div>
-                </div>
-                <div class="override-slider">
-                    <label>AADT threshold — State roads</label>
-                    <div class="slider-row">
-                        <input type="range" id="ov-adt-state" min="0" max="20000" value="10000" step="500" oninput="updateSliderLabel(this); applyCriteriaOverridesDebounced()">
-                        <span class="slider-val" id="ov-adt-state-val">10,000</span>
-                    </div>
-                </div>
-                <div class="override-slider">
-                    <label>AADT threshold — Regional roads</label>
-                    <div class="slider-row">
-                        <input type="range" id="ov-adt-regional" min="0" max="15000" value="7000" step="500" oninput="updateSliderLabel(this); applyCriteriaOverridesDebounced()">
-                        <span class="slider-val" id="ov-adt-regional-val">7,000</span>
-                    </div>
-                </div>
-                <div class="override-slider">
-                    <label>Town Centre min. population</label>
-                    <div class="slider-row">
-                        <input type="range" id="ov-town-pop" min="500" max="10000" value="2000" step="250" oninput="updateSliderLabel(this); applyCriteriaOverridesDebounced()">
-                        <span class="slider-val" id="ov-town-pop-val">2,000</span>
-                    </div>
-                </div>
-                <div class="override-slider">
-                    <label>Major Town min. population</label>
-                    <div class="slider-row">
-                        <input type="range" id="ov-major-pop" min="2000" max="20000" value="7000" step="500" oninput="updateSliderLabel(this); applyCriteriaOverridesDebounced()">
-                        <span class="slider-val" id="ov-major-pop-val">7,000</span>
-                    </div>
-                </div>
-                <div class="override-slider">
-                    <label>Employment centre min. size (ha) — Urban</label>
-                    <div class="slider-row">
-                        <input type="range" id="ov-emp-urban" min="0" max="100" value="40" step="5" oninput="updateSliderLabel(this); applyCriteriaOverridesDebounced()">
-                        <span class="slider-val" id="ov-emp-urban-val">40 ha</span>
-                    </div>
-                </div>
-                <div class="override-slider">
-                    <label>Employment centre min. size (ha) — Regional</label>
-                    <div class="slider-row">
-                        <input type="range" id="ov-emp-regional" min="0" max="50" value="15" step="5" oninput="updateSliderLabel(this); applyCriteriaOverridesDebounced()">
-                        <span class="slider-val" id="ov-emp-regional-val">15 ha</span>
-                    </div>
-                </div>
-                <div class="override-slider">
-                    <label>Employment centre min. size (ha) — Remote</label>
-                    <div class="slider-row">
-                        <input type="range" id="ov-emp-remote" min="0" max="20" value="5" step="1" oninput="updateSliderLabel(this); applyCriteriaOverridesDebounced()">
-                        <span class="slider-val" id="ov-emp-remote-val">5 ha</span>
-                    </div>
-                </div>
                 <div style="margin-top:20px; padding-top:14px; border-top:1px solid var(--line);">
                     <button class="tab-btn" style="width:100%; padding:10px;" onclick="resetCriteriaOverrides()">Reset all overrides</button>
                 </div>

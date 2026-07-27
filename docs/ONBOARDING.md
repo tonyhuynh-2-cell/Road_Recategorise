@@ -53,7 +53,7 @@ pip install geopandas pandas numpy shapely scipy pyogrio
 1. A developer runs one or more `dashboard/rebuild_*.py` scripts (dry-run first, then `--apply`), which read raw source data and write/update JSON files in `dashboard/data/`.
 2. A user opens `dashboard/index.html` in a browser (served statically).
 3. `init.js` fetches ~30 JSON/GeoJSON files in parallel, builds in-memory aggregates (`window.NSW_AGG`, `window.NSW_CRIT`, `window.NSW_EVID`, etc.), and builds the Leaflet road-overlay layer.
-4. The user interacts (clicks a road, switches a tab, drags a Criteria Override slider). Every interaction mutates a small set of shared `let`-declared globals and then forces Leaflet to re-render (`nswLayer.setStyle(nswStyle)`).
+4. The user interacts (clicks a road, switches a tab, toggles a Criteria Override). Every interaction mutates a small set of shared globals and then forces Leaflet to re-render (`nswLayer.setStyle(nswStyle)`).
 5. Nothing is sent to a server. Export happens entirely in-browser (ExcelJS generates and downloads an `.xlsx` file).
 
 ## 5. How to debug it
@@ -84,7 +84,7 @@ pip install geopandas pandas numpy shapely scipy pyogrio
 - **Assuming a criterion is "wrong" because it seems strict** — check `CRITERIA_ISSUES.md` and `docs/DECISIONS.md` first; several apparently-strict rules (like the B-double 80% threshold) are deliberate engineering choices, though some ARE flagged as possibly needing revision (see `docs/STATUS.md`).
 - **Refactoring "duplicate-looking" code across JS files** — the defensive `typeof X !== 'undefined'` checks scattered everywhere are load-order safety, not accidental duplication. Removing them can break things that only manifest when scripts load in a different order (e.g. during specific tab-switch sequences).
 - **Running a `rebuild_*.py` script with `--apply` without reading the dry-run output first** — always dry-run first, read the impact summary, then apply.
-- **Treating Criteria Overrides slider results as final/authoritative** — they're a fast client-side approximation for exploration, not a substitute for a real pipeline re-run (see `docs/DECISIONS.md` D-08).
+- **Using force-pass Criteria Overrides as authoritative output** — they are scenario checks, not a substitute for a real pipeline rebuild and validation (see `docs/DECISIONS.md` D-08).
 
 ## 7. Recommended development workflow for a new task
 

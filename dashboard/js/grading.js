@@ -20,12 +20,6 @@ function closeOverridesPanel() {
 }
 function resetCriteriaOverrides() {
     document.querySelectorAll('#overrides-modal input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
-    // Reset sliders to defaults
-    var defaults = { 'ov-bdouble-pct': 80, 'ov-adt-state': 10000, 'ov-adt-regional': 7000, 'ov-town-pop': 2000, 'ov-major-pop': 7000, 'ov-emp-urban': 40, 'ov-emp-regional': 15, 'ov-emp-remote': 5 };
-    for (var id in defaults) {
-        var el = document.getElementById(id);
-        if (el) { el.value = defaults[id]; updateSliderLabel(el); }
-    }
     // Restore original verdicts
     var crit = window.NSW_CRIT || {};
     var orig = window._ORIG_VERDICTS || {};
@@ -35,22 +29,6 @@ function resetCriteriaOverrides() {
     applyCriteriaOverrides();
 }
 
-// Slider label formatter
-function updateSliderLabel(el) {
-    var val = Number(el.value);
-    var labelEl = document.getElementById(el.id + '-val');
-    if (!labelEl) return;
-    if (el.id === 'ov-bdouble-pct') labelEl.textContent = val + '%';
-    else if (el.id.indexOf('ov-emp') === 0) labelEl.textContent = val + ' ha';
-    else labelEl.textContent = val.toLocaleString();
-}
-
-// Debounced apply — prevents lag while dragging sliders
-var _overrideTimer = null;
-function applyCriteriaOverridesDebounced() {
-    if (_overrideTimer) clearTimeout(_overrideTimer);
-    _overrideTimer = setTimeout(applyCriteriaOverrides, 80);
-}
 function applyCriteriaOverrides() {
     criteriaOverrides = {
         pbs1: !!document.getElementById('ov-pbs1').checked,
@@ -63,26 +41,13 @@ function applyCriteriaOverrides() {
         ldr: !!document.getElementById('ov-ldr').checked,
         twostate: !!document.getElementById('ov-twostate').checked
     };
-    // Read slider values
-    var bdEl = document.getElementById('ov-bdouble-pct');
-    var adtSEl = document.getElementById('ov-adt-state');
-    var adtREl = document.getElementById('ov-adt-regional');
-    var tpEl = document.getElementById('ov-town-pop');
-    var mpEl = document.getElementById('ov-major-pop');
-    window._overrideSliders = {
-        bdoublePct: bdEl ? Number(bdEl.value) : 80,
-        adtState: adtSEl ? Number(adtSEl.value) : 10000,
-        adtRegional: adtREl ? Number(adtREl.value) : 7000,
-        townPop: tpEl ? Number(tpEl.value) : 2000,
-        majorPop: mpEl ? Number(mpEl.value) : 7000
-    };
     // Recompute verdicts in NSW_CRIT so sidebar stats pick them up
     var crit = window.NSW_CRIT || {};
     var counts = { green: 0, orange: 0, red: 0 };
     for (var k in crit) {
         var c = crit[k];
         if (c.cls !== 'State' && c.cls !== 'Regional') continue;
-        var v = computeOverriddenVerdict(c, k);
+        var v = computeOverriddenVerdict(c);
         c.verdict = v;
         counts[v] = (counts[v] || 0) + 1;
     }
@@ -122,32 +87,8 @@ function applyCriteriaOverrides() {
     }
 }
 
-// Connectivity-centre pass for the overrides panel — the client mirror of the pipeline's
-// connectivity_centre_names (rebuild_road_units.py): drop the metro capital bubble (a centre
-// >= 100k that is NOT a suburb — Greater Sydney + the four big SUAs), then require >= 2 distinct
-// centres at the zone's Major-Town floor (urban 10k / regional 7k / remote 5k, from window.ZONE).
-// The major-town slider, when moved off its 7,000 default, replaces the zone floor globally — a
-// uniform-threshold what-if. At the default it reproduces each road's base opt.centres exactly.
-function overrideCentrePass(roadKey) {
-    var sliders = window._overrideSliders || {};
-    var centres = ((window.NSW_EVID || {})[roadKey] || {}).centres || [];
-    var ZFLOOR = { urban: 10000, regional: 7000, remote: 5000 };
-    var zone = (window.ZONE || {})[roadKey] || 'regional';
-    var floor = (sliders.majorPop != null && sliders.majorPop !== 7000)
-        ? sliders.majorPop : (ZFLOOR[zone] || 7000);
-    var names = {};
-    for (var i = 0; i < centres.length; i++) {
-        var ctr = centres[i];
-        var pop = ctr.pop || ctr.population || 0;   // evidence field is `pop`
-        if (pop >= 100000 && ctr.kind !== 'sal') continue;   // metro capital bubble -> NatSig only
-        if (pop >= floor && ctr.name) names[ctr.name] = 1;
-    }
-    return Object.keys(names).length >= 2;
-}
-
-function computeOverriddenVerdict(c, roadKey) {
+function computeOverriddenVerdict(c) {
     var isState = c.cls === 'State';
-    var sliders = window._overrideSliders || {};
 
     // Mandatory gates
     var mandPass = true;
@@ -158,44 +99,20 @@ function computeOverriddenVerdict(c, roadKey) {
         // therefore inert, mirroring the base rule; kept for layout.)
         mandPass = criteriaOverrides.pbs1 || (c.mand && c.mand.pbs1 !== false);
     } else {
-        // B-double: use slider threshold against actual coverage
-        var bdThreshold = (sliders.bdoublePct != null) ? sliders.bdoublePct / 100 : 0.8;
-        var nhvrData = (window.NHVR || {})[roadKey] || {};
-        var bdCov = nhvrData.bdouble_coverage;
-        var bd;
-        if (criteriaOverrides.bdouble) {
-            bd = true;
-        } else if (bdCov != null) {
-            bd = bdCov >= bdThreshold;
-        } else {
-            bd = c.mand && c.mand.bdouble !== false;
-        }
-        mandPass = bd;
+        mandPass = criteriaOverrides.bdouble || (c.mand && c.mand.bdouble !== false);
     }
 
     // Optional criteria count
     var opt = c.opt || {};
     var optMet = 0;
 
-    // Centres (S-10/R-05): drop the metro capital bubble + Major-Town floor by zone, via
-    // overrideCentrePass (mirrors the base rule). The "force centres" checkbox still forces a pass;
-    // otherwise the major-town slider drives the floor. (The town-population slider no longer affects
-    // centres — the connectivity rule is a single Major-Town floor, with no separate Town tier.)
-    if (criteriaOverrides.centres || overrideCentrePass(roadKey)) optMet++;
+    // With no force-pass override, retain the pipeline's original criterion result.
+    if (criteriaOverrides.centres || opt.centres === true) optMet++;
 
     // Facilities/employment
     if (criteriaOverrides.dest || opt.dest === true) optMet++;
 
-    // Traffic: use AADT slider
-    if (criteriaOverrides.traffic || opt.traffic === true) {
-        optMet++;
-    } else if (sliders.adtState || sliders.adtRegional) {
-        var adtData = (window.ADT || {})[roadKey];
-        if (adtData && adtData.adt != null) {
-            var threshold = isState ? (sliders.adtState || 10000) : (sliders.adtRegional || 7000);
-            if (adtData.adt >= threshold) optMet++;
-        }
-    }
+    if (criteriaOverrides.traffic || opt.traffic === true) optMet++;
 
     // Road train (Regional only)
     if (!isState) {

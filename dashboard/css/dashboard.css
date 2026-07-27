@@ -306,11 +306,6 @@
         .override-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; font: 400 13px var(--sans); color: var(--ink); }
         .override-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer; flex-shrink: 0; }
         .override-toggle span { line-height: 1.4; }
-        .override-slider { margin-bottom: 14px; }
-        .override-slider label { display: block; font: 400 12px var(--sans); color: var(--ink-soft); margin-bottom: 5px; }
-        .slider-row { display: flex; align-items: center; gap: 10px; }
-        .slider-row input[type="range"] { flex: 1; height: 4px; accent-color: #2563eb; cursor: pointer; }
-        .slider-val { font: 600 11px var(--mono); color: var(--ink); min-width: 52px; text-align: right; }
 
         /* Criteria reference content styling */
         .cref h2 { font: 700 16px var(--sans); color: var(--ink); margin: 30px 0 14px; padding-bottom: 10px; border-bottom: 2px solid #2563eb; }

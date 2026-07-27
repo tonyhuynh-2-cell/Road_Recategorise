@@ -70,7 +70,7 @@ From the interpretation log (`CRITERIA_ISSUES.md`) and project conversations, th
 
 3. **One administrative road number can be legally one road but geographically several disconnected pieces**, or can be shared/reused across genuinely different corridors. This caused real confusion (one road showing contradictory verdicts) until the "declared road" / "road unit" two-level model was introduced (see `DECISIONS.md` D-04).
 
-4. **The client wants to sanity-check the tool's assumptions interactively**, not just receive a final report — hence the Criteria Overrides scenario panel, which lets thresholds be dragged and the impact seen live.
+4. **The client wants to sanity-check the tool's assumptions interactively**, not just receive a final report — hence the Criteria Overrides scenario panel, which can force-pass criteria and show the impact live.
 
 ## Manual vs automated criteria
 
@@ -117,7 +117,7 @@ Not every criterion clause can be automated with available data. As a rule of th
 | **"Cross-test" / "cross-category test"** | Re-grading a road against a DIFFERENT category's criteria than its own current classification, to answer "what if this were tested as State/Regional/National instead?" |
 | **"Best fit" / "Fresh" bin** | A blank-slate re-classification of every road purely from earned criteria, ignoring its current administrative classification entirely |
 | **LGA** | Local Government Area — used in the dashboard's "LGA" dropdown (currently Sydney and Clarence Valley as focus views) |
-| **Criteria Overrides panel** | The scenario-testing UI that lets a user force-pass criteria or drag threshold sliders and see the impact live, WITHOUT re-running the actual data pipeline |
+| **Criteria Overrides panel** | The scenario-testing UI that lets a user force-pass criteria and see the impact live, without changing the underlying pipeline output |
 
 ## Limitations to keep in mind
 

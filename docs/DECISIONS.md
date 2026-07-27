@@ -89,7 +89,7 @@
 
 **Trade-offs — THIS IS CURRENTLY UNDER ACTIVE QUESTION, not settled:** Investigation during this project's later sessions found that **95% of Regional roads that fail this gate have SOME B-double coverage, often 70–80%** (see `STATUS.md` known bugs / `criteria_audit.md`-adjacent analysis done in conversation). Very few roads have genuinely zero coverage. This strongly suggests the 80% threshold, combined with geometry misalignment between the two independently-surveyed datasets, is producing systematic false negatives — i.e. real B-double-approved roads are failing the gate purely because the two datasets don't perfectly overlap, not because the road genuinely lacks access.
 
-**Revisit?** **Yes — flagged as a high-priority open question.** See `STATUS.md` "Highest priority next tasks." A lower threshold (e.g. 50%) or a different matching method (buffer-then-any-touch with a minimum absolute length, rather than percentage-of-total) should be evaluated against real examples before changing the production data. The new Criteria Overrides slider panel (see D-08) was partly built specifically to let a user experiment with this threshold interactively without needing a pipeline re-run — use it to explore this before committing to a pipeline change.
+**Revisit?** **Yes — flagged as a high-priority open question.** See `STATUS.md` "Highest priority next tasks." A lower threshold (e.g. 50%) or a different matching method (buffer-then-any-touch with a minimum absolute length, rather than percentage-of-total) should be evaluated against real examples and pipeline dry-runs before changing the production data.
 
 ---
 
@@ -107,17 +107,17 @@
 
 ---
 
-## D-08: Criteria Overrides panel — client-side, real-time scenario testing
+## D-08: Criteria Overrides panel — force-pass scenario testing
 
-**Decision:** Added a UI panel (toggle button next to Dashboard Overview / Criteria Reference) that lets a user override individual mandatory/optional criteria (force-pass) or drag sliders to change numeric thresholds (B-double coverage %, AADT thresholds, town/major population minimums, employment size minimums), and see the map + sidebar stats recolour/recount in real time.
+**Decision:** The UI panel lets a user force-pass individual mandatory/optional criteria and see the map + sidebar stats recolour/recount in real time. Numeric threshold sliders were removed because their simplified client-side calculations did not reliably reproduce the Python pipeline.
 
 **Why:** Analysing the impact of a threshold change (e.g. "what if B-double coverage only needed to be 50%?") previously required editing a Python script, re-running the pipeline, and reloading the dashboard — a multi-minute round trip per experiment. The client/analyst wanted fast, exploratory "what if" testing without touching the data pipeline.
 
-**Alternatives considered:** Running the Python pipeline with a parameter and regenerating JSON (too slow for exploratory use); a server-side recompute endpoint (rejected — no backend exists, see D-02, and didn't want to introduce one just for this).
+**Alternatives considered:** Keeping approximate threshold sliders; running the Python pipeline with a parameter and regenerating JSON; adding a server-side recompute endpoint. Approximate sliders were removed as misleading, while a backend remains outside the static architecture in D-02.
 
-**Trade-offs:** The client-side override logic (`computeOverriddenVerdict` in `grading.js`) is a **simplified re-implementation** of the real Python criteria logic, not a call into the same code. It re-filters already-cached evidence (e.g. `NSW_EVID[key].centres`) rather than re-running true connected-component topology analysis. This means the override panel's numbers are a close **approximation** of what a full pipeline re-run would produce, not a guaranteed exact match — this is explicitly acknowledged (see the design conversation in project history: "It won't perfectly replicate the component-level test... but it would give a very close approximation"). Good enough for scenario exploration; not a substitute for actually re-running the pipeline before reporting final numbers to the client.
+**Trade-offs:** Force-pass toggles remain useful for broad sensitivity checks, but users can no longer explore arbitrary numeric thresholds in-browser. Threshold changes must be evaluated in the Python pipeline, where the full geometry/topology rules and validation gates apply.
 
-**Revisit?** Keep as-is for exploration. If the client starts treating override-panel output as authoritative (rather than exploratory), that's a signal to either (a) make the approximation more rigorous, or (b) add a clear disclaimer in the UI that override results are indicative only. Consider adding such a disclaimer proactively — it does not currently exist in the UI copy, only in code comments.
+**Revisit?** Do not restore threshold controls unless they are backed by the same authoritative computation as the pipeline, or their limitations are explicitly accepted by the client.
 
 ---
 

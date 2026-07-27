@@ -46,7 +46,7 @@
 
 18. **Users are assumed to hard-refresh the browser after a code change** during development — there is no hot-reload, and browsers can cache aggressively even though data fetches are cache-busted. This is a workflow assumption baked into how development has actually proceeded (documented repeatedly in project history: "hard refresh (Ctrl+Shift+R)").
 
-19. **The Criteria Overrides panel's slider-driven results are assumed to be used for EXPLORATORY analysis, not as a final authoritative output.** This is an assumption about how the client will use the feature, not an enforced constraint — there is currently no UI disclaimer preventing someone from screenshotting override-panel numbers and treating them as final. See `STATUS.md` medium-priority tasks — adding an explicit disclaimer has been identified as worth doing but is not yet done.
+19. **The Criteria Overrides panel's force-pass results are assumed to be used for EXPLORATORY analysis, not as final authoritative output.** The panel changes client-side verdicts for scenario testing; authoritative results still require the Python pipeline and its validation gates.
 
 20. **The person running Python pipeline scripts is assumed to be technically capable of reading dry-run impact summaries and deciding whether to proceed with `--apply`.** There is no non-technical-user-friendly wrapper around the pipeline; it is a developer/analyst tool, not an end-user tool.
 
@@ -58,4 +58,4 @@
 
 23. **The project assumes Python 3 with GeoPandas/Shapely/Pandas/NumPy/SciPy/pyogrio available in the environment**, with no dependency manifest to pin versions. This means reproducibility across machines/time is NOT guaranteed — a pipeline script that works today could behave differently with a future GeoPandas version. **[GAP, not yet addressed]** — flagged in `STATUS.md` as a high-priority task (write a `requirements.txt`).
 
-24. **Git branch `main` is assumed to be the nominal "production" branch**, but at time of writing, `leon` branch is meaningfully ahead of `main` with unreleased work (Criteria Overrides sliders, LGA stat fix, zoom bug fix). **[PROCESS GAP]** — there is no clear "this is what's actually deployed/current" signal in the repo; a new agent must check branch divergence explicitly (`git log --oneline main..leon` and vice versa) rather than assuming `main` is authoritative just because it's the default branch name.
+24. **Git branch `main` is assumed to be the nominal "production" branch**, but at time of writing, `leon` branch is meaningfully ahead of `main` with unreleased work (Criteria Overrides, LGA stat fix, zoom bug fix). **[PROCESS GAP]** — there is no clear "this is what's actually deployed/current" signal in the repo; a new agent must check branch divergence explicitly (`git log --oneline main..leon` and vice versa) rather than assuming `main` is authoritative just because it's the default branch name.

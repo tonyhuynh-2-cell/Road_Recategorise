@@ -19,11 +19,11 @@
 - Deselecting a road (click empty map) now correctly returns to the previous sidebar tab's stats instead of showing an empty placeholder
 - Flag button correctly aligned inline with "ROAD INFORMATION" heading, no longer overlapping long road names
 
-**Criteria Overrides panel (new this project phase)**
+**Criteria Overrides panel**
 - Toggle button (left of Dashboard Overview button) opens a translucent (60% opacity) overlay panel so the map stays visible underneath
 - Checkboxes to force-pass individual mandatory/optional criteria
-- Sliders: B-double coverage % required, AADT threshold (State/Regional separately), Town Centre min. population, Major Town min. population, employment centre min. size per zone (Urban/Regional/Remote)
-- Map recolours and sidebar cards recount in real time as sliders move (debounced ~80ms)
+- Map recolours and sidebar cards recount immediately when overrides change
+- Threshold sliders and their approximate client-side recomputation were removed because they did not reproduce the pipeline reliably
 - Reset button restores original (real) verdicts from a saved snapshot
 - Active-button highlighting: Criteria Overrides / Dashboard Overview / Criteria Reference buttons now stay visually highlighted while their respective panel is open (consistent pattern across all three)
 
@@ -41,14 +41,13 @@
 - **B-double 80% coverage threshold under active question** — strong evidence it produces false negatives due to geometry misalignment between TfNSW and NHVR datasets, not genuine lack of access (see `DECISIONS.md` D-06)
 - **Traffic (AADT) criterion only has real data for 376/921 declared roads** — the remaining ~59% show "not assessed," which is correct behaviour but means the traffic criterion can rarely tip a verdict either way in practice
 - **No statewide local road dataset** — "which local roads would qualify for Regional/State" analysis was discussed with the user as a feature idea but is NOT implemented and NOT currently planned in the codebase; would require sourcing/loading statewide local road geometry, which doesn't exist in this repo
-- **Criteria Overrides population-threshold sliders are an approximation**, not a full re-run of connected-component topology (see `DECISIONS.md` D-08) — good for exploration, not a substitute for a real pipeline re-run when reporting final numbers
 - **No single orchestrator script for the full data pipeline** — the correct order to run all `rebuild_*.py` scripts is only documented informally across `DATA_SOURCES.md` and individual script docstrings (see `DECISIONS.md` D-03)
 
 ## Known bugs
 
 1. **[HIGH IMPACT, CONFIRMED] S-08/S-11 (State facility criterion) ignores Commercial/Industrial/Employment centres.** The guide explicitly lists these as qualifying facilities for State roads, but the current code (`process_nsw.py` legacy scorer, still the source of State roads' `opt.dest`) only checks hospitals/ports/airports/intermodals. Regional roads' equivalent (R-02/R-06) DOES correctly include employment centres via `rebuild_regional_facility_optional.py`, but that script was written to only update `regionalOpt.dest`, deliberately not touching State roads' own `opt.dest`. Real-world impact: roads like Goldfields Way (`0000057`) fail S-08 despite having correctly-sized, connected employment centres nearby. **Fix:** extend `rebuild_state_facility_optional.py`/`rebuild_state_facility_urban.py` to test employment centres against State zone thresholds and write into State roads' `opt.dest`. See `DECISIONS.md` D-07.
 
-2. **[MEDIUM IMPACT, UNDER INVESTIGATION] B-double coverage threshold likely too strict.** Diagnostic query found: of Regional roads failing the R-04 mandatory gate, 95% fail due to the coverage percentage rule (not a total absence of NHVR data), and of THOSE, a large share sit at 70–80% coverage — literal near-misses, several roads within 1–2 percentage points of the 80% cutoff. This strongly suggests systematic geometry misalignment between the TfNSW road network and the separately-surveyed NHVR network, rather than a genuine lack of B-double access. **Not yet fixed** — flagged as the top investigation priority. Use the new Criteria Overrides B-double slider to explore sensitivity before committing to a pipeline change.
+2. **[MEDIUM IMPACT, UNDER INVESTIGATION] B-double coverage threshold likely too strict.** Diagnostic query found: of Regional roads failing the R-04 mandatory gate, 95% fail due to the coverage percentage rule (not a total absence of NHVR data), and of THOSE, a large share sit at 70–80% coverage — literal near-misses, several roads within 1–2 percentage points of the 80% cutoff. This strongly suggests systematic geometry misalignment between the TfNSW road network and the separately-surveyed NHVR network, rather than a genuine lack of B-double access. **Not yet fixed** — flagged as the top investigation priority. Investigate with pipeline dry-runs and real-road comparisons before changing production data.
 
 3. **[LOW IMPACT, COSMETIC — RESOLVED but watch for regression] Locality pin zoom performance.** Fixed by removing `permanent: true` on ~1,265 marker tooltips. If this regresses (someone re-adds `permanent: true`, or a future rebuild dramatically increases the point count), zoom lag will return. The zoom-level reveal classes (`centres-z8`/`z10`/`z11`/`z12`/`z13` on the map container) must also stay wired up in `updateTownLabels()` in `state.js` — this was accidentally dropped during a merge and had to be restored (this is WHY few localities appeared even with the toggle on, immediately after the zoom-bug fix — the class-toggling logic had been lost in the same merge that caused the `LABEL_ZOOM` bug).
 
@@ -68,16 +67,15 @@
 ## Highest priority next tasks
 
 1. **Fix S-08/S-11 to include Commercial/Industrial/Employment centres for State roads** (see Known Bug #1 / `DECISIONS.md` D-07). This is a confirmed, scoped, well-understood defect with a clear fix path.
-2. **Resolve the B-double coverage threshold question** (Known Bug #2 / `DECISIONS.md` D-06) — either by lowering the threshold, changing the matching method, or confirming with the client that the current strictness is intentional. Use the Criteria Overrides slider to gather evidence first.
+2. **Resolve the B-double coverage threshold question** (Known Bug #2 / `DECISIONS.md` D-06) — either by lowering the threshold, changing the matching method, or confirming with the client that the current strictness is intentional. Use pipeline dry-runs and real-road comparisons to gather evidence first.
 3. **Write a Python dependency manifest** (`requirements.txt` at minimum) so a fresh environment can actually be set up without guessing.
 4. **Confirm/update `.gitignore`** to exclude `dashboard/data/newdata/` and any other large-binary source directories going forward.
 
 ## Medium priority tasks
 
 1. Write a single orchestrator script (or at minimum, a clearly ordered README/checklist) for running the full `rebuild_*.py` pipeline from raw sources, so a new analyst doesn't have to reverse-engineer the correct order from scattered docstrings.
-2. Add a disclaimer in the Criteria Overrides panel UI clarifying that slider-driven results are an approximation, not a guaranteed match to a full pipeline re-run (currently only documented in code comments/decisions, not visible to end users).
-3. Consolidate git branches — retire stale branches once merged, converge on `main` as the single integration point.
-4. Consider wrapping `map.on(...)` handlers in `try/catch` with `console.error` logging, so a future undefined-variable bug degrades gracefully instead of silently corrupting canvas rendering for the whole map (see D-09 in `DECISIONS.md`).
+2. Consolidate git branches — retire stale branches once merged, converge on `main` as the single integration point.
+3. Consider wrapping `map.on(...)` handlers in `try/catch` with `console.error` logging, so a future undefined-variable bug degrades gracefully instead of silently corrupting canvas rendering for the whole map (see D-09 in `DECISIONS.md`).
 
 ## Low priority improvements
 

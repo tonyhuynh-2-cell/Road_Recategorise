@@ -33,7 +33,7 @@ The client has been iteratively reviewing outputs and flagging places where the 
 
 - Faithfully implement the TfNSW criteria guide's rules in code, road-by-road, statewide
 - Make every verdict explorable — a road manager should be able to click any road and see exactly which criteria passed/failed and why, with the actual connected centre/facility named
-- Support scenario testing (cross-category tests, "Best fit" re-binning, and now criteria threshold overrides/sliders)
+- Support scenario testing (cross-category tests, "Best fit" re-binning, and force-pass criteria overrides)
 - Support at least one detailed local case study (Clarence Valley LGA) and one large metro case study (Sydney)
 - Be exportable to Excel for offline review and reporting
 - Be transparent about **data gaps** — where no data exists (e.g. statewide bridge load limits, emergency evacuation routes), the tool says so rather than assuming a pass
@@ -46,7 +46,7 @@ The client has been iteratively reviewing outputs and flagging places where the 
 - Clarence Valley and Sydney as focus views ("LGA" dropdown)
 - Local roads only as an indicative, on-demand OpenStreetMap-loaded overlay (not a statewide dataset)
 - Excel export of results
-- A "Criteria Overrides" scenario panel (sliders/toggles) for testing sensitivity to thresholds
+- A "Criteria Overrides" scenario panel with force-pass toggles for testing criteria sensitivity
 
 **Out of scope / explicitly not attempted:**
 - Reclassifying any road (this is an assessment tool, not an authority)
@@ -62,7 +62,7 @@ Two halves, no backend server, no database:
 
 1. **Offline Python data pipeline** (`dashboard/*.py`, ~25 scripts) — reads large source datasets (NHVR GeoPackages, ABS census/geometry, TfNSW road network, planning zoning, traffic counts) and produces small, pre-computed JSON/GeoJSON files under `dashboard/data/`. This is run manually by a developer/analyst whenever source data changes or a criteria rule changes. It is **not** run at request time.
 
-2. **Static browser dashboard** (`dashboard/index.html` + `dashboard/js/*.js` + `dashboard/css/dashboard.css`) — loads the pre-computed JSON files via `fetch`, builds a Leaflet map, and renders all UI (sidebar stats, road detail panel, criteria reference, exports, criteria-override sliders) entirely client-side, no bundler. It's served with a trivial static file server (`python -m http.server 8080` during development — see `ONBOARDING.md`).
+2. **Static browser dashboard** (`dashboard/index.html` + `dashboard/js/*.js` + `dashboard/css/dashboard.css`) — loads the pre-computed JSON files via `fetch`, builds a Leaflet map, and renders all UI (sidebar stats, road detail panel, criteria reference, exports, criteria overrides) entirely client-side, no bundler. It's served with a trivial static file server (`python -m http.server 8080` during development — see `ONBOARDING.md`).
 
 There is no live database and no server-side logic at runtime. All "computation" you see in the browser (verdicts, counts, %s) is either read directly from the pre-computed JSON, or recomputed cheaply in JS from that same JSON (e.g. the Criteria Overrides panel re-derives verdicts client-side from cached per-road facts).
 
@@ -178,7 +178,7 @@ The **newest and most complete engine** is `rebuild_road_units.py`, which:
 4. `init.js` builds `window.NSW_AGG` (one aggregate row per road, summed across its segments), `window.NSW_CRIT` (criteria/verdict per road), `window.NSW_EVID` (named evidence per road), `window.NHVR`, `window.ADT`, `window.ROAD_EXT`, `window.ZONE`, etc. — all as top-level `window.*` globals
 5. `init.js` builds the Leaflet GeoJSON layer for the road overlay, grouping segments into `window.NSW_ROAD_LAYERS[roadKey]` so a click on any one segment highlights the whole road
 6. `grading.js`'s `nswStyle(feature)` is called by Leaflet per-feature to decide colour/weight/visibility, reading `window.NSW_CRIT` and the current tab/lens state
-7. User interactions (tab switch, LGA dropdown, click a road, drag a Criteria Override slider) all mutate a handful of `let`-declared globals in `state.js`/`panels.js` (`currentTab`, `nswView`, `_activeLGA`, `legendToggles`, `criteriaOverrides`) and then call `nswLayer.setStyle(nswStyle)` to force Leaflet to re-render
+7. User interactions (tab switch, LGA dropdown, click a road, toggle a Criteria Override) all mutate a handful of shared globals in `state.js`/`panels.js`/`grading.js` (`currentTab`, `nswView`, `_activeLGA`, `legendToggles`, `criteriaOverrides`) and then call `nswLayer.setStyle(nswStyle)` to force Leaflet to re-render
 8. Nothing is ever sent back to a server. Export writes an `.xlsx` file directly in the browser via ExcelJS and triggers a download.
 
 ## 11. Current implementation status
@@ -192,7 +192,7 @@ See `STATUS.md` for the full breakdown. Summary:
 - Road Detail panel with criteria breakdown, evidence, cross-category tests, "Sections" for split roads
 - Search, Flagging, Excel export
 - Criteria Reference modal (renders the TfNSW guide, road-aware)
-- Criteria Overrides scenario panel with real-time map/sidebar recolouring, including threshold sliders (B-double coverage %, AADT thresholds, town/major population thresholds, employment size thresholds)
+- Criteria Overrides scenario panel with force-pass toggles and real-time map/sidebar recolouring
 - Local road on-demand loading (per suburb) with indicative cross-tests
 
 **Partially implemented / known-limited:**
@@ -277,7 +277,7 @@ See `AGENT.md` for the full rules. Key facts a new agent must know:
 ## 20. Performance considerations
 
 - The road overlay is ~17,600–20,000+ GeoJSON features rendered on a **single shared Leaflet canvas** (`preferCanvas: true`, one `L.canvas({ tolerance: 1.5 })` renderer). This was a deliberate choice — per-layer canvases were found to break click hit-testing across tab switches (documented in code comments in `state.js`).
-- Restyling all features (`nswLayer.setStyle(nswStyle)`) is the main hot path — it's called on every tab switch, lens change, legend toggle, and now every Criteria Override slider tick. It runs in roughly 50–100ms, acceptable but not free — the slider UI **debounces** calls to ~80ms to stay smooth while dragging.
+- Restyling all features (`nswLayer.setStyle(nswStyle)`) is the main hot path — it's called on every tab switch, lens change, legend toggle, and Criteria Override change. It runs in roughly 50–100ms, acceptable but not free.
 - Locality-centre pins (SAL suburbs, ~1,265 points) previously used Leaflet's `permanent: true` tooltip on every marker, which meant 1,265 always-rendered DOM elements that Leaflet had to reposition on every pan/zoom — this caused severe zoom lag and was fixed by switching to `permanent: false` (hover-only tooltips). **This is a real, previously-diagnosed performance bug — if lag reappears near the Localities toggle, check this first.**
 - A separate, more serious zoom-rendering bug (roads becoming giant unscaled colour blobs on zoom) was traced to a **JavaScript `ReferenceError`** (`LABEL_ZOOM` was referenced but never defined after a merge) thrown inside a `zoomend` event handler, which silently broke Leaflet's internal zoom/redraw cycle for the whole map. **Lesson: an uncaught exception inside any `map.on(...)` handler can corrupt canvas rendering for the entire map, not just fail gracefully.** Always check the browser console for errors first when diagnosing any "the map looks broken after zoom" report.
 
@@ -287,4 +287,4 @@ See `STATUS.md` "Highest priority next tasks" for the concrete near-term list. D
 - Fixing the S-08 State facility criterion to include Commercial/Industrial/Employment centres (currently only hospitals/ports/airports/intermodals are counted for State roads — Regional already includes employment; this is a confirmed gap, not just a discussion point — see `STATUS.md` known bugs)
 - Investigating whether the B-double 80%-coverage threshold is systematically too strict (evidence gathered: most "failing" roads have 70–80% coverage, i.e. near-misses, not zero coverage — see `DECISIONS.md`)
 - Possible statewide local-road ingestion so local→Regional/State "upgrade candidate" analysis becomes possible (currently blocked — no statewide local road geometry in the repo)
-- Possible population-threshold overrides for connectivity criteria (partially built into the Criteria Overrides slider panel already; full component-level re-connectivity is a stretch goal, current implementation re-filters cached evidence lists as an approximation)
+- Any future numeric threshold scenario testing should use the authoritative Python pipeline rather than an approximate browser-side reimplementation
