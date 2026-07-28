@@ -596,8 +596,8 @@
             width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
         .bypass-toggle input:focus-visible + .bt-mark { outline: 2px solid #93b4d8; outline-offset: 1px; }
         .bt-label { white-space: nowrap; }
-        /* Localities pin toggle — same chrome, parked to the LEFT of the HV bypass toggle */
-        .locality-toggle { right: 153px; }
+        /* Localities pin toggle — bottom-right corner */
+        .locality-toggle { right: 12px; }
         .locality-toggle input:checked + .bt-mark { background: #2563eb; border-color: #2563eb; }
 
         /* --- Map widgets (bottom-right, above the HV bypass toggle): distance readout + compass + scale --- */
