@@ -664,6 +664,7 @@ function showLocal() {
 function refreshLocal() {
     if (typeof setLocalTotal === 'function')
         setLocalTotal((typeof LOCAL_GROUPS !== 'undefined' && LOCAL_GROUPS.length) ? LOCAL_GROUPS.length : null);
+    if (typeof updateLocalXtStatus === 'function') updateLocalXtStatus();
 }
 
 // Cross-criteria segmented control for the State / Regional lenses (folded in from the old
@@ -696,6 +697,7 @@ function toggleCrossLens(on) { setCrossTest(on ? (nswView === 'state' ? 'regiona
 // Counts for the active lens. Nat. Significant counts the NLTN network's national-criteria grades;
 // the other lenses count roads by their category verdict (rolled-up aggregate + criteria).
 const _lensCounts = {};   // non-cross per-lens counts are static after load — cache them (cf. scopeCounts)
+window._lensCountsRef = _lensCounts;
 function nswViewCounts() {
     if (nswView === 'nsr') {
         const n = window.NLTN_CAT_COUNTS || { green: 0, orange: 0, total: 0 };

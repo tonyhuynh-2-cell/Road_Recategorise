@@ -8,6 +8,8 @@ function openCriteriaModal(sectionId) {
     if (!modal) return;
     // Toggle: if already open, close it
     if (!modal.hidden) { closeCriteriaModal(); return; }
+    // Keep the top-level overlays mutually exclusive and clear the previous button state.
+    if (typeof closeOverridesPanel === 'function') closeOverridesPanel();
     modal.hidden = false;
     // Highlight the criteria button
     var btn = document.getElementById('criteria-btn');

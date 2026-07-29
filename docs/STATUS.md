@@ -11,6 +11,7 @@
 - Nationally Significant (NLTN) lens, its own layer/styling
 - Flagged roads tab (up to 10, `localStorage`-backed)
 - Local tab: on-demand suburb search → OpenStreetMap/Overpass road loading, clipped to suburb boundary, indicative State/Regional cross-tests
+- Local-tab verdict cards show Meets / Meets 1 of 2 / Does not meet for the loaded suburb and update with the State/Regional cross-criteria buttons; Own criteria remains explicitly not assessed
 
 **Road Detail panel**
 - Full criteria breakdown per road: mandatory gates, optional criteria with pass/fail/not-assessed, evidence (named centres/hospitals/ports/airports/employment centres) with click-to-locate
@@ -26,6 +27,8 @@
 - Threshold sliders and their approximate client-side recomputation were removed because they did not reproduce the pipeline reliably
 - Reset button restores original (real) verdicts from a saved snapshot
 - Active-button highlighting: Criteria Overrides / Dashboard Overview / Criteria Reference buttons now stay visually highlighted while their respective panel is open (consistent pattern across all three)
+- Criteria Overrides, Criteria Reference, and Dashboard Overview are mutually exclusive: opening one closes any other open top-level panel
+- Criteria Overrides now refresh State/Regional category caches and flow through cross-category tests and Best Fit; Nationally Significant and Local remain outside the current override set
 
 **Other**
 - Search by road name/ID/route ref

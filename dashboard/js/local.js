@@ -105,7 +105,8 @@ function styleLocalX(f) {
 //       'Grafton' the Significant Urban Area are ONE centre, and a compound SUA ('Albury -
 //       Wodonga') never re-counts a town it already contains;
 //   (b) connects ≥1 major facility — hospital / port / airport / intermodal / an employment
-//       centre meeting the client-approved Urban ≥40 ha size-only rule (R-02/R-06 / S-08/S-11).
+//       centre meeting the client-approved Urban ≥40 ha size-only rule TO a qualifying centre
+//       (R-02/R-06 / S-08/S-11). A nearby facility by itself is not a connection criterion.
 // ≥2 met → green, 1 → orange, 0 → red. Verdicts are earned from the data, never forced.
 
 // NAMED centre points for the Regional test = every town PLUS the SUA centroids. Built once.
@@ -193,10 +194,16 @@ function gradeLocalGroup(g, mode) {
     });
     const fac = xtFacilityPts();
     const fIdx = _nearPtIdx(geoms, fac.pts, 1.2);
-    const met = (centreNames.length >= 2 ? 1 : 0) + (fIdx.length ? 1 : 0);
+    // The published facility criteria require a facility/employment destination to be connected
+    // TO a qualifying centre. Do not award this criterion merely because a facility is nearby.
+    // This indicative browser test uses both endpoint types being near the grouped road as the
+    // available connection evidence; the statewide pipeline uses physical-network connectivity.
+    const facilityConnection = fIdx.length > 0 && centreNames.length > 0;
+    const met = (centreNames.length >= 2 ? 1 : 0) + (facilityConnection ? 1 : 0);
     const res = { v: met >= 2 ? 'green' : met === 1 ? 'orange' : 'red',
                   centres: centreNames.length, centreNames: centreNames.slice(0, 4),
-                  nFac: fIdx.length, facNames: fIdx.slice(0, 4).map(function (i) { return fac.names[i]; }) };
+                  nFac: fIdx.length, facNames: fIdx.slice(0, 4).map(function (i) { return fac.names[i]; }),
+                  facilityConnection: facilityConnection };
     g.v[mode] = res;
     return res;
 }
@@ -669,7 +676,11 @@ function renderLocalRoadDetail(g) {
         rEl.textContent = res.centres + ' distinct town / urban centre' + (res.centres === 1 ? '' : 's') + ' and ' + res.nFac + ' major facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — a Regional road needs ≥2 optional criteria met. Indicative: the mandatory 19m B-double gate is not published for council roads.';
         cEl.innerHTML =
             critItem(res.centres >= 2, 'R-01·R-05: Connects ≥2 distinct town / urban centres', res.centres ? (res.centres + ' centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km — ' + res.centreNames.join('; ')) : 'None within ~1.2 km') +
-            critItem(res.nFac >= 1, 'R-02·R-06: Connects a key destination / facility (hospital / port / airport / intermodal / major employment)', res.nFac ? (res.nFac + ' within ~1.2 km — ' + res.facNames.join('; ')) : 'None within ~1.2 km') +
+            critItem(res.facilityConnection, 'R-02: Connects a qualifying facility / employment centre to a Town or Urban Centre · R-06: connects it to a Major Urban Centre or Major Town',
+                res.nFac
+                    ? (res.nFac + ' facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — ' + res.facNames.join('; ') +
+                       (res.centres ? '; centre evidence: ' + res.centreNames.join('; ') : '; no qualifying centre at the other end of the connection'))
+                    : 'No qualifying facility / employment centre within ~1.2 km') +
             critItem(null, 'R-04: 19m B-double access (mandatory gate)', 'Not published for council-managed roads — not assessed') +
             critItem(null, 'Traffic volume thresholds', 'No TfNSW count data for local roads — not assessed');
     } else {
@@ -682,16 +693,59 @@ function renderLocalRoadDetail(g) {
         rEl.textContent = res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' and ' + res.nFac + ' major facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — a State road needs ≥2 optional criteria. Indicative: the mandatory PBS Level 1 gate is not published for council roads.';
         cEl.innerHTML =
             critItem(res.centres >= 2, 'S-07·S-10: Connects ≥2 State-tier centres (Regional Cities / Major Towns / urban areas)', res.centres ? (res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km — ' + res.centreNames.join('; ')) : 'None within ~1.2 km') +
-            critItem(res.nFac >= 1, 'S-08·S-11: Connects a major hospital / port / airport / intermodal / employment centre', res.nFac ? (res.nFac + ' within ~1.2 km — ' + res.facNames.join('; ')) : 'None within ~1.2 km') +
+            critItem(res.facilityConnection, 'S-08·S-11: Connects a qualifying facility / employment centre to another qualifying centre type',
+                res.nFac
+                    ? (res.nFac + ' facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — ' + res.facNames.join('; ') +
+                       (res.centres ? '; centre evidence: ' + res.centreNames.join('; ') : '; no qualifying centre at the other end of the connection'))
+                    : 'No qualifying facility / employment centre within ~1.2 km') +
             critItem(null, 'S-09: PBS Level 1 access (mandatory gate)', 'Not published for council-managed roads — not assessed') +
             critItem(null, 'Traffic volume thresholds', 'No TfNSW count data for local roads — not assessed');
     }
 }
 
 // --- Local cross-criteria segmented control: Own criteria / Test as Regional / Test as State ---
+// The three cards and distribution line use the same per-road grades as the map and list chips.
+// Own criteria deliberately shows "not assessed": the guide publishes no Local-road verdict rule.
+function updateLocalVerdictCards() {
+    const ids = ['green', 'orange', 'red'];
+    const set = function(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
+    const mode = xLens.local;
+    if (!mode) {
+        ids.forEach(function(v) {
+            set('local-' + v, '—');
+            set('local-' + v + '-pct', 'Not assessed under own Local category');
+        });
+        return;
+    }
+    if (!LOCAL_GROUPS.length) {
+        ids.forEach(function(v) {
+            set('local-' + v, '—');
+            set('local-' + v + '-pct', 'Load a suburb to run the test');
+        });
+        return;
+    }
+    const c = { green: 0, orange: 0, red: 0 };
+    const km = { green: 0, orange: 0, red: 0 };
+    LOCAL_GROUPS.forEach(function(g) {
+        const v = gradeLocalGroup(g, mode).v;
+        c[v]++;
+        km[v] += g.lenKm || 0;
+    });
+    const total = LOCAL_GROUPS.length;
+    ids.forEach(function(v) {
+        set('local-' + v, c[v].toLocaleString());
+        set('local-' + v + '-pct', Math.round(c[v] / total * 100) + '% of loaded roads · ' +
+            Math.round(km[v]).toLocaleString() + ' km');
+    });
+}
+
 // The distribution line under the control — real verdict counts over the loaded roads.
 function updateLocalXtStatus() {
     const el = document.getElementById('local-xt-status');
+    updateLocalVerdictCards();
     if (!el) return;
     const m = xLens.local;
     if (!m) { el.textContent = ''; return; }

@@ -115,7 +115,7 @@
 
 **Alternatives considered:** Keeping approximate threshold sliders; running the Python pipeline with a parameter and regenerating JSON; adding a server-side recompute endpoint. Approximate sliders were removed as misleading, while a backend remains outside the static architecture in D-02.
 
-**Trade-offs:** Force-pass toggles remain useful for broad sensitivity checks, but users can no longer explore arbitrary numeric thresholds in-browser. Threshold changes must be evaluated in the Python pipeline, where the full geometry/topology rules and validation gates apply.
+**Trade-offs:** Force-pass toggles remain useful for broad sensitivity checks, but users can no longer explore arbitrary numeric thresholds in-browser. Threshold changes must be evaluated in the Python pipeline, where the full geometry/topology rules and validation gates apply. State/Regional cross-tests and Best Fit apply the same force-pass flags before recomputing their bins; Nationally Significant and Local do not, because the current override controls do not represent their criteria.
 
 **Revisit?** Do not restore threshold controls unless they are backed by the same authoritative computation as the pipeline, or their limitations are explicitly accepted by the client.
 
@@ -156,3 +156,31 @@
 **Trade-offs:** Real merge conflicts have occurred and been resolved (sometimes by "take theirs," sometimes by manual reconciliation — check commit messages like "Merge origin/main into orange-split-C (resolve conflicts taking main)"). This is inherently risky: a future agent merging branches must actually read conflicting hunks rather than blindly picking one side, because "theirs" is not always the more complete/correct version (see `AGENT.md` for the explicit warning).
 
 **Revisit?** Recommend consolidating toward `main` as the single integration point going forward, retiring stale branches once their content is merged, and avoiding starting new long-lived feature branches unless truly necessary. This is a process recommendation, not a code change — flag it to the human user rather than unilaterally deleting branches.
+
+---
+
+## D-12: Top-level dashboard panels are mutually exclusive
+
+**Decision:** Opening Criteria Overrides, Criteria Reference, or Dashboard Overview closes either of the other top-level panels first.
+
+**Why:** These controls represent alternative views of the same workspace. Leaving an overlay open behind another view created confusing active-button state and caused the old panel to reappear unexpectedly when returning to the map.
+
+**Alternatives considered:** Allowing panels to stack, or adding a central panel manager. The current three-view interaction is small enough that each open function can defensively close the other views without adding a new abstraction.
+
+**Trade-offs:** The open functions have small cross-file dependencies, guarded with `typeof` checks to preserve the project's load-order safety. Users cannot retain an overlay's open/split state while switching to another top-level view.
+
+**Revisit?** If more top-level panels are added, replace the pairwise close calls with one shared `closeTopLevelPanels(except)` helper.
+
+---
+
+## D-13: Loaded-suburb statistics stay inside the Local tab
+
+**Decision:** Local-road statistics are displayed only inside the Local tab. Its three verdict cards update when the user selects Test as Regional or Test as State. Under Own criteria they show not assessed because the guide provides no equivalent Local-road verdict rule.
+
+**Why:** Suburb-loaded OpenStreetMap roads are a partial, changing scope. Adding them to statewide State/Regional or Best Fit totals made those pages appear statewide while quietly depending on which suburb happened to be loaded.
+
+**Alternatives considered:** Appending the loaded suburb to State/Regional and Best Fit totals; ingesting every NSW local road. The first mixes incompatible scopes and the second is a separate substantial pipeline project.
+
+**Trade-offs:** Users must visit Local to see local-road results, but statewide figures remain stable and correctly scoped. Cross-test results remain indicative because PBS/B-double gates and traffic evidence are unavailable for these council roads.
+
+**Revisit?** Include local roads elsewhere only after a stable statewide source, road-identity model, and missing-mandatory-data policy are agreed.

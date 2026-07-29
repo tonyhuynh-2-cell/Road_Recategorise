@@ -5,6 +5,9 @@ let _dovMiniMap = null;
 let _dovCharts = {};
 
 function showDashboardView() {
+    // Dashboard Overview replaces the map area, so close either map overlay before hiding it.
+    if (typeof closeOverridesPanel === 'function') closeOverridesPanel();
+    if (typeof closeCriteriaModal === 'function') closeCriteriaModal();
     document.querySelector('.container').hidden = true;
     document.getElementById('dashboard-view').hidden = false;
     var btn = document.getElementById('dashboard-btn');

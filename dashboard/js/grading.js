@@ -8,6 +8,9 @@ function openOverridesPanel() {
     var modal = document.getElementById('overrides-modal');
     if (!modal) return;
     if (!modal.hidden) { closeOverridesPanel(); return; }
+    // The three top-level views are mutually exclusive. Close the criteria overlay first
+    // so its active button and split-view state are cleaned up before overrides opens.
+    if (typeof closeCriteriaModal === 'function') closeCriteriaModal();
     modal.hidden = false;
     var btn = document.getElementById('overrides-btn');
     if (btn) btn.classList.add('criteria-btn-active');
@@ -68,6 +71,10 @@ function applyCriteriaOverrides() {
     // Clear scope counts cache so sidebar refreshes with new verdicts
     var sc = window._scopeCountsRef;
     if (sc) { for (var key in sc) delete sc[key]; }
+    // State/Regional own-category cards use a separate cache from Overview. Clear it too,
+    // otherwise the map recolours but those category totals remain frozen at their first render.
+    var lc = window._lensCountsRef;
+    if (lc) { for (var lensKey in lc) delete lc[lensKey]; }
     // Refresh the active sidebar panel
     if (typeof currentTab !== 'undefined') {
         if (currentTab === 'overview' && typeof refreshOverview === 'function') refreshOverview();
@@ -277,30 +284,34 @@ function xverdict(optMet, mandPass) { return !mandPass ? 'red' : optMet >= 2 ? '
 function buildXtest() {
     if (window.XTEST) return window.XTEST;
     const X = {}, crit = window.NSW_CRIT || {}, nhvr = window.NHVR || {}, roadExt = window.ROAD_EXT || {};
-    const countOpt = (c, keys) => keys.reduce((n, key) => n + (c.opt && c.opt[key] === true ? 1 : 0), 0);
+    const forced = key => typeof criteriaOverrides !== 'undefined' && criteriaOverrides[key] === true;
+    const countOpt = (c, keys) => keys.reduce((n, key) =>
+        n + ((forced(key) || (c.opt && c.opt[key] === true)) ? 1 : 0), 0);
     for (const k in crit) {
         const c = crit[k]; if (!c || !c.opt) continue;
-        const ldrOpt = c.area !== 'urban' && ((c.opt && c.opt.ldr === true) || (c.stateOpt && c.stateOpt.ldr === true));
+        const ldrOpt = c.area !== 'urban' && (forced('ldr') ||
+            (c.opt && c.opt.ldr === true) || (c.stateOpt && c.stateOpt.ldr === true));
         // S-08/S-11 is derived independently (rural: NSW Road Segment components; urban: SAL
         // evidence components). Regional roads use stateOpt.dest when cross-tested as State
         // rather than borrowing their R-02 result.
-        const stateDestOpt = c.stateOpt && typeof c.stateOpt.dest === 'boolean'
-            ? c.stateOpt.dest : c.opt.dest;
-        const stateCentresOpt = c.stateOpt && typeof c.stateOpt.centres === 'boolean'
-            ? c.stateOpt.centres : c.opt.centres;
+        const stateDestOpt = forced('dest') || (c.stateOpt && typeof c.stateOpt.dest === 'boolean'
+            ? c.stateOpt.dest : c.opt.dest);
+        const stateCentresOpt = forced('centres') || (c.stateOpt && typeof c.stateOpt.centres === 'boolean'
+            ? c.stateOpt.centres : c.opt.centres);
         const asStateOptMet = countOpt(c, ['traffic']) + (stateCentresOpt === true ? 1 : 0) + (stateDestOpt === true ? 1 : 0) + (ldrOpt ? 1 : 0);
         // R-02/R-06 include employment centres that meet the road zone's client-approved size rule.
         // regionalOpt is computed independently so a State road can be tested as Regional without
         // borrowing the stricter State facility result in opt.dest.
-        const regionalDestOpt = c.regionalOpt && typeof c.regionalOpt.dest === 'boolean'
-            ? c.regionalOpt.dest : c.opt.dest;
-        const twoStateOpt = c.area !== 'urban' && ((c.opt && c.opt.two_state === true) || (roadExt[k] && roadExt[k].two_state === true));
-        const regionalCentresOpt = c.regionalOpt && typeof c.regionalOpt.centres === 'boolean'
-            ? c.regionalOpt.centres : c.opt.centres;
+        const regionalDestOpt = forced('dest') || (c.regionalOpt && typeof c.regionalOpt.dest === 'boolean'
+            ? c.regionalOpt.dest : c.opt.dest);
+        const twoStateOpt = c.area !== 'urban' && (forced('twostate') ||
+            (c.opt && c.opt.two_state === true) || (roadExt[k] && roadExt[k].two_state === true));
+        const regionalCentresOpt = forced('centres') || (c.regionalOpt && typeof c.regionalOpt.centres === 'boolean'
+            ? c.regionalOpt.centres : c.opt.centres);
         const asRegionalOptMet = countOpt(c, ['hv']) + (regionalCentresOpt === true ? 1 : 0) + (regionalDestOpt === true ? 1 : 0) + (twoStateOpt ? 1 : 0);
         const optMet = c.cls === 'Regional' ? asRegionalOptMet : asStateOptMet;
-        const pbs1 = !!(c.mand && c.mand.pbs1 === true);        // PBS-1 access (State mandatory gate)
-        const bd = !!(nhvr[k] && nhvr[k].bdouble19 === true);   // 19m B-double access (Regional gate)
+        const pbs1 = forced('pbs1') || !!(c.mand && c.mand.pbs1 === true);        // PBS-1 access (State mandatory gate)
+        const bd = forced('bdouble') || !!(nhvr[k] && nhvr[k].bdouble19 === true); // 19m B-double access (Regional gate)
         // Nationally Significant test — the per-road national-criteria verdict PRECOMPUTED by the
         // pipeline (nsw_criteria.json: nat / natOptMet / natCrit {nltn, metros, portair} = S-01
         // NLTN membership, S-02·S-03 metro/urban centres, S-04·S-05 port/airport/intermodal).
