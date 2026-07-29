@@ -278,7 +278,7 @@
         .criteria-btn.criteria-btn-active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
 
         /* Criteria modal — overlays the map area */
-        .criteria-modal { position: absolute; inset: 0; z-index: 700; display: flex; flex-direction: column;
+        .criteria-modal { position: absolute; inset: 0; z-index: 1100; display: flex; flex-direction: column;
             background: rgba(255,255,255,.98); backdrop-filter: blur(4px); animation: cmFadeIn .2s ease; }
         #overrides-modal { background: rgba(255,255,255,.60); backdrop-filter: blur(8px); }
         .criteria-modal[hidden] { display: none; }
