@@ -891,7 +891,8 @@ What the code does:
 
 `build_local_road_catalog.py` filters the 1.37-million-segment NSW file to
 `operationalstatus=1` and `functionhierarchy=6`, groups connected segments with
-the same full name and preserves every unnamed segment. Distinct centres must be
+the same full name, bridges unbranched near-straight name changes, and preserves
+every unnamed segment. Distinct centres must be
 assigned to separate terminal points; a facility must be at one terminal and a
 centre at another. A 500 m minimum terminal span prevents tiny segments inside
 overlapping evidence catchments from appearing to connect destinations. The
@@ -899,6 +900,13 @@ Regional and State mandatory gates are measured against the NHVR 19 m B-double
 and PBS Level 1 networks. B-double requires at least 80% route coverage and PBS
 Level 1 requires more than 80%. Approved and approved-with-conditions geometry
 is included; a crossing or endpoint touch is not enough.
+
+Local optional criteria use the same zone-dependent employment sizes and centre
+population floors as declared roads. The build also assesses Type 2 road-train
+coverage, two-State-road connectivity and the rural long-distance route option.
+Traffic remains explicitly unknown. Per-test verdicts include `insufficient`
+when a mandatory gate passes but the available optional evidence proves neither
+a pass nor a failure.
 
 The build writes:
 

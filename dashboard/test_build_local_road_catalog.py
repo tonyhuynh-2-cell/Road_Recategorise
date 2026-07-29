@@ -7,6 +7,7 @@ from shapely.geometry import Point
 from build_local_road_catalog import (
     NetworkCoverage,
     available_outcome,
+    connects_point_sets,
     connected_terminal_names,
     connected_groups,
     dedupe_names,
@@ -38,6 +39,26 @@ class LocalRoadCatalogTests(unittest.TestCase):
             LineString([(10, 0), (10, 10)]),
         ]
         groups = connected_groups(["AMY ST", "AUBURN RD"], lines, [True, True])
+        self.assertEqual(sorted(sorted(group) for group in groups), [[0], [1]])
+
+    def test_straight_degree_two_name_change_can_form_one_corridor(self):
+        lines = [
+            LineString([(0, 0), (10, 0)]),
+            LineString([(10, 0), (20, 0)]),
+        ]
+        groups = connected_groups(
+            ["AMY ST", "AUBURN RD"], lines, [True, True], bridge_name_changes=True
+        )
+        self.assertEqual(groups, [[0, 1]])
+
+    def test_sharp_name_change_does_not_form_one_corridor(self):
+        lines = [
+            LineString([(0, 0), (10, 0)]),
+            LineString([(10, 0), (10, 10)]),
+        ]
+        groups = connected_groups(
+            ["AMY ST", "AUBURN RD"], lines, [True, True], bridge_name_changes=True
+        )
         self.assertEqual(sorted(sorted(group) for group in groups), [[0], [1]])
 
     def test_unnamed_segments_stay_separate(self):
@@ -112,6 +133,20 @@ class LocalRoadCatalogTests(unittest.TestCase):
             facility_connection_names(terminals, facilities, other_end_centre, 30),
             ["Hospital"],
         )
+
+    def test_long_distance_evidence_requires_opposite_terminals(self):
+        terminals = [Point(0, 0), Point(1000, 0)]
+        source = gpd.GeoDataFrame(
+            {"name": ["Major"]}, geometry=[Point(0, 5)], crs="EPSG:3577"
+        )
+        same_end_town = gpd.GeoDataFrame(
+            {"name": ["Town"]}, geometry=[Point(0, 10)], crs="EPSG:3577"
+        )
+        other_end_town = gpd.GeoDataFrame(
+            {"name": ["Town"]}, geometry=[Point(1000, 10)], crs="EPSG:3577"
+        )
+        self.assertFalse(connects_point_sets(terminals, source, same_end_town, 30))
+        self.assertTrue(connects_point_sets(terminals, source, other_end_town, 30))
 
     def test_terminal_points_exclude_internal_segment_junctions(self):
         lines = [
@@ -198,6 +233,27 @@ class LocalRoadCatalogTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "local_available")
         self.assertIn("available criteria", result["label"])
+        self.assertEqual(result["regional_verdict"], "red")
+        self.assertEqual(result["state_verdict"], "red")
+
+    def test_gate_pass_with_no_optional_evidence_is_insufficient_not_red(self):
+        result = available_outcome(0, 0, 0, 0, bdouble=True, pbs1=True)
+        self.assertEqual(result["regional_verdict"], "insufficient")
+        self.assertEqual(result["state_verdict"], "insufficient")
+
+    def test_road_train_can_supply_a_second_regional_option(self):
+        result = available_outcome(
+            regional_centres=2,
+            state_centres=0,
+            regional_facilities=0,
+            state_facilities=0,
+            bdouble=True,
+            pbs1=False,
+            road_train=True,
+        )
+        self.assertEqual(result["regional_available_optional_met"], 2)
+        self.assertEqual(result["regional_verdict"], "green")
+        self.assertEqual(result["status"], "potential_regional")
 
 
 if __name__ == "__main__":

@@ -92,6 +92,12 @@ function statewideLocalPopupHtml(feature) {
         : 'coverage unavailable';
     const bdText = p.bdouble === true ? 'passes' : 'does not pass';
     const pbsText = p.pbs1 === true ? 'passes' : 'does not pass';
+    const verdictLabel = function(value) {
+        return value === 'green' ? 'meets'
+            : value === 'orange' ? 'meets one optional criterion'
+            : value === 'insufficient' ? 'insufficient evidence'
+            : 'does not meet';
+    };
     return (
         '<strong>' + esc(p.name || 'Unnamed local-road segment') + '</strong>' +
         '<div style="margin-top:4px">' + esc(p.label || 'Local Road on available evidence') + '</div>' +
@@ -100,8 +106,13 @@ function statewideLocalPopupHtml(feature) {
         (evidence.length ? '<div style="margin-top:6px">' + esc(evidence.join(' · ')) + '</div>' : '') +
         '<div style="margin-top:6px;color:#6b625d">19 m B-double gate: ' + bdText +
         ' (' + bdCoverage + '). PBS Level 1 gate: ' + pbsText + ' (' + pbsCoverage +
-        '). Both gates require at least 80% of the road to follow the approved network. ' +
-        'Centre and facility links are tested at separate road terminals.</div>'
+        '). B-double requires at least 80%; PBS Level 1 requires more than 80%. ' +
+        'Centre and facility links are tested at separate road terminals.</div>' +
+        (p.regional_verdict || p.state_verdict
+            ? '<div style="margin-top:6px">Test as Regional: <strong>' +
+              verdictLabel(p.regional_verdict) + '</strong> · Test as State: <strong>' +
+              verdictLabel(p.state_verdict) + '</strong></div>'
+            : '')
     );
 }
 

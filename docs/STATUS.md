@@ -12,6 +12,7 @@
 - Flagged roads tab (up to 10, `localStorage`-backed)
 - Local tab: on-demand suburb search → OpenStreetMap/Overpass road loading, clipped to suburb boundary, indicative State/Regional cross-tests
 - Local-tab verdict cards show Meets / Meets 1 of 2 / Does not meet for the loaded suburb and update with the State/Regional cross-criteria buttons; Own criteria remains explicitly not assessed
+- Statewide LocalRoad assessment now uses aligned zone/centre thresholds, near-straight corridor continuity, road-train/two-State-road/long-distance evidence, and a distinct insufficient-evidence result. Current available-evidence outcomes include 13 Regional-test green roads and one State-test green road.
 
 **Road Detail panel**
 - Full criteria breakdown per road: mandatory gates, optional criteria with pass/fail/not-assessed, evidence (named centres/hospitals/ports/airports/employment centres) with click-to-locate

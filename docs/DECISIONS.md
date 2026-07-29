@@ -196,3 +196,15 @@
 **Trade-offs:** Roads at exactly 80% PBS coverage fail, even though the B-double gate passes at the same numeric boundary. The distinction is intentional and is covered independently in the rebuild scripts.
 
 **Revisit?** Re-evaluate only with an explicit criteria-policy change; do not alter the comparator without regenerating and validating the derived datasets.
+
+---
+
+## D-15: Local cross-assessment uses aligned evidence and an insufficient outcome
+
+**Decision:** Statewide LocalRoad candidates use the declared-road zone thresholds and centre population floors, plus available road-train, two-State-road and rural long-distance evidence. Exact-name components may bridge a different road name only at an unbranched, near-straight continuation. When the mandatory gate passes but no optional criterion is demonstrated, the per-test result is `insufficient`, not red.
+
+**Why:** The earlier Local build had only two optional criteria, a fixed 40 ha employment threshold and no urban locality centres. It therefore required both of its only available options and systematically produced results that were not comparable with State/Regional testing.
+
+**Trade-offs:** Traffic remains unavailable statewide, and Local candidates are still source-derived functional-hierarchy roads rather than confirmed council-maintained corridors. Conservative topology rules avoid merging whole street networks but may still split a practical route at a branch or sharp name change.
+
+**Revisit?** Add traffic only from an authoritative statewide source. Broaden name-change bridging only after auditing false joins at intersections.

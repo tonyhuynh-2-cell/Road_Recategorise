@@ -113,31 +113,43 @@ attributes are `operationalstatus=1` (**Operational**) and
 `functionhierarchy=6` (**LocalRoad**). This is a sourced functional hierarchy,
 not proof of council ownership or maintenance responsibility.
 
-- The current source contains **524,318 operational LocalRoad segments**:
-  **442,289 named** and **82,029 unnamed**.
-- Connected segments with the same complete road name are grouped; disconnected
-  roads with common names remain separate. Unnamed segments remain separate so
-  intersections cannot create a fictitious unnamed mega-road.
-- The July 2026 build produces **209,449 road candidates** covering **126,534.3
-  km**: 127,420 named connected roads/components and all 82,029 unnamed segments.
-  Terminal evidence plus both NHVR mandatory networks places 209,398 in **Local
-  Road** and 51 in **provisional Regional Road**. No LocalRoad candidate
-  currently demonstrates the gate plus optional evidence needed for State Road.
+- The current source contains **524,455 operational LocalRoad segments**:
+  **442,400 named** and **82,055 unnamed**.
+- Connected segments with the same complete road name are grouped. At an
+  unbranched degree-two junction, a name change is also bridged when the two
+  lines continue within 30 degrees of straight. Disconnected roads with common
+  names remain separate, and unnamed segments remain separate so intersections
+  cannot create a fictitious unnamed mega-road.
+- The aligned July 2026 build produces **204,390 road candidates** covering
+  **126,556.9 km**: 122,335 named connected corridors/components and all 82,055
+  unnamed segments. Available evidence identifies 13 Regional-test green roads,
+  135 Regional-test orange roads, one State-test green road and 11 State-test
+  orange roads. Gate-passing candidates with no demonstrated optional criterion
+  are retained separately as insufficient evidence.
 - `local_roads_manifest.json` provides statewide counts and assessment coverage.
   `local_roads_catalog.json.gz` preserves all per-road audit records.
 - `local_road_chunks/*.geojson.gz` contains geometrically clipped 0.25-degree
   chunks. Best Fit decompresses only visible chunks when the map ruler reaches
   2 km or closer, avoiding a half-million-line browser load.
-- Centre evidence is assigned to road terminal points within 1.2 km. A centre
+- Centre evidence is assigned to road terminal points within 1.2 km. Urban
+  candidates use qualifying ABS locality centres; rural candidates use the same
+  population floors as declared roads. A centre
   connection needs distinct centres at separate terminals; a destination
   connection needs a facility at one terminal and a centre at another. The
   terminals must span at least 500 m so tiny segments inside overlapping
   evidence catchments are not mislabelled as end-to-end connections.
+- Employment-centre minimum areas match the declared-road zone rules: 40 ha
+  Urban, 15 ha Regional and 5 ha Remote. Regional testing also measures Type 2
+  road-train coverage and connections between two State roads; State testing
+  includes the rural 25 km major-centre-to-town long-distance option. Traffic
+  remains unknown. A gate-passing road with no optional evidence is reported as
+  `insufficient`, not as a demonstrated criteria failure.
 - The Regional 19 m B-double and State PBS Level 1 gates use official NHVR
   network geometry. B-double passes at 80% coverage or greater; PBS Level 1
   passes only above 80%. Coverage measures how much of the road follows an
   approved or approved-with-conditions route within the configured tolerance. The current build
-  finds 11,140 B-double passes and 7,237 PBS Level 1 passes.
+  finds the per-road pass values recorded in the catalogue; exact totals can
+  change when near-straight name changes join previously separate components.
 - PBS Level 1 comes from NHVR network `NSW- PBS Aggregate GML - Level 1` in
   `nhvr_hvn_11240619.gpkg`, downloaded from the
   [NHVR National Network Map](https://maps.nhvr.gov.au/?view=Category&viewBy=Networks&exemptionSetId=-2&networkIds=%5B5972%5D).
