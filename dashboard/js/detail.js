@@ -247,6 +247,15 @@ function showRoadDetail(p, source) {
         : Math.round(bdCoverage * 1000) / 10);
     const bdCoverageText = bdPercent === null ? '' : ' (' + bdPercent.toFixed(1) + '% of selected road)';
     const pbs1 = c ? !!c.mand.pbs1 : !!p.has_pbs1;
+    const pbsCoverage = declaredMeta && typeof declaredMeta.pbs1_coverage === 'number'
+        ? declaredMeta.pbs1_coverage
+        : typeof nh.pbs1Coverage === 'number' ? nh.pbs1Coverage
+            : typeof p.pbs1_coverage === 'number' ? p.pbs1_coverage : null;
+    const pbsPercent = pbsCoverage === null ? null : (pbs1
+        ? Math.round(pbsCoverage * 1000) / 10
+        : Math.floor(pbsCoverage * 1000) / 10);
+    const pbsCoverageText = pbsPercent === null ? ''
+        : ' (' + pbsPercent.toFixed(1) + '% of selected road)';
     // Parallel-State mandatory, with the guidance exception: "Road does not closely parallel an
     // existing State Road unless it has similar traffic volumes." 'Similar' is implemented as this
     // road's AADT >= 0.5 × the parallel State Road's AADT. nsw_road_ext.json stores
@@ -574,7 +583,10 @@ function showRoadDetail(p, source) {
         // "Does not parallel a State Road unless similar traffic" — PASS when it does NOT parallel
         // one, or when it does but carries similar traffic volumes (exception, see parPass above).
         mandEl.innerHTML =
-            critItem(pbs1, 'S-09: PBS Level 1 vehicle access', 'Facilitates movement of PBS Level 1 or equivalent', 'crit-mand-pbs1') +
+            critItem(pbs1, 'S-09: PBS Level 1 vehicle access',
+                pbs1 ? 'Meets the 80% route-coverage threshold' + pbsCoverageText
+                    : 'Does not meet the 80% route-coverage threshold' + pbsCoverageText,
+                'crit-mand-pbs1') +
             critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant') +
             critItem(parPass, 'Does not closely parallel an existing State Road unless it has similar traffic volumes',
                 par === true ? (parPass === true ? 'Parallels a State Road but carries similar traffic volumes'
@@ -701,7 +713,8 @@ function showRoadDetail(p, source) {
         return '<div class="criteria-item"><span class="criteria-icon">' + icon + '</span><div class="criteria-text"><div class="criteria-label">' + label + '</div><div class="criteria-value">' + val + '</div></div></div>';
     };
     document.getElementById('detail-vehicle-access').innerHTML =
-        va(!!p.has_pbs1, 'PBS Level 1', 'Facilitates PBS Level 1 access', 'No PBS Level 1 access') +
+        va(pbs1, 'PBS Level 1', 'Meets the 80% route-coverage threshold' + pbsCoverageText,
+            'Below the 80% route-coverage threshold' + pbsCoverageText) +
         va(nh.bdouble19 === undefined ? !!p.has_bdouble : nh.bdouble19, 'GML/CML 19m B-double (50+ tonnes)', 'NHVR-approved 19m B-double route' + bdCoverageText, 'Below the 80% route-coverage threshold' + bdCoverageText) +
         va(nh.roadtrain, 'Road train (32m)', 'NHVR-approved road train route', 'Not on the road train network') +
         va(nh.bypass, 'Heavy-vehicle bypass', 'On an NHVR heavy-vehicle bypass', 'Not on a bypass route');

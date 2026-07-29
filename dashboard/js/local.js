@@ -39,6 +39,177 @@ let _subResults = [], _subActive = -1, _subTimer = null, _subAbort = null, _subL
 localRoadsXLayer = L.geoJSON(null, { renderer: localRenderer, style: styleLocalX }).addTo(map);
 map.removeLayer(localRoadsXLayer);   // shown only on the Local tab
 
+// --- Offline statewide LocalRoad catalogue ----------------------------------------------------
+// Best fit includes every operational functionhierarchy=LocalRoad segment from the NSW Transport
+// Theme. Geometry is split into 0.25-degree files and fetched only for the current close-scale view;
+// the small manifest supplies statewide counts without loading half a million lines into Leaflet.
+const STATEWIDE_LOCAL_COLORS = {
+    potential_state: '#1d4ed8',
+    likely_state: '#1d4ed8',
+    potential_regional: '#eab308',
+    likely_regional: '#eab308',
+    local_available: '#57534e'
+};
+const STATEWIDE_LOCAL_CHUNKS = {};
+
+function statewideLocalRoadsAtVisibleScale() {
+    const scaleMetres = typeof displayedScaleMetres === 'function'
+        ? displayedScaleMetres()
+        : null;
+    return scaleMetres !== null && scaleMetres <= TOWN_LABEL_SCALE_METRES;
+}
+
+function statewideLocalStyle(feature) {
+    const status = feature && feature.properties ? feature.properties.status : 'local_available';
+    const toggle = (status === 'potential_state' || status === 'likely_state') ? 'fstate'
+        : (status === 'potential_regional' || status === 'likely_regional') ? 'freg'
+        : status === 'local_available' ? 'flocal' : null;
+    if (toggle && typeof legendToggles !== 'undefined' && !legendToggles[toggle])
+        return { stroke: false, opacity: 0, weight: 0 };
+    const provisional = status === 'likely_state' || status === 'likely_regional';
+    return { color: STATEWIDE_LOCAL_COLORS[status] || '#57534e', weight: 1.5,
+        opacity: status === 'local_available' ? 0.72 : 0.92, lineCap: 'round',
+        dashArray: provisional ? '6 5' : null };
+}
+
+function statewideLocalPopupHtml(feature) {
+    const p = (feature && feature.properties) || {};
+    const esc = typeof localEsc === 'function' ? localEsc : String;
+    const evidence = [];
+    if (p.regional_centres && p.regional_centres.length)
+        evidence.push('Regional centres: ' + p.regional_centres.join('; '));
+    if (p.state_centres && p.state_centres.length)
+        evidence.push('State-tier centres: ' + p.state_centres.join('; '));
+    if (p.regional_facilities && p.regional_facilities.length)
+        evidence.push('Regional-test facilities: ' + p.regional_facilities.join('; '));
+    if (p.state_facilities && p.state_facilities.length)
+        evidence.push('State-test facilities: ' + p.state_facilities.join('; '));
+    const bdCoverage = typeof p.bdouble_coverage === 'number'
+        ? Math.round(p.bdouble_coverage * 100) + '% route coverage'
+        : 'coverage unavailable';
+    const pbsCoverage = typeof p.pbs1_coverage === 'number'
+        ? Math.round(p.pbs1_coverage * 100) + '% route coverage'
+        : 'coverage unavailable';
+    const bdText = p.bdouble === true ? 'passes' : 'does not pass';
+    const pbsText = p.pbs1 === true ? 'passes' : 'does not pass';
+    return (
+        '<strong>' + esc(p.name || 'Unnamed local-road segment') + '</strong>' +
+        '<div style="margin-top:4px">' + esc(p.label || 'Local Road on available evidence') + '</div>' +
+        '<div style="margin-top:4px;color:#6b625d">' + (+p.length_km || 0).toFixed(2) +
+        ' km · official NSW functional hierarchy: LocalRoad</div>' +
+        (evidence.length ? '<div style="margin-top:6px">' + esc(evidence.join(' · ')) + '</div>' : '') +
+        '<div style="margin-top:6px;color:#6b625d">19 m B-double gate: ' + bdText +
+        ' (' + bdCoverage + '). PBS Level 1 gate: ' + pbsText + ' (' + pbsCoverage +
+        '). Both gates require at least 80% of the road to follow the approved network. ' +
+        'Centre and facility links are tested at separate road terminals.</div>'
+    );
+}
+
+function statewideLocalRoadClick(e) {
+    if (currentTab !== 'fresh' || !statewideLocalRoadsAtVisibleScale()) return;
+    const point = map.latLngToLayerPoint(e.latlng);
+    const clickBox = L.latLngBounds(
+        map.layerPointToLatLng(point.subtract([35, 35])),
+        map.layerPointToLatLng(point.add([35, 35]))
+    );
+    let bestLayer = null, bestDistance = Infinity;
+    Object.keys(STATEWIDE_LOCAL_CHUNKS).forEach(function (key) {
+        const group = STATEWIDE_LOCAL_CHUNKS[key].layer;
+        if (!group || !map.hasLayer(group)) return;
+        group.eachLayer(function (layer) {
+            if (layer.getBounds && !clickBox.intersects(layer.getBounds())) return;
+            const latlngs = layer.getLatLngs ? layer.getLatLngs() : [];
+            const lines = latlngs.length && Array.isArray(latlngs[0]) ? latlngs : [latlngs];
+            lines.forEach(function (line) {
+                let previous = line.length ? map.latLngToLayerPoint(line[0]) : null;
+                for (let i = 1; i < line.length; i++) {
+                    const current = map.latLngToLayerPoint(line[i]);
+                    const distance = L.LineUtil.pointToSegmentDistance(point, previous, current);
+                    if (distance < bestDistance) { bestDistance = distance; bestLayer = layer; }
+                    previous = current;
+                }
+            });
+        });
+    });
+    if (!bestLayer || bestDistance > 10) return;
+    L.popup({ autoPanPaddingTopLeft: [24, 110], autoPanPaddingBottomRight: [24, 24] })
+        .setLatLng(e.latlng).setContent(statewideLocalPopupHtml(bestLayer.feature)).openOn(map);
+}
+map.on('click', statewideLocalRoadClick);
+
+function statewideLocalWantedKeys() {
+    const meta = window.LOCAL_ROAD_MANIFEST;
+    if (!meta || !meta.geometry || !statewideLocalRoadsAtVisibleScale()) return [];
+    const step = +meta.geometry.chunk_degrees || 0.25;
+    const allowed = window._STATEWIDE_LOCAL_KEYSET ||
+        (window._STATEWIDE_LOCAL_KEYSET = new Set(meta.geometry.chunks || []));
+    const bounds = map.getBounds().pad(0.2);
+    const keys = [];
+    const x0 = Math.floor(bounds.getWest() / step), x1 = Math.floor(bounds.getEast() / step);
+    const y0 = Math.floor(bounds.getSouth() / step), y1 = Math.floor(bounds.getNorth() / step);
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        const key = x + '_' + y;
+        if (allowed.has(key)) keys.push(key);
+    }
+    return keys;
+}
+
+function removeStatewideLocalChunks(except) {
+    const keep = new Set(except || []);
+    Object.keys(STATEWIDE_LOCAL_CHUNKS).forEach(function (key) {
+        const entry = STATEWIDE_LOCAL_CHUNKS[key];
+        if (!keep.has(key) && entry.layer && map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    });
+}
+
+function fetchGzipJson(url) {
+    return fetch(url).then(function (response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        if (typeof DecompressionStream === 'undefined')
+            throw new Error('This browser cannot decompress the local-road map chunks');
+        return response.body.pipeThrough(new DecompressionStream('gzip'));
+    }).then(function (stream) {
+        return new Response(stream).json();
+    });
+}
+
+function updateStatewideLocalRoads() {
+    const active = currentTab === 'fresh' && !!window.LOCAL_ROAD_MANIFEST;
+    const keys = active ? statewideLocalWantedKeys() : [];
+    removeStatewideLocalChunks(keys);
+    if (!active || !keys.length) return;
+    const directory = window.LOCAL_ROAD_MANIFEST.geometry.directory || 'data/local_road_chunks';
+    keys.forEach(function (key) {
+        const cached = STATEWIDE_LOCAL_CHUNKS[key];
+        if (cached && cached.layer) {
+            cached.layer.setStyle(statewideLocalStyle);
+            if (!map.hasLayer(cached.layer)) map.addLayer(cached.layer);
+            return;
+        }
+        if (cached && cached.loading) return;
+        STATEWIDE_LOCAL_CHUNKS[key] = { loading: true, layer: null };
+        fetchGzipJson(directory + '/' + key + '.geojson.gz?v=' + Date.now())
+            .then(function (geojson) {
+                const layer = L.geoJSON(geojson, {
+                    renderer: localRenderer,
+                    style: statewideLocalStyle,
+                    interactive: true,
+                    onEachFeature: function (feature, roadLayer) {
+                        roadLayer.bindPopup(statewideLocalPopupHtml(feature), {
+                            autoPanPaddingTopLeft: [24, 110],
+                            autoPanPaddingBottomRight: [24, 24]
+                        });
+                    }
+                });
+                STATEWIDE_LOCAL_CHUNKS[key] = { loading: false, layer: layer };
+                if (currentTab === 'fresh' && statewideLocalWantedKeys().indexOf(key) !== -1)
+                    map.addLayer(layer);
+            })
+            .catch(function () { delete STATEWIDE_LOCAL_CHUNKS[key]; });
+    });
+}
+map.on('moveend zoomend resize', updateStatewideLocalRoads);
+
 // Local road selection. Per-feature canvas hit-testing on these thin lines is unreliable when the graded
 // road layer is swapped off the shared canvas, so we find the nearest local road to the click ourselves
 // and open its popup. Only active on the Local tab; on any other tab it returns immediately.

@@ -197,15 +197,14 @@
             </div>
         </div>
 
-        <!-- Fresh assessment — every State & Regional road re-binned from a BLANK SLATE: the criteria
-             alone decide its category (Nat. Significant / State / Regional / Local); its current
-             administrative class plays no part in the grading, only in the movement comparison.
-             Categories waterfall from already-earned data (buildFresh, grading.js). -->
+        <!-- Fresh assessment — sourced State, Regional and Local roads assessed from a BLANK SLATE.
+             State/Regional roads use the complete prepared criteria. Local roads use terminal
+             connectivity plus measured NHVR PBS Level 1 and B-double route coverage. -->
         <div class="tab-content" id="tab-fresh">
             <div class="stat-card hero">
                 <h3>Best fit — blank slate</h3>
                 <div class="stat-value blue" id="fresh-total">–</div>
-                <div class="stat-sub">State &amp; Regional roads re-binned by the criteria alone — current classification ignored</div>
+                <div class="stat-sub">Assessment units across sourced State, Regional &amp; Local roads — current classification ignored</div>
             </div>
             <div class="stat-grid" style="grid-template-columns: repeat(2, 1fr);">
                 <div class="stat-card">
@@ -230,18 +229,23 @@
                 </div>
             </div>
             <div class="stat-card">
-                <h3>Movement vs current classification</h3>
+                <h3>Assessment coverage</h3>
                 <div class="stat-sub" id="fresh-move" style="line-height:1.6"></div>
             </div>
             <div class="data-note">
                 <span class="note-label">Note</span>
-                <p>Blank-slate re-binning: each road takes the HIGHEST category it earns from data —
+                <p>Blank-slate assessment: sourced State and Regional roads take the highest category
+                they earn from complete prepared evidence —
                 Nationally Significant (PBS Level 2B access S-06 + ≥2 national criteria: NLTN S-01,
                 metro/urban centres S-02·S-03, port / airport / intermodal S-04·S-05), else State
                 (PBS Level 1 access + ≥2 optional), else
                 Regional (19m B-double access + ≥2 optional), else Local. Dashed roads are provisional —
-                a gate passed with 1 of 2 optional criteria; traffic data could confirm them. The current
-                administrative class is never an input. Verdicts are earned from the data, not forced.</p>
+                a gate passed with 1 of 2 optional criteria. Operational LocalRoad candidates from the
+                NSW Transport Theme are also checked statewide using separate road terminals and measured
+                NHVR PBS Level 1 and B-double route coverage. LocalRoad candidates use the same
+                confirmed/provisional State-or-Regional waterfall, and remain Local where the available
+                criteria do not demonstrate a higher category. The current administrative class is never
+                used to award a higher category.</p>
             </div>
         </div>
 

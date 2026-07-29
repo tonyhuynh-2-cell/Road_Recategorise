@@ -231,6 +231,7 @@ function applyLegend(opts) {
     // Local roads (council) — lazy-loaded live, zoom-gated (see local.js). Refresh for the current view.
     if (typeof updateLocalRoads === 'function') updateLocalRoads();
     if (typeof updateLocalX === 'function') updateLocalX();   // Cross-test tab: green local-road vectors
+    if (typeof updateStatewideLocalRoads === 'function') updateStatewideLocalRoads();
 }
 
 // Shared "Highlights" legend block: the on-select connection rings (blue centres, red hospitals,
@@ -309,6 +310,7 @@ function renderMapLegend() {
         // A Road Detail opened from this lens keeps the fresh map colours (nswStyle), so its
         // legend must keep these rows too — not the generic verdict rows below.
         FRESH_CATS.forEach(k => { h += li(k, sw(FRESH_META[k].color), FRESH_META[k].label); });
+        h += liStatic('<div class="legend-color" style="background:#57534e; height:2px"></div>', 'Statewide LocalRoad geometry · visible at 2 km scale');
         h += liStatic(dashSw, 'Dashed — provisional: gate passed, 1 of 2 optional');
         h += li('towns', townSw, 'Centres / localities · zoom in');
     } else if (NSW_LENSES.includes(currentTab) && NSW_VIEW_META[nswView]) {
@@ -788,15 +790,14 @@ function refreshNswView() {
     // restyles explicitly. This removes the second full-layer setStyle per NSW tab switch.
 }
 
-// Fresh assessment panel: blank-slate category counts + movement vs today's standing.
-// Category per road comes from buildFresh (grading.js) — the current class is never an input to the
-// grading; it is only used HERE, to report how many roads would move tier if the fresh bins stood.
+// Best fit panel: complete State/Regional results plus the offline statewide LocalRoad catalogue.
+// Local candidates use the same confirmed/provisional category waterfall as declared roads.
 function refreshFresh() {
     if (typeof traceCode === 'function') traceCode(
         'Refresh Best fit bins',
-        'Every State & Regional road is re-binned from scratch by the criteria alone (national → State → Regional → Local waterfall); the panel counts the bins and compares them with today\'s classification.',
-        "function refreshFresh() {\n  const F = buildFresh();   // { roadKey: { cat, tier } } — blank-slate category per road\n  count roads per category; compare with today's Nat.Sig/State/Regional standing;\n}",
-        'source: buildXtest (asNat / asState / asReg) — earned criteria only'
+        'State and Regional roads are re-binned through the full criteria waterfall. Every operational NSW LocalRoad candidate is included using measured PBS Level 1 and B-double gates plus available optional criteria.',
+        "function refreshFresh() {\n  const F = buildFresh();\n  const localMeta = window.LOCAL_ROAD_MANIFEST;\n  // full S/R results + statewide LocalRoad available-evidence outcomes\n}",
+        'sources: prepared State/Regional criteria + NSW Transport Theme LocalRoad catalogue'
     );
     const F = buildFresh();
     const RANK = { fnat: 3, fstate: 2, freg: 1, flocal: 0 };
@@ -816,16 +817,42 @@ function refreshFresh() {
         const d = RANK[f.cat] - RANK[cur];
         if (d === 0) keep++; else if (d > 0) up++; else down++;
     }
+    const localMeta = window.LOCAL_ROAD_MANIFEST;
+    const localStatuses = localMeta ? (localMeta.status_counts || {}) : {};
+    const localStatusKm = localMeta ? (localMeta.status_length_km || {}) : {};
+    const sourcedLocal = localMeta ? (+localMeta.road_count || 0) : 0;
+    const localAvailable = +localStatuses.local_available || 0;
+    const localState = (+localStatuses.potential_state || 0) + (+localStatuses.likely_state || 0);
+    const localRegional = (+localStatuses.potential_regional || 0) + (+localStatuses.likely_regional || 0);
+    const uncategorisedLocal = Math.max(0, sourcedLocal - localAvailable - localState - localRegional);
+    counts.fstate += localState;
+    counts.freg += localRegional;
+    counts.flocal += localAvailable + uncategorisedLocal;
+    km.fstate += (+localStatusKm.potential_state || 0) + (+localStatusKm.likely_state || 0);
+    km.freg += (+localStatusKm.potential_regional || 0) + (+localStatusKm.likely_regional || 0);
+    km.flocal += (+localStatusKm.local_available || 0) +
+        Object.keys(localStatusKm).reduce((sum, status) =>
+            ['potential_state', 'likely_state', 'potential_regional', 'likely_regional', 'local_available'].indexOf(status) === -1
+                ? sum + (+localStatusKm[status] || 0) : sum, 0);
+    likely += (+localStatuses.likely_state || 0) + (+localStatuses.likely_regional || 0);
+    total += sourcedLocal;
     const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-    const pct = n => total ? (n / total * 100).toFixed(0) + '% of the network' : '';
+    const totalKm = km.fnat + km.fstate + km.freg + km.flocal;
+    const lengthPct = value => {
+        if (!totalKm) return '';
+        const share = value / totalKm * 100;
+        const precision = share < 0.1 ? 2 : 1;
+        return share.toFixed(precision) + '% of assessed road length';
+    };
     set('fresh-total', total.toLocaleString());
-    set('fresh-nat', counts.fnat.toLocaleString());   set('fresh-nat-sub', pct(counts.fnat) + ' · ' + Math.round(km.fnat).toLocaleString() + ' km');
-    set('fresh-state', counts.fstate.toLocaleString()); set('fresh-state-sub', pct(counts.fstate) + ' · ' + Math.round(km.fstate).toLocaleString() + ' km');
-    set('fresh-reg', counts.freg.toLocaleString());   set('fresh-reg-sub', pct(counts.freg) + ' · ' + Math.round(km.freg).toLocaleString() + ' km');
-    set('fresh-local', counts.flocal.toLocaleString()); set('fresh-local-sub', pct(counts.flocal) + ' · ' + Math.round(km.flocal).toLocaleString() + ' km');
-    set('fresh-move', keep.toLocaleString() + ' roads keep their current tier · ' +
+    set('fresh-nat', counts.fnat.toLocaleString());   set('fresh-nat-sub', lengthPct(km.fnat) + ' · ' + Math.round(km.fnat).toLocaleString() + ' km');
+    set('fresh-state', counts.fstate.toLocaleString()); set('fresh-state-sub', lengthPct(km.fstate) + ' · ' + Math.round(km.fstate).toLocaleString() + ' km');
+    set('fresh-reg', counts.freg.toLocaleString());   set('fresh-reg-sub', lengthPct(km.freg) + ' · ' + Math.round(km.freg).toLocaleString() + ' km');
+    set('fresh-local', counts.flocal.toLocaleString()); set('fresh-local-sub', lengthPct(km.flocal) + ' · ' + Math.round(km.flocal).toLocaleString() + ' km');
+    set('fresh-move', keep.toLocaleString() + ' existing State/Regional roads keep their current tier · ' +
         up.toLocaleString() + ' would move up · ' + down.toLocaleString() + ' would move down · ' +
-        likely.toLocaleString() + ' of the ' + total.toLocaleString() + ' are provisional (dashed — 1 of 2 optional)');
+        likely.toLocaleString() + ' are provisional · ' + sourcedLocal.toLocaleString() +
+        ' sourced LocalRoad candidates assessed with measured PBS Level 1 and B-double access');
 }
 
 // Overview panel: whole network graded by own-category criteria, plus a per-group breakdown.
