@@ -79,6 +79,35 @@ REGIONAL_RURAL_CENTRE_TYPES = STATE_CENTRE_TYPES | {"Town Centre"}
 REGIONAL_URBAN_CENTRE_TYPES = STATE_CENTRE_TYPES
 STATE_DEST_TYPES = {"International Airport", "Major Intermodal", "Major Port"}
 
+# S-10 / R-05 "connects centres" optional — qualifying-centre rule.
+# 1. Drop the metropolitan capital bubble: a centre >= CAPITAL_BUBBLE_POP that is NOT a
+#    suburb (kind != 'sal') resolves the whole metro to one point (Greater Sydney and the
+#    four SUA conurbations >= 100k), so a road inside it could only ever link that single
+#    bubble. A capital city is a Nationally-Significant connectivity target, not a
+#    State/Regional one — excluded here; the road is judged on the SUBURBS (SAL) it links.
+#    No SAL reaches 100k (largest ~51k), so this never drops a real suburb.
+# 2. Qualify at the Major-Town floor, per zone (S-10/R-05 say "Major Towns" / "Major Urban
+#    Centres"; Major Town = 7,000, 5,000 remote), with a stricter 10,000 Major-Urban-Centre
+#    floor inside urban zones.
+CAPITAL_BUBBLE_POP = 100_000
+CENTRE_CONNECT_FLOOR = {"urban": 10_000, "regional": 7_000, "remote": 5_000}
+
+
+def connectivity_centre_names(evidence: dict, zone: str) -> set[str]:
+    """Distinct qualifying centre names for the S-10/R-05 connectivity option: metro capital
+    bubbles removed, remaining centres held to the zone's Major-Town floor."""
+    floor = CENTRE_CONNECT_FLOOR.get(zone, 7_000)
+    names = set()
+    for item in evidence.get("centres", []):
+        population = int(item.get("pop") or item.get("population") or 0)
+        if population >= CAPITAL_BUBBLE_POP and item.get("kind") != "sal":
+            continue
+        if population >= floor:
+            name = str(item.get("name") or "").strip()
+            if name:
+                names.add(name)
+    return names
+
 
 def read_json(name: str):
     with (DATA / name).open(encoding="utf-8") as handle:
@@ -709,8 +738,13 @@ def build_split_criteria(
     state_centres = centre_names(evidence, STATE_CENTRE_TYPES)
     regional_types = REGIONAL_URBAN_CENTRE_TYPES if area == "urban" else REGIONAL_RURAL_CENTRE_TYPES
     regional_centres = centre_names(evidence, regional_types)
-    state_centre_pass = len(state_centres) >= 2
-    regional_centre_pass = len(regional_centres) >= 2
+    # S-10/R-05 "connects centres" now excludes the metro capital bubble and holds centres to the
+    # zone's Major-Town floor (connectivity_centre_names). State and Regional share the one rule.
+    # state_centres / regional_centres above are kept unchanged: they feed the dest (facility→centre)
+    # criterion and the detail-card centre lists, not this connectivity option.
+    connectivity_centres = connectivity_centre_names(evidence, zone)
+    state_centre_pass = len(connectivity_centres) >= 2
+    regional_centre_pass = len(connectivity_centres) >= 2
 
     ldr = state_ldr(unit, evidence, zone)
     if network_state_dest is not None:

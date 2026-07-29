@@ -17,7 +17,6 @@ import geopandas as gpd
 from rebuild_bdouble_network import (
     ACCESS_THRESHOLD,
     DATA,
-    DEFAULT_TOLERANCE_M,
     PROJECTED_CRS,
     approved_network,
     read_json,
@@ -30,12 +29,13 @@ DEFAULT_NETWORK = (
     Path.home() / "Desktop" / "IPWEA" / "data" / "raw" / "nhvr_hvn_11240619.gpkg"
 )
 EXPECTED_NETWORK = "NSW- PBS Aggregate GML - Level 1"
+DEFAULT_PBS1_TOLERANCE_M = 50.0
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--network", type=Path, default=DEFAULT_NETWORK)
-    parser.add_argument("--tolerance-m", type=float, default=DEFAULT_TOLERANCE_M)
+    parser.add_argument("--tolerance-m", type=float, default=DEFAULT_PBS1_TOLERANCE_M)
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
 

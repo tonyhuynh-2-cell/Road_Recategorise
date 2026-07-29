@@ -291,10 +291,10 @@ networks.
 - **S-09/R-04 method:** `dashboard/rebuild_pbs1_network.py` and
   `dashboard/rebuild_bdouble_network.py` compare each source line with approved
   NHVR road-segment geometry in Australian Albers (EPSG:3577). They measure the
-  actual line length inside a 50 m network tolerance. A road unit passes when at
-  least 80% of its length follows the relevant approved network. Endpoint
-  touches and crossings therefore contribute only the metres that overlap; they
-  cannot approve an entire multi-kilometre source feature.
+  actual line length inside a 50 m PBS tolerance or 100 m B-double tolerance. A
+  road unit passes when at least 80% of its length follows the relevant approved
+  network. Endpoint touches and crossings therefore contribute only the metres
+  that overlap; they cannot approve an entire multi-kilometre source feature.
 - **PBS rebuild:** use `nhvr_hvn_11240619.gpkg`, network
   `NSW- PBS Aggregate GML - Level 1`, then run
   `python3 dashboard/rebuild_pbs1_network.py --network <file> --apply` followed

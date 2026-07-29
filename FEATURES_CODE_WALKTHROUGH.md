@@ -612,10 +612,10 @@ What the code does:
 
 `rebuild_pbs1_network.py` and `rebuild_bdouble_network.py` filter the relevant
 NHVR GeoPackages to approved routes and measure how much of each source road
-line follows the network within 50 m. `rebuild_road_units.py` then rolls those
-fractions up by length and applies the mandatory gate only at 80% coverage or
-greater. This prevents a crossing or short shared section from approving an
-entire road.
+line follows the network within 50 m for PBS Level 1 and 100 m for B-double.
+`rebuild_road_units.py` then rolls those fractions up by length and applies the
+mandatory gate only at 80% coverage or greater. This prevents a crossing or
+short shared section from approving an entire road.
 
 Key files:
 

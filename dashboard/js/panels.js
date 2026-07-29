@@ -90,7 +90,11 @@ function switchTab(tab) {
 }
 
 // Road Detail is shown on a road click (it's not a tab) — return to the view that was open.
-function backFromDetail() { switchTab(lastViewTab || 'overview'); }
+function backFromDetail() {
+    switchTab(lastViewTab || 'overview');
+    // Leaving Road Detail: the criteria reference modal drops its road-specific annotations
+    if (typeof refreshCriteriaModal === 'function') refreshCriteriaModal();
+}
 
 // The five map lenses that live in the sidebar's ONE dropdown control (#lens-select, index.html);
 // the other views (Sydney / Clarence Valley / Flagged / Detail) stay individual buttons.
@@ -222,7 +226,9 @@ function applyLegend(opts) {
     if (cvTownsLayer) map.removeLayer(cvTownsLayer);
     const towns = (currentTab === 'cv') ? cvTownsLayer : nswTownsLayer;   // Sydney reuses the statewide town pins
     if (towns && legendToggles.towns) map.addLayer(towns);
-    if (currentTab !== 'cv' && nswLocalityCentresLayer && legendToggles.towns) map.addLayer(nswLocalityCentresLayer);
+    // Suburb/locality-centre pins (dots + labels appearing with zoom): OFF by default, shown via
+    // the bottom-right "Localities" toggle. Their SAL candidates feed the criteria regardless.
+    if (currentTab !== 'cv' && nswLocalityCentresLayer && legendToggles.localities) map.addLayer(nswLocalityCentresLayer);
     // Region boundary outlines — CV LGA on the CV tab, Sydney SUA on the Sydney tab (one at a time).
     if (cvBoundaryLayer) { if (currentTab === 'cv' && legendToggles.boundary) map.addLayer(cvBoundaryLayer); else map.removeLayer(cvBoundaryLayer); }
     if (sydBoundaryLayer) { if (currentTab === 'sydney' && legendToggles.boundary) map.addLayer(sydBoundaryLayer); else map.removeLayer(sydBoundaryLayer); }
@@ -343,6 +349,13 @@ function renderMapLegend() {
 // HV bypass isolate (bottom-left checkbox): ON hides every other legend layer + highlight and shows
 // ONLY the NHVR heavy-vehicle bypass overlay; OFF restores the exact previous toggle state.
 let _bypassSaved = null;
+// Bottom-right "Localities" checkbox — shows/hides the suburb/locality centre pins (zoom-gated
+// dots + labels). Purely a display toggle: the SAL candidates feed the criteria either way.
+function toggleLocalities(on) {
+    legendToggles.localities = !!on;
+    applyLegend();
+}
+
 function toggleBypassIsolate(on) {
     if (typeof traceCode === 'function') traceCode(
         'HV bypass isolate: ' + (on ? 'on' : 'off'),
@@ -562,6 +575,7 @@ function groupBreakdownHTML(rows) {
 // the whole-network / per-region count scans below are computed once per scope and cached. Tab switches
 // then read O(1) instead of re-scanning every road each time. scope: 'all' (Overview) | 'cv' | 'syd'.
 const _scopeCounts = {};
+window._scopeCountsRef = _scopeCounts;
 function scopeCounts(scope) {
     if (_scopeCounts[scope]) return _scopeCounts[scope];
     let g = 0, o = 0, r = 0, greenKm = 0, orangeKm = 0, redKm = 0;
@@ -597,7 +611,28 @@ function refreshRegion(key) {
         "function refreshRegion(key) {\n  const { g, o, r, grp } = scopeCounts(key);\n  set(key + '-green', g.toLocaleString());\n  set(key + '-orange', o.toLocaleString());\n  set(key + '-red', r.toLocaleString());\n}",
         key === 'cv' ? 'Clarence Valley roads tagged with _inCV' : 'Sydney roads tagged with _inSyd'
     );
-    const { g, o, r, greenKm, orangeKm, redKm, grp } = scopeCounts(key);
+    // When a category lens is active (State/Regional), filter the region stats to only that class.
+    const lensClass = (nswView === 'state') ? 'S' : (nswView === 'regional') ? 'R' : null;
+    let g = 0, o = 0, r = 0, greenKm = 0, orangeKm = 0, redKm = 0;
+    const grp = {
+        'State Roads': { green: 0, orange: 0, red: 0, total: 0 },
+        'Regional Roads': { green: 0, orange: 0, red: 0, total: 0 }
+    };
+    for (const k in NSW_AGG) {
+        const a = NSW_AGG[k];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        if (key === 'cv' && !a._inCV) continue;
+        if (key === 'syd' && !a._inSyd) continue;
+        if (lensClass && a.admin_class !== lensClass) continue;
+        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
+        const v = (cr && cr.verdict) || a.status;
+        const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
+        const len = a._len || 0;
+        if (v === 'green') { g++; greenKm += len; }
+        else if (v === 'orange') { o++; orangeKm += len; }
+        else { r++; redKm += len; }
+        grp[group][v]++; grp[group].total++;
+    }
     const total = g + o + r;
     const pct = n => total ? (n / total * 100).toFixed(0) + '% of roads' : '';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };

@@ -279,8 +279,8 @@ function ensureMaskShown() {
 // verdict colours + dashed/towns/boundary, plus the "Highlights" group: c_centre/c_hosp/c_dest/
 // c_employ = the on-select connection rings. clip = CV tab only, hide roads outside the LGA outline.
 let legendToggles = { green: true, orange: true, red: true, nltn: true, dashed: true, towns: true, boundary: true, clip: false,
-    bypass: false, local: true, c_centre: true, c_hosp: true, c_dest: true, c_employ: true,
-    fnat: true, fstate: true, freg: true, flocal: true };   // Fresh-assessment category bins
+    bypass: false, local: true, localities: false, c_centre: true, c_hosp: true, c_dest: true, c_employ: true,
+    fnat: true, fstate: true, freg: true, flocal: true };   // Fresh-assessment category bins; localities = suburb/locality pins (bottom-right toggle)
 
 // Cross-criteria (reclassification) test — folded into the State / Regional / Local tabs (there is
 // no separate Cross-test tab). state/regional hold the segmented control's active MODE (false = own
@@ -310,33 +310,33 @@ let selectedSource = null;
 // Track load start so the constant-speed loading bar can finish before fade-out
 const loadStart = performance.now();
 
-// selectedUnitKey (optional, 4th arg — both lineages added one): pass ALL the gazetted road's
-// layers plus the clicked unit's key — that unit draws purple, sibling units keep the standard
-// blue highlight. Without it, the clicked NAMED section draws dominant over the rest of the road.
-function highlightRoad(layers, sourceLayer, selectedName, selectedUnitKey) {
+function highlightRoad(layers, sourceLayer, selectedName) {
     if (selectedSource) selectedLayers.forEach(l => selectedSource.resetStyle(l));
     selectedLayers = layers;
     selectedSource = sourceLayer;
-    const wanted = String(selectedName || '').trim().toUpperCase();
-    const unitKey = selectedUnitKey ? String(selectedUnitKey).trim() : '';
+    _highlightedSection = null;
     layers.forEach(function (layer) {
-        const p = (layer.feature && layer.feature.properties) || {};
-        if (unitKey) {
-            const inUnit = String(p.road_unit || '').trim() === unitKey || roadKeyOf(p) === unitKey;
-            layer.setStyle({
-                weight: inUnit ? 6.5 : 5,
-                opacity: inUnit ? 1 : 0.9,
-                color: inUnit ? '#7c3aed' : '#2563eb',
-                dashArray: null
-            });
-            return;
-        }
-        const name = String(p.road_name || '').trim().toUpperCase();
-        const exact = !wanted || name === wanted;
         layer.setStyle({
-            weight: exact ? 6.5 : 4,
-            opacity: exact ? 1 : 0.62,
-            color: exact ? '#2563eb' : '#60a5fa',
+            weight: 6.5,
+            opacity: 1,
+            color: '#2563eb',
+            dashArray: null
+        });
+    });
+}
+
+// Section-only highlight: called from the Sections dropdown to distinguish one named section
+var _highlightedSection = null;
+function highlightSection(sectionName) {
+    _highlightedSection = sectionName;
+    const wanted = String(sectionName || '').trim().toUpperCase();
+    selectedLayers.forEach(function (layer) {
+        const name = String((layer.feature && layer.feature.properties && layer.feature.properties.road_name) || '').trim().toUpperCase();
+        const isSection = wanted && name === wanted;
+        layer.setStyle({
+            weight: isSection ? 7 : 5,
+            opacity: isSection ? 1 : 0.7,
+            color: isSection ? '#7c3aed' : '#2563eb',
             dashArray: null
         });
     });
@@ -364,15 +364,7 @@ function deselect() {
 map.on('click', deselect);  // clicking off any road clears the selection
 
 // --- Bottom-right map widgets: a scale bar + the selected-road distance readout ---
-// Scale bar: pick a "nice" round distance (1 / 2 / 5 × 10ⁿ) that fits in 130 px at the map centre.
-function displayedScaleMetres() {
-    const y = map.getSize().y / 2, target = 130;
-    const meters = map.distance(map.containerPointToLatLng([0, y]), map.containerPointToLatLng([target, y]));
-    if (!isFinite(meters) || meters <= 0) return null;
-    const pow = Math.pow(10, Math.floor(Math.log10(meters)));
-    return ((meters / pow) >= 5 ? 5 : (meters / pow) >= 2 ? 2 : 1) * pow;
-}
-
+// Scale bar: pick a "nice" round distance (1 / 2 / 5 × 10ⁿ) that fits in ~80 px at the map centre.
 function updateScale() {
     const barEl = document.getElementById('mw-scale-bar');
     const labelEl = document.getElementById('mw-scale-label');
@@ -380,11 +372,10 @@ function updateScale() {
     const y = map.getSize().y / 2, target = 130;
     const meters = map.distance(map.containerPointToLatLng([0, y]), map.containerPointToLatLng([target, y]));
     if (!isFinite(meters) || meters <= 0) return;
-    const nice = displayedScaleMetres();
-    if (nice === null) return;
+    const pow = Math.pow(10, Math.floor(Math.log10(meters)));
+    const nice = ((meters / pow) >= 5 ? 5 : (meters / pow) >= 2 ? 2 : 1) * pow;
     barEl.style.width = Math.round(target * nice / meters) + 'px';
     labelEl.textContent = nice >= 1000 ? (nice / 1000) + ' km' : Math.round(nice) + ' m';
-    updateTownLabels(nice);
 }
 map.on('moveend zoomend', updateScale);
 map.whenReady(function () { setTimeout(updateScale, 0); });
@@ -399,15 +390,16 @@ function showRoadDistance(km) {
 }
 function hideRoadDistance() { const el = document.getElementById('mw-distance'); if (el) el.hidden = true; }
 
-function updateTownLabels(scaleMetres) {
-    const container = map.getContainer();
-    const zoom = map.getZoom();
-    const displayedMetres = typeof scaleMetres === 'number' ? scaleMetres : displayedScaleMetres();
-    container.classList.toggle('labels-on', displayedMetres !== null && displayedMetres <= TOWN_LABEL_SCALE_METRES);
+function updateTownLabels() {
+    var container = map.getContainer();
+    var zoom = map.getZoom();
+    container.classList.toggle('labels-on', zoom >= LOCAL_ZOOM);
     ['8', '10', '11', '12', '13'].forEach(function (level) {
         container.classList.toggle('centres-z' + level, zoom >= Number(level));
     });
 }
+
+map.on('zoomend', updateTownLabels);
 
 // --- Network reveal (UI revamp): the road WEB grows outward from Sydney -------------------------
 // Not a geometric wipe: every road strand draws along its own length on a temporary overlay canvas.

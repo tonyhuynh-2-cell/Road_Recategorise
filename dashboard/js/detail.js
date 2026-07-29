@@ -117,9 +117,6 @@ function showRoadDetail(p, source) {
     // Real network membership (NHVR spatial intersect) + geometry-derived topology for this road.
     const nh = (window.NHVR || {})[roadKeyOf(p)] || {};
     const rx = (window.ROAD_EXT || {})[roadKeyOf(p)] || {};
-    // A declared-road result uses evidence from every mapped section, but when the
-    // user frames one section the map should highlight that section's relationships
-    // only. The criteria cards below remain the declared-road assessment.
     const mapEvidence = (source === 'nsw' && p._selectedSectionUnit && window.NSW_UNIT_EVID)
         ? (window.NSW_UNIT_EVID[p._selectedSectionUnit] || evd)
         : evd;
@@ -232,8 +229,8 @@ function showRoadDetail(p, source) {
     const regionalCriterionCentres = regionalCriterionNames.size
         ? evCent.filter(function (item) { return regionalCriterionNames.has(item.name); }) : evCent;
     const urbanArea = c ? c.area === 'urban' : !!p._urban;
-    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts, spatially joined to the
-    // newest completed-year count on the mapped road. Threshold depends on category + urban/rural —
+    // Real AADT + %HV for this road from the TfNSW Traffic Volume Counts (data/nsw_adt.json), spatially
+    // joined to the busiest count station on the road. Threshold depends on category + urban/rural —
     // under a State/Regional cross-test the TARGET category's thresholds apply (effState).
     const ad = (source === 'nsw' && window.ADT) ? window.ADT[roadKeyOf(p)] : null;
     const effState = xtMode === 'state' ? true : xtMode === 'regional' ? false : isState;
@@ -245,7 +242,8 @@ function showRoadDetail(p, source) {
     const bdPercent = bdCoverage === null ? null : (bd === false
         ? Math.floor(bdCoverage * 1000) / 10
         : Math.round(bdCoverage * 1000) / 10);
-    const bdCoverageText = bdPercent === null ? '' : ' (' + bdPercent.toFixed(1) + '% of selected road)';
+    const bdCoverageText = bdPercent === null ? ''
+        : ' (' + bdPercent.toFixed(1) + '% of selected road)';
     const pbs1 = c ? !!c.mand.pbs1 : !!p.has_pbs1;
     const pbsCoverage = declaredMeta && typeof declaredMeta.pbs1_coverage === 'number'
         ? declaredMeta.pbs1_coverage
@@ -545,7 +543,7 @@ function showRoadDetail(p, source) {
     } else if (ad) {
         // Statewide AADT now available for this road (TfNSW count station).
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + (aadtPass ? ICON.pass : ICON.fail) + '</span><div class="criteria-text"><div class="criteria-label">AADT: ' + ad.aadt.toLocaleString() + ' vehicles/day</div><div class="criteria-value">Threshold: >' + adtThr.toLocaleString() + ' (' + (urbanArea ? 'urban' : 'rural') + ' ' + (effState ? 'State' : 'Regional') + (xtMode ? ' — cross-test' : '') + ') · TfNSW count, ' + ad.year + '</div></div></div>' +
-            '<div class="criteria-item"><span class="criteria-icon">' + (hvPass === true ? ICON.pass : hvPass === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · selected from ' + ad.stations + ' matched stations' : '') + '</div></div></div>';
+            '<div class="criteria-item"><span class="criteria-icon">' + (hvPass === true ? ICON.pass : hvPass === false ? ICON.fail : ICON.warn) + '</span><div class="criteria-text"><div class="criteria-label">Heavy Vehicles: ' + (ad.hv_pct != null ? ad.hv_pct + '%' : 'Not classified at this station') + '</div><div class="criteria-value">Threshold: >' + hvThr + '%' + (ad.stations > 1 ? ' · busiest of ' + ad.stations + ' stations' : '') + '</div></div></div>';
     } else {
         trafficEl.innerHTML = '<div class="criteria-item"><span class="criteria-icon">' + ICON.warn + '</span><div class="criteria-text"><div class="criteria-label">ADT data not available</div><div class="criteria-value">No TfNSW count station on this road · ' + (effState ? 'State threshold >' + adtThr.toLocaleString() : 'Regional threshold >' + adtThr.toLocaleString()) + (xtMode ? ' (cross-test)' : '') + '</div></div></div>';
     }
@@ -597,7 +595,10 @@ function showRoadDetail(p, source) {
         // R-04 now uses the real NHVR 19m B-double network (falls back to the prior flag if unknown).
         mandEl.innerHTML =
             critItem(bdPass, 'R-04: GML/CML 19m B-double access (50+ tonnes)',
-                bd === true ? 'NHVR-approved 19m B-double route' + bdCoverageText : bd === false ? 'Does not meet the 80% route-coverage threshold' + bdCoverageText : 'Facilitates movement of 19m B-double routes', 'crit-mand-bdouble') +
+                bd === true ? 'NHVR-approved 19m B-double route' + bdCoverageText
+                    : bd === false ? 'Does not meet the 80% route-coverage threshold' + bdCoverageText
+                        : 'Facilitates movement of 19m B-double routes',
+                'crit-mand-bdouble') +
             critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant');
     }
 
@@ -733,6 +734,9 @@ function showRoadDetail(p, source) {
     // Copy traffic data into the collapsible "Additional data" section
     const extraTraffic = document.getElementById('detail-traffic-extra');
     if (extraTraffic) extraTraffic.innerHTML = document.getElementById('detail-traffic').innerHTML;
+
+    // Keep the criteria reference modal in sync with this road's assessment (criteria.js)
+    if (typeof refreshCriteriaModal === 'function') refreshCriteriaModal();
 }
 
 // The active cross-test mode for a Road Detail: the lens this detail was opened from (or the
@@ -780,6 +784,7 @@ function detailLayout(mode) {
         if (title) { const h = card.querySelector('h3'); if (h) h.textContent = title; }
     };
     const nltn = mode === 'nltn';
+    window._detailIsNltn = nltn;   // criteria.js: NLTN details always map to the Nat.Sig criteria section
     // For regular roads: hide standalone traffic/vehicle/connectivity (they're in the collapsible card)
     // For NLTN: show traffic (as "Determination route") and hide the collapsible extra card
     set('detail-card-traffic', nltn, nltn ? 'Determination route' : 'Traffic data');
@@ -787,11 +792,7 @@ function detailLayout(mode) {
     set('detail-card-optional', true, nltn ? 'Mandatory criteria' : 'Optional criteria (must meet ≥2)');
     set('detail-card-vehicle', false);
     set('detail-card-connectivity', false);
-    // No title arg: set()'s textContent write would wipe the expand chevron out of the header.
-    // The card also starts minimised again for every road opened.
-    const extra = document.getElementById('detail-card-extra');
-    if (extra) extra.classList.add('collapsed');
-    set('detail-card-extra', !nltn);
+    set('detail-card-extra', !nltn, 'Additional data');
 }
 
 // Road Detail for an NLTN 2020 line (the Nationally Significant lens). Graded by the national

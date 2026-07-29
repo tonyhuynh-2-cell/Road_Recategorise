@@ -7,6 +7,8 @@ let _dovCharts = {};
 function showDashboardView() {
     document.querySelector('.container').hidden = true;
     document.getElementById('dashboard-view').hidden = false;
+    var btn = document.getElementById('dashboard-btn');
+    if (btn) btn.classList.add('criteria-btn-active');
     // Hide the main map's zoom control (it bleeds through z-index)
     document.querySelectorAll('.leaflet-control-zoom').forEach(function (el) { el.style.display = 'none'; });
     if (!_dovInitialized) initDashboardOverview();
@@ -18,6 +20,8 @@ function showDashboardView() {
 function showMapView() {
     document.getElementById('dashboard-view').hidden = true;
     document.querySelector('.container').hidden = false;
+    var btn = document.getElementById('dashboard-btn');
+    if (btn) btn.classList.remove('criteria-btn-active');
     // Restore the main map's zoom control
     document.querySelectorAll('.leaflet-control-zoom').forEach(function (el) { el.style.display = ''; });
     // Leaflet may need a size refresh after being hidden

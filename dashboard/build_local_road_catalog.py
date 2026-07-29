@@ -42,7 +42,8 @@ METRIC_CRS = "EPSG:3577"
 ENDPOINT_TOLERANCE_M = 1.0
 EVIDENCE_DISTANCE_M = 1_200.0
 MINIMUM_CONNECTION_SPAN_M = 500.0
-HEAVY_VEHICLE_TOLERANCE_M = 50.0
+BDOUBLE_TOLERANCE_M = 100.0
+PBS1_TOLERANCE_M = 50.0
 HEAVY_VEHICLE_ACCESS_THRESHOLD = 0.80
 CHUNK_DEGREES = 0.25
 GEOMETRY_SIMPLIFY_M = 2.0
@@ -268,22 +269,23 @@ def facility_connection_names(
 class NetworkCoverage:
     """Measure how much road geometry follows a complete approved route network."""
 
-    def __init__(self, geometries: Sequence) -> None:
+    def __init__(self, geometries: Sequence, tolerance_m: float = PBS1_TOLERANCE_M) -> None:
         self.geometries = list(geometries)
+        self.tolerance_m = tolerance_m
         self.tree = STRtree(self.geometries)
 
     def fraction(self, geometry) -> float:
         if geometry is None or geometry.is_empty or geometry.length <= 0:
             return 0.0
         indexes = self.tree.query(
-            geometry.buffer(HEAVY_VEHICLE_TOLERANCE_M),
+            geometry.buffer(self.tolerance_m),
             predicate="intersects",
         )
         if not len(indexes):
             return 0.0
         nearby = union_all([self.geometries[index] for index in indexes])
         covered = geometry.intersection(
-            nearby.buffer(HEAVY_VEHICLE_TOLERANCE_M)
+            nearby.buffer(self.tolerance_m)
         ).length
         return min(1.0, max(0.0, covered / geometry.length))
 
@@ -426,7 +428,11 @@ def load_facilities(data_dir: Path) -> gpd.GeoDataFrame:
     return frame.to_crs(METRIC_CRS)
 
 
-def load_approved_network(path: Path, network_name: str) -> NetworkCoverage:
+def load_approved_network(
+    path: Path,
+    network_name: str,
+    tolerance_m: float,
+) -> NetworkCoverage:
     network = pyogrio.read_dataframe(
         path,
         layer="hvn_road_segments",
@@ -437,16 +443,19 @@ def load_approved_network(path: Path, network_name: str) -> NetworkCoverage:
     if network.empty:
         raise RuntimeError(f"No approved {network_name} segments found in {path}")
     metric_geometry = network.to_crs(METRIC_CRS).geometry
-    return NetworkCoverage(metric_geometry[metric_geometry.notna()].tolist())
+    return NetworkCoverage(
+        metric_geometry[metric_geometry.notna()].tolist(),
+        tolerance_m,
+    )
 
 
 def load_bdouble_network(data_dir: Path) -> NetworkCoverage:
     path = data_dir / "geopackages" / "nhvr_hvn_11240521.gpkg"
-    return load_approved_network(path, BDOUBLE_NETWORK_NAME)
+    return load_approved_network(path, BDOUBLE_NETWORK_NAME, BDOUBLE_TOLERANCE_M)
 
 
 def load_pbs1_network(path: Path) -> NetworkCoverage:
-    return load_approved_network(path, PBS1_NETWORK_NAME)
+    return load_approved_network(path, PBS1_NETWORK_NAME, PBS1_TOLERANCE_M)
 
 
 @dataclass
@@ -606,13 +615,13 @@ def write_outputs(records: list[RoadRecord], output_dir: Path) -> None:
         "bdouble_method": {
             "source": BDOUBLE_NETWORK_NAME,
             "access_filter": "Approved or Approved with Conditions",
-            "alignment_tolerance_m": HEAVY_VEHICLE_TOLERANCE_M,
+            "alignment_tolerance_m": BDOUBLE_TOLERANCE_M,
             "minimum_route_coverage": HEAVY_VEHICLE_ACCESS_THRESHOLD,
         },
         "pbs1_method": {
             "source": PBS1_NETWORK_NAME,
             "access_filter": "Approved or Approved with Conditions",
-            "alignment_tolerance_m": HEAVY_VEHICLE_TOLERANCE_M,
+            "alignment_tolerance_m": PBS1_TOLERANCE_M,
             "minimum_route_coverage": HEAVY_VEHICLE_ACCESS_THRESHOLD,
         },
         "unknown_criteria": {

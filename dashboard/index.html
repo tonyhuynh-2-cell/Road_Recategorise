@@ -77,7 +77,10 @@
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
             <h1 style="margin-bottom:0;">Road Recategorisation Assessment</h1>
             <div style="display:flex; gap:6px;">
-                <button class="criteria-btn" onclick="showDashboardView()" title="Dashboard overview">
+                <button id="overrides-btn" class="criteria-btn" onclick="openOverridesPanel()" title="Criteria overrides">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path><circle cx="12" cy="7" r="3"></circle><circle cx="18" cy="4" r="0"></circle><circle cx="6" cy="13" r="3"></circle></svg>
+                </button>
+                <button id="dashboard-btn" class="criteria-btn" onclick="showDashboardView()" title="Dashboard overview">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
                 </button>
                 <button id="criteria-btn" class="criteria-btn" onclick="openCriteriaModal()" title="Open criteria reference">
@@ -429,7 +432,7 @@
                         <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); white-space:nowrap;">Sections:</label>
                         <select id="detail-sections-select" class="tab-btn tab-select"
                                 style="display:block; width:100%; padding:8px 28px 8px 10px; font-size:12px; font-weight:500; border-color:var(--muted);"
-                                onchange="selectRoadSection(this.value)"></select>
+                                ></select>
                     </div>
                     <!-- Cross-test dropdown: assess this road against a different category's criteria -->
                     <div id="detail-crosstest-wrap" style="display:flex; align-items:center; gap:8px;">
@@ -535,20 +538,6 @@
         <!-- Data-refresh pill (top-centre): shown while road vectors reload — showMapRefresh() in state.js -->
         <div class="map-refresh" id="map-refresh" role="status"><span class="mr-spin" aria-hidden="true"></span><span id="map-refresh-text">Refreshing network…</span></div>
         <!-- Live code trace: a learning overlay that prints the code path behind interactions. -->
-        <section id="code-trace" class="code-trace ct-bubble" aria-label="Live code trace">
-            <div class="ct-head">
-                <div>
-                    <h3>Live code trace</h3>
-                    <span><b id="code-trace-count">0</b> events</span>
-                </div>
-                <div class="ct-actions">
-                    <button type="button" onclick="pauseCodeTrace(this);event.stopPropagation();">Resume</button>
-                    <button type="button" onclick="clearCodeTrace();event.stopPropagation();">Clear</button>
-                    <button type="button" onclick="collapseTraceBubble();event.stopPropagation();" aria-label="Collapse code trace">−</button>
-                </div>
-            </div>
-            <div id="code-trace-feed" class="ct-feed"></div>
-        </section>
         <!-- Road search (top-left). Find a road by name or ID and jump to it — see js/search.js. -->
         <div id="road-search" class="road-search">
             <div class="rs-box">
@@ -563,10 +552,12 @@
         <div id="map-legend" class="map-legend"></div>
         <!-- HV bypass isolate (bottom-left): checking it hides all other legend layers + highlights,
              leaving only the NHVR heavy-vehicle bypass network. See toggleBypassIsolate() in panels.js. -->
-        <label class="bypass-toggle" title="Show only the NHVR heavy-vehicle bypass network">
-            <input type="checkbox" onchange="toggleBypassIsolate(this.checked)">
+        <!-- Locality-centre pins (suburb/locality SAL candidates, dots+labels appear with zoom).
+             Off by default; this toggle re-adds the layer. See toggleLocalities() in panels.js. -->
+        <label class="bypass-toggle locality-toggle" title="Show suburb / locality centre pins (ABS SAL 2021 candidates)">
+            <input type="checkbox" onchange="toggleLocalities(this.checked)">
             <span class="bt-mark" aria-hidden="true"></span>
-            <span class="bt-label">HV bypass only</span>
+            <span class="bt-label">Localities</span>
         </label>
         <!-- Map widgets (bottom-right, above the HV bypass toggle): a scale bar + minimalist compass, plus
              a selected-road distance readout that appears above the scale when a road is selected.
@@ -587,6 +578,39 @@
             </div>
         </div>
         <!-- Criteria reference modal — overlays the map area only -->
+        <div id="overrides-modal" class="criteria-modal" hidden>
+            <div class="cm-header">
+                <div class="cm-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
+                    <span>Criteria Overrides</span>
+                </div>
+                <div class="cm-actions">
+                    <button class="cm-action-btn" onclick="closeOverridesPanel()" title="Close">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="cm-body" style="padding:20px;">
+                <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+                    Toggle criteria to assume they pass for all roads. The map recolours in real time to show the impact.
+                </p>
+                <h3 style="font:600 10px var(--sans); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:10px;">Mandatory gates</h3>
+                <label class="override-toggle"><input type="checkbox" id="ov-pbs1" onchange="applyCriteriaOverrides()"><span>Assume PBS Level 1 access (State)</span></label>
+                <label class="override-toggle"><input type="checkbox" id="ov-bdouble" onchange="applyCriteriaOverrides()"><span>Assume 19m B-double access (Regional)</span></label>
+                <label class="override-toggle"><input type="checkbox" id="ov-parallel" onchange="applyCriteriaOverrides()"><span>Assume no parallel road (State)</span></label>
+                <h3 style="font:600 10px var(--sans); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 10px;">Optional criteria</h3>
+                <label class="override-toggle"><input type="checkbox" id="ov-traffic" onchange="applyCriteriaOverrides()"><span>Assume traffic thresholds met</span></label>
+                <label class="override-toggle"><input type="checkbox" id="ov-centres" onchange="applyCriteriaOverrides()"><span>Assume connects centres</span></label>
+                <label class="override-toggle"><input type="checkbox" id="ov-dest" onchange="applyCriteriaOverrides()"><span>Assume connects facilities / employment</span></label>
+                <label class="override-toggle"><input type="checkbox" id="ov-hv" onchange="applyCriteriaOverrides()"><span>Assume road-train access (Regional)</span></label>
+                <label class="override-toggle"><input type="checkbox" id="ov-ldr" onchange="applyCriteriaOverrides()"><span>Assume long-distance rural route (State)</span></label>
+                <label class="override-toggle"><input type="checkbox" id="ov-twostate" onchange="applyCriteriaOverrides()"><span>Assume links two State roads (Regional)</span></label>
+                <div style="margin-top:20px; padding-top:14px; border-top:1px solid var(--line);">
+                    <button class="tab-btn" style="width:100%; padding:10px;" onclick="resetCriteriaOverrides()">Reset all overrides</button>
+                </div>
+                <div id="overrides-impact" style="margin-top:16px; font-size:12px; color:var(--ink-soft);"></div>
+            </div>
+        </div>
         <div id="criteria-modal" class="criteria-modal" hidden>
             <div class="cm-header">
                 <div class="cm-title">
