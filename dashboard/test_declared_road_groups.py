@@ -1,6 +1,11 @@
 import unittest
 
-from rebuild_road_units import combined_boolean, criteria_area, declared_group_reason
+from rebuild_road_units import (
+    apply_measured_mandatory_gates,
+    combined_boolean,
+    criteria_area,
+    declared_group_reason,
+)
 
 
 def unit(number, admin_class, name):
@@ -73,6 +78,23 @@ class DeclaredRoadGroupingTest(unittest.TestCase):
         self.assertEqual(criteria_area("urban"), "urban")
         self.assertEqual(criteria_area("regional"), "rural")
         self.assertEqual(criteria_area("remote"), "rural")
+
+    def test_single_unit_legacy_gates_are_replaced_by_measured_coverage(self):
+        criteria = {
+            "cls": "Regional",
+            "opt": {"centres": True, "dest": True},
+            "optMet": 2,
+            "mand": {"pbs1": True, "bdouble": True},
+            "verdict": "green",
+        }
+        updated = apply_measured_mandatory_gates(
+            criteria,
+            {"pbs1": False, "bdouble": False},
+        )
+        self.assertFalse(updated["mand"]["pbs1"])
+        self.assertFalse(updated["mand"]["bdouble"])
+        self.assertEqual(updated["verdict"], "red")
+        self.assertTrue(criteria["mand"]["pbs1"])
 
 
 if __name__ == "__main__":

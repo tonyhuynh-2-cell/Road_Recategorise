@@ -107,6 +107,42 @@ download is `scripts/download_nsw_road_segments.py`. The LDR and S-08 rebuilds
 match these physical centreline segments to each categorised road corridor before
 testing connectivity.
 
+**Statewide LocalRoad catalogue** — `build_local_road_catalog.py` reads the same
+NSW Transport Theme GeoPackage and keeps every segment whose official coded
+attributes are `operationalstatus=1` (**Operational**) and
+`functionhierarchy=6` (**LocalRoad**). This is a sourced functional hierarchy,
+not proof of council ownership or maintenance responsibility.
+
+- The current source contains **524,318 operational LocalRoad segments**:
+  **442,289 named** and **82,029 unnamed**.
+- Connected segments with the same complete road name are grouped; disconnected
+  roads with common names remain separate. Unnamed segments remain separate so
+  intersections cannot create a fictitious unnamed mega-road.
+- The July 2026 build produces **209,449 road candidates** covering **126,534.3
+  km**: 127,420 named connected roads/components and all 82,029 unnamed segments.
+  Terminal evidence plus both NHVR mandatory networks places 209,398 in **Local
+  Road** and 51 in **provisional Regional Road**. No LocalRoad candidate
+  currently demonstrates the gate plus optional evidence needed for State Road.
+- `local_roads_manifest.json` provides statewide counts and assessment coverage.
+  `local_roads_catalog.json.gz` preserves all per-road audit records.
+- `local_road_chunks/*.geojson.gz` contains geometrically clipped 0.25-degree
+  chunks. Best Fit decompresses only visible chunks when the map ruler reaches
+  2 km or closer, avoiding a half-million-line browser load.
+- Centre evidence is assigned to road terminal points within 1.2 km. A centre
+  connection needs distinct centres at separate terminals; a destination
+  connection needs a facility at one terminal and a centre at another. The
+  terminals must span at least 500 m so tiny segments inside overlapping
+  evidence catchments are not mislabelled as end-to-end connections.
+- The Regional 19 m B-double and State PBS Level 1 gates use official NHVR
+  network geometry and pass only when at least 80% of the road follows an
+  approved or approved-with-conditions route within 50 m. The current build
+  finds 11,140 B-double passes and 7,237 PBS Level 1 passes.
+- PBS Level 1 comes from NHVR network `NSW- PBS Aggregate GML - Level 1` in
+  `nhvr_hvn_11240619.gpkg`, downloaded from the
+  [NHVR National Network Map](https://maps.nhvr.gov.au/?view=Category&viewBy=Networks&exemptionSetId=-2&networkIds=%5B5972%5D).
+- The Local tab's suburb search remains a separate OpenStreetMap/Overpass preview.
+  The statewide Best Fit local-road population does not depend on that live API.
+
 ---
 
 ## 2. Traffic — Average Daily Traffic (AADT) & heavy-vehicle %
@@ -248,15 +284,21 @@ excluded.
 networks.
 
 - **Source:** the **NHVR National Network Map** downloadable GeoPackages:
+  - NSW PBS Aggregate GML - Level 1 → the S-09 mandatory criterion
   - Road Train 32 m Approved Routes (layer 21) → the R-03 criterion
   - GML/CML 19 m B-double Routes over 50 tonnes → the R-04 mandatory
   - Heavy-vehicle Bypasses
-- **R-04 method:** `dashboard/rebuild_bdouble_network.py` compares each source
-  line with approved NHVR road-segment geometry in Australian Albers (EPSG:3577).
-  It measures the actual line length inside a 50 m network tolerance. A road unit
-  passes when at least 80% of its length follows the approved network. Endpoint
-  touches and crossings therefore contribute only the metres that overlap; they
-  cannot approve an entire multi-kilometre source feature.
+- **S-09/R-04 method:** `dashboard/rebuild_pbs1_network.py` and
+  `dashboard/rebuild_bdouble_network.py` compare each source line with approved
+  NHVR road-segment geometry in Australian Albers (EPSG:3577). They measure the
+  actual line length inside a 50 m PBS tolerance or 100 m B-double tolerance. A
+  road unit passes when at least 80% of its length follows the relevant approved
+  network. Endpoint touches and crossings therefore contribute only the metres
+  that overlap; they cannot approve an entire multi-kilometre source feature.
+- **PBS rebuild:** use `nhvr_hvn_11240619.gpkg`, network
+  `NSW- PBS Aggregate GML - Level 1`, then run
+  `python3 dashboard/rebuild_pbs1_network.py --network <file> --apply` followed
+  by `python3 dashboard/rebuild_road_units.py --apply`.
 - **Rebuild:** download the current NSW GML/CML 19 m B-double GeoPackage from the
   map's **Download Network** action into `dashboard/data/geopackages/`, run
   `python3 dashboard/rebuild_bdouble_network.py --network <file> --apply`, then

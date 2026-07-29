@@ -610,11 +610,19 @@ The app checks heavy-vehicle network access, including PBS Level 1, PBS 2B, 19m 
 
 What the code does:
 
-`rebuild_from_nhvr.py` reads NHVR GeoPackages, filters to approved segments, spatially intersects roads with those networks, rolls segment results up to road number, and updates criteria/verdict files.
+`rebuild_pbs1_network.py` and `rebuild_bdouble_network.py` filter the relevant
+NHVR GeoPackages to approved routes and measure how much of each source road
+line follows the network within 50 m for PBS Level 1 and 100 m for B-double.
+`rebuild_road_units.py` then rolls those fractions up by length and applies the
+mandatory gate only at 80% coverage or greater. This prevents a crossing or
+short shared section from approving an entire road.
 
 Key files:
 
 - `dashboard/rebuild_from_nhvr.py`
+- `dashboard/rebuild_pbs1_network.py`
+- `dashboard/rebuild_bdouble_network.py`
+- `dashboard/rebuild_road_units.py`
 - `dashboard/rebuild_r03_roadtrain_optional.py`
 - `dashboard/data/nhvr_networks.json`
 - `dashboard/data/nsw_criteria.json`
@@ -836,6 +844,10 @@ What it is:
 
 The Local tab lets the user search a suburb and load council/local roads from OpenStreetMap.
 
+This live suburb view is separate from the statewide Best Fit catalogue described
+below. It is useful for quick exploration, but requires internet access and its OSM
+road tags do not prove council ownership.
+
 What the code does:
 
 `local.js` resolves the suburb boundary, asks Overpass for local-road ways inside the suburb bounding box, clips those roads to the suburb polygon and draws them as local road vectors.
@@ -865,6 +877,57 @@ function loadSuburbResult(g) {
     });
 }
 ```
+
+## 20A. Statewide Local Roads in Best Fit
+
+What it is:
+
+Best Fit includes every operational road segment classified `LocalRoad` by the
+official NSW Transport Theme, rather than considering only today's State and
+Regional roads.
+
+What the code does:
+
+`build_local_road_catalog.py` filters the 1.37-million-segment NSW file to
+`operationalstatus=1` and `functionhierarchy=6`, groups connected segments with
+the same full name and preserves every unnamed segment. Distinct centres must be
+assigned to separate terminal points; a facility must be at one terminal and a
+centre at another. A 500 m minimum terminal span prevents tiny segments inside
+overlapping evidence catchments from appearing to connect destinations. The
+Regional and State mandatory gates are measured against the NHVR 19 m B-double
+and PBS Level 1 networks using an 80% route-coverage rule. Approved and
+approved-with-conditions geometry is included; a crossing or endpoint touch is
+not enough.
+
+The build writes:
+
+- `local_roads_manifest.json` for statewide totals;
+- `local_roads_catalog.json.gz` for all per-road audit records;
+- `local_road_chunks/*.geojson.gz` for zoom-gated map geometry.
+
+`local.js` calculates the visible 0.25-degree chunks once the displayed map
+scale reaches 2 km or closer, decompresses only those files, styles the roads by
+Best Fit category and uses nearest-line selection for reliable clicks. The
+popup shows each road's measured PBS and B-double coverage. `refreshFresh()`
+combines the manifest totals with the existing State/Regional Best Fit
+waterfall.
+
+Key files:
+
+- `dashboard/build_local_road_catalog.py`
+- `dashboard/test_build_local_road_catalog.py`
+- `dashboard/js/local.js`
+- `dashboard/js/panels.js`
+- `dashboard/js/init.js`
+
+Important interpretation:
+
+`LocalRoad` is the NSW source's functional hierarchy. It is not by itself proof
+that a council owns or maintains the road. A confirmed higher category requires
+its mandatory network gate and at least two available optional criteria. A
+dashed provisional road passes its gate with one optional criterion. Otherwise
+it remains Local because the available criteria do not demonstrate a higher
+category.
 
 ## 21. Local Road Clipping
 
@@ -909,7 +972,11 @@ Loaded local roads can be indicatively tested as Regional or State roads.
 
 What the code does:
 
-`gradeLocalGroup()` looks at nearby centres and facilities. Because local-road mandatory heavy-vehicle gates are not published, the app clearly marks this as indicative.
+`gradeLocalGroup()` looks at nearby centres and facilities for the live
+OpenStreetMap suburb preview. That preview does not join its temporary OSM
+geometry to the NHVR mandatory networks, so it is clearly marked indicative.
+The statewide Best Fit catalogue is the authoritative local-road assessment and
+does measure both NHVR gates.
 
 Key files:
 

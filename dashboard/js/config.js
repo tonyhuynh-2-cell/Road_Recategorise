@@ -21,7 +21,7 @@ const FRESH_META = {
     fnat:   { label: 'Nationally Significant — PBS 2B + ≥2 national criteria', color: '#c026d3' },
     fstate: { label: 'State Road — PBS-1 + ≥2 optional', color: '#1d4ed8' },
     freg:   { label: 'Regional Road — 19m B-double + ≥2 optional', color: '#eab308' },
-    flocal: { label: 'Local Road — meets no higher category', color: '#57534e' }
+    flocal: { label: 'Local Road — no higher category on available evidence', color: '#57534e' }
 };
 
 // Minimalist inline status icons for the Road Detail panel

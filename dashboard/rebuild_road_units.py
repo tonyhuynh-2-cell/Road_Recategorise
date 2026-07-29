@@ -7,11 +7,13 @@ Regional sections, and different route shields. This script keeps the sourced
 identifier as metadata while assigning each displayed segment to a connected
 ``road_unit`` used by the dashboard.
 
-Existing one-unit roads retain their current assessment verbatim. Administrative
-IDs that split into multiple units are reassessed from unit geometry and the
-named evidence already available to the dashboard. Road-wide values that cannot
-be located within a split ID (notably AADT and road-train/bypass membership) are
-left unavailable rather than copied to unrelated corridors.
+Existing one-unit roads retain their prepared optional evidence, but mandatory
+PBS Level 1 and B-double gates are always refreshed from measured route
+coverage. Administrative IDs that split into multiple units are reassessed from
+unit geometry and the named evidence already available to the dashboard.
+Road-wide values that cannot be located within a split ID (notably AADT and
+road-train/bypass membership) are left unavailable rather than copied to
+unrelated corridors.
 """
 
 from __future__ import annotations
@@ -682,6 +684,17 @@ def verdict_of(criteria: dict) -> str:
     return "green" if criteria["optMet"] >= 2 else "orange" if criteria["optMet"] == 1 else "red"
 
 
+def apply_measured_mandatory_gates(criteria: dict, unit: dict) -> dict:
+    """Replace legacy any-segment gates with measured whole-route results."""
+
+    updated = copy.deepcopy(criteria)
+    updated.setdefault("mand", {})["pbs1"] = bool(unit["pbs1"])
+    updated["mand"]["bdouble"] = bool(unit["bdouble"])
+    updated["optMet"] = optional_count(updated.get("opt") or {})
+    updated["verdict"] = verdict_of(updated)
+    return updated
+
+
 def apply_state_dest(criteria: dict, result: dict) -> dict:
     updated = copy.deepcopy(criteria)
     updated.setdefault("stateOpt", {}).update(state_metadata(result))
@@ -1046,16 +1059,8 @@ def build_declared_roads(
                 if not row:
                     raise RuntimeError(f"Declared road {key} has no road-level criteria")
                 row.pop("unitAssessment", None)
-                if row.get("cls") == "State":
-                    row.setdefault("mand", {})["pbs1"] = combined_boolean([
-                        unit_criteria[member["key"]].get("mand", {}).get("pbs1")
-                        for member in members
-                    ])
-                else:
-                    row.setdefault("mand", {})["bdouble"] = combined_boolean([
-                        unit_criteria[member["key"]].get("mand", {}).get("bdouble")
-                        for member in members
-                    ])
+                row.setdefault("mand", {})["pbs1"] = combined["pbs1"]
+                row["mand"]["bdouble"] = combined["bdouble"]
                 row["optMet"] = optional_count(row.get("opt") or {})
                 row["verdict"] = verdict_of(row)
             else:
@@ -1083,9 +1088,9 @@ def build_declared_roads(
 
             if len(members) > 1:
                 nhvr_row = copy.deepcopy(legacy_nhvr.get(base, {}))
-                nhvr_row["bdouble19"] = combined_boolean([
-                    unit_nhvr[member["key"]].get("bdouble19") for member in members
-                ])
+                nhvr_row["pbs1"] = combined["pbs1"]
+                nhvr_row["pbs1Coverage"] = combined["pbs1_coverage"]
+                nhvr_row["bdouble19"] = combined["bdouble"]
                 nhvr_row["bdouble19Coverage"] = combined["bdouble_coverage"]
                 nhvr_row["source_scope"] = "declared_road_all_sections"
                 nhvr[key] = nhvr_row
@@ -1590,6 +1595,8 @@ def main() -> None:
         unit_zone_values[key] = unit["zone"]
         if unit["unit_count"] == 1:
             unit_nhvr[key] = copy.deepcopy(legacy_nhvr.get(base, {}))
+            unit_nhvr[key]["pbs1"] = unit["pbs1"]
+            unit_nhvr[key]["pbs1Coverage"] = unit["pbs1_coverage"]
             unit_nhvr[key]["bdouble19"] = unit["bdouble"]
             unit_nhvr[key]["bdouble19Coverage"] = unit["bdouble_coverage"]
             if base in legacy_adt:
@@ -1614,6 +1621,8 @@ def main() -> None:
                 ) if key in unit_state_dest else legacy_row
         else:
             unit_nhvr[key] = {
+                "pbs1": unit["pbs1"],
+                "pbs1Coverage": unit["pbs1_coverage"],
                 "bdouble19": unit["bdouble"],
                 "bdouble19Coverage": unit["bdouble_coverage"],
                 "source_scope": "road_unit_segment_flags",
@@ -1628,13 +1637,14 @@ def main() -> None:
                 [nltn[index] for index in unit["feature_indexes"]],
                 unit_state_dest.get(key),
             )
+        own_criteria = apply_measured_mandatory_gates(own_criteria, unit)
         before_dest = (own_criteria.get("regionalOpt") or {}).get("dest")
         before_verdict = own_criteria.get("verdict")
-        unit_criteria[key] = apply_regional_dest(
+        unit_criteria[key] = apply_measured_mandatory_gates(apply_regional_dest(
             own_criteria,
             unit,
             unit_evidence.get(key, {}),
-        )
+        ), unit)
         if (
             before_dest != (unit_criteria[key].get("regionalOpt") or {}).get("dest")
             or before_verdict != unit_criteria[key].get("verdict")
@@ -1674,6 +1684,8 @@ def main() -> None:
             and base in export_lookup
             and key not in unit_state_dest
             and key not in regional_dest_changed
+            and (legacy_criteria.get(base, {}).get("mand") or {}).get("pbs1") is unit["pbs1"]
+            and (legacy_criteria.get(base, {}).get("mand") or {}).get("bdouble") is unit["bdouble"]
         ):
             row = copy.deepcopy(export_lookup[base])
             row["_key"] = key
