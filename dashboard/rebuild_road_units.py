@@ -317,7 +317,8 @@ def weighted_flag(unit: dict, features, field: str) -> tuple[bool, float]:
             fraction = 1.0 if properties.get(field) in (True, 1) else 0.0
         passed += unit["feature_lengths"][index] * min(1.0, max(0.0, float(fraction)))
     coverage = passed / total if total else 0.0
-    return coverage >= ACCESS_COVERAGE, round(coverage, 6)
+    passes = coverage > ACCESS_COVERAGE if field == "has_pbs1" else coverage >= ACCESS_COVERAGE
+    return passes, round(coverage, 6)
 
 
 def attach_evidence(source_evidence: dict, units: list[dict]) -> dict[str, dict]:
@@ -1039,7 +1040,7 @@ def build_declared_roads(
                 ),
             }
             combined["zone"] = unit_zone(combined, urbanity, newell_segments)
-            combined["pbs1"] = combined["pbs1_coverage"] >= ACCESS_COVERAGE
+            combined["pbs1"] = combined["pbs1_coverage"] > ACCESS_COVERAGE
             combined["bdouble"] = combined["bdouble_coverage"] >= ACCESS_COVERAGE
             combined["road_names"] = names_by_length(combined, features)
             combined["primary_name"] = combined["road_names"][0] if combined["road_names"] else ""

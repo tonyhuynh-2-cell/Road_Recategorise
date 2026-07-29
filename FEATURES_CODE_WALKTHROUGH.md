@@ -613,9 +613,10 @@ What the code does:
 `rebuild_pbs1_network.py` and `rebuild_bdouble_network.py` filter the relevant
 NHVR GeoPackages to approved routes and measure how much of each source road
 line follows the network within 50 m for PBS Level 1 and 100 m for B-double.
-`rebuild_road_units.py` then rolls those fractions up by length and applies the
-mandatory gate only at 80% coverage or greater. This prevents a crossing or
-short shared section from approving an entire road.
+`rebuild_road_units.py` then rolls those fractions up by length. The PBS Level 1
+mandatory gate requires more than 80% coverage; the B-double gate requires 80%
+or greater. This prevents a crossing or short shared section from approving an
+entire road.
 
 Key files:
 
@@ -895,9 +896,9 @@ assigned to separate terminal points; a facility must be at one terminal and a
 centre at another. A 500 m minimum terminal span prevents tiny segments inside
 overlapping evidence catchments from appearing to connect destinations. The
 Regional and State mandatory gates are measured against the NHVR 19 m B-double
-and PBS Level 1 networks using an 80% route-coverage rule. Approved and
-approved-with-conditions geometry is included; a crossing or endpoint touch is
-not enough.
+and PBS Level 1 networks. B-double requires at least 80% route coverage and PBS
+Level 1 requires more than 80%. Approved and approved-with-conditions geometry
+is included; a crossing or endpoint touch is not enough.
 
 The build writes:
 

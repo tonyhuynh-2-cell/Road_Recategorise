@@ -61,7 +61,7 @@ def main() -> None:
         for feature in assessment["features"]
     ]
     fractions = route_coverage(roads, network, args.tolerance_m)
-    new_flags = [fraction >= ACCESS_THRESHOLD for fraction in fractions]
+    new_flags = [fraction > ACCESS_THRESHOLD for fraction in fractions]
 
     for index, feature in enumerate(assessment["features"]):
         properties = feature["properties"]

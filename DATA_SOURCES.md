@@ -134,8 +134,9 @@ not proof of council ownership or maintenance responsibility.
   terminals must span at least 500 m so tiny segments inside overlapping
   evidence catchments are not mislabelled as end-to-end connections.
 - The Regional 19 m B-double and State PBS Level 1 gates use official NHVR
-  network geometry and pass only when at least 80% of the road follows an
-  approved or approved-with-conditions route within 50 m. The current build
+  network geometry. B-double passes at 80% coverage or greater; PBS Level 1
+  passes only above 80%. Coverage measures how much of the road follows an
+  approved or approved-with-conditions route within the configured tolerance. The current build
   finds 11,140 B-double passes and 7,237 PBS Level 1 passes.
 - PBS Level 1 comes from NHVR network `NSW- PBS Aggregate GML - Level 1` in
   `nhvr_hvn_11240619.gpkg`, downloaded from the
@@ -291,9 +292,9 @@ networks.
 - **S-09/R-04 method:** `dashboard/rebuild_pbs1_network.py` and
   `dashboard/rebuild_bdouble_network.py` compare each source line with approved
   NHVR road-segment geometry in Australian Albers (EPSG:3577). They measure the
-  actual line length inside a 50 m PBS tolerance or 100 m B-double tolerance. A
-  road unit passes when at least 80% of its length follows the relevant approved
-  network. Endpoint touches and crossings therefore contribute only the metres
+  actual line length inside a 50 m PBS tolerance or 100 m B-double tolerance.
+  PBS Level 1 passes above 80%; B-double passes at 80% or greater.
+  Endpoint touches and crossings therefore contribute only the metres
   that overlap; they cannot approve an entire multi-kilometre source feature.
 - **PBS rebuild:** use `nhvr_hvn_11240619.gpkg`, network
   `NSW- PBS Aggregate GML - Level 1`, then run

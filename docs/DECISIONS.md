@@ -184,3 +184,15 @@
 **Trade-offs:** Users must visit Local to see local-road results, but statewide figures remain stable and correctly scoped. Cross-test results remain indicative because PBS/B-double gates and traffic evidence are unavailable for these council roads.
 
 **Revisit?** Include local roads elsewhere only after a stable statewide source, road-identity model, and missing-mandatory-data policy are agreed.
+
+---
+
+## D-14: PBS Level 1 requires more than 80% measured route coverage
+
+**Decision:** The S-09 mandatory gate passes only when more than 80% of the road's measured length follows the official NHVR PBS Level 1 network within the configured 50 m tolerance. Exactly 80% does not pass. The separate Regional B-double gate remains inclusive at 80%.
+
+**Why:** PBS access is now rebuilt from the official `NSW- PBS Aggregate GML - Level 1` geometry rather than inherited from older broad flags. A strict boundary implements the agreed PBS rule while the measured coverage prevents a crossing or short overlap from approving a whole road.
+
+**Trade-offs:** Roads at exactly 80% PBS coverage fail, even though the B-double gate passes at the same numeric boundary. The distinction is intentional and is covered independently in the rebuild scripts.
+
+**Revisit?** Re-evaluate only with an explicit criteria-policy change; do not alter the comparator without regenerating and validating the derived datasets.

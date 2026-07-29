@@ -547,7 +547,7 @@ def build_records(
             len(regional_facility_names),
             len(state_facility_names),
             bdouble_coverage >= HEAVY_VEHICLE_ACCESS_THRESHOLD,
-            pbs1_coverage >= HEAVY_VEHICLE_ACCESS_THRESHOLD,
+            pbs1_coverage > HEAVY_VEHICLE_ACCESS_THRESHOLD,
         )
         records.append(
             RoadRecord(

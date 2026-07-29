@@ -582,8 +582,8 @@ function showRoadDetail(p, source) {
         // one, or when it does but carries similar traffic volumes (exception, see parPass above).
         mandEl.innerHTML =
             critItem(pbs1, 'S-09: PBS Level 1 vehicle access',
-                pbs1 ? 'Meets the 80% route-coverage threshold' + pbsCoverageText
-                    : 'Does not meet the 80% route-coverage threshold' + pbsCoverageText,
+                pbs1 ? 'Meets the >80% route-coverage threshold' + pbsCoverageText
+                    : 'Does not meet the >80% route-coverage threshold' + pbsCoverageText,
                 'crit-mand-pbs1') +
             critItem(null, 'No load limits on assets', 'Data unavailable — assumed compliant') +
             critItem(parPass, 'Does not closely parallel an existing State Road unless it has similar traffic volumes',
@@ -714,8 +714,8 @@ function showRoadDetail(p, source) {
         return '<div class="criteria-item"><span class="criteria-icon">' + icon + '</span><div class="criteria-text"><div class="criteria-label">' + label + '</div><div class="criteria-value">' + val + '</div></div></div>';
     };
     document.getElementById('detail-vehicle-access').innerHTML =
-        va(pbs1, 'PBS Level 1', 'Meets the 80% route-coverage threshold' + pbsCoverageText,
-            'Below the 80% route-coverage threshold' + pbsCoverageText) +
+        va(pbs1, 'PBS Level 1', 'Meets the >80% route-coverage threshold' + pbsCoverageText,
+            'Does not exceed the 80% route-coverage threshold' + pbsCoverageText) +
         va(nh.bdouble19 === undefined ? !!p.has_bdouble : nh.bdouble19, 'GML/CML 19m B-double (50+ tonnes)', 'NHVR-approved 19m B-double route' + bdCoverageText, 'Below the 80% route-coverage threshold' + bdCoverageText) +
         va(nh.roadtrain, 'Road train (32m)', 'NHVR-approved road train route', 'Not on the road train network') +
         va(nh.bypass, 'Heavy-vehicle bypass', 'On an NHVR heavy-vehicle bypass', 'Not on a bypass route');
