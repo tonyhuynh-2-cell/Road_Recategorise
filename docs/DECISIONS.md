@@ -208,3 +208,15 @@
 **Trade-offs:** Traffic remains unavailable statewide, and Local candidates are still source-derived functional-hierarchy roads rather than confirmed council-maintained corridors. Conservative topology rules avoid merging whole street networks but may still split a practical route at a branch or sharp name change.
 
 **Revisit?** Add traffic only from an authoritative statewide source. Broaden name-change bridging only after auditing false joins at intersections.
+
+---
+
+## D-16: Declared-road files are the sole runtime source for State/Regional totals
+
+**Decision:** Dashboard State/Regional counts and current-outcome reports use `nsw_declared_roads.json`, `nsw_declared_criteria.json` and `nsw_declared_recat.json`. Their road-key sets must match exactly. The older `nsw_criteria.json` remains a pipeline seed and is not a runtime reporting source.
+
+**Why:** Reading the legacy criteria seed directly produces 892 rows, while the canonical declared layer contains 921 roads. The declared rebuild already reconciles connected sections into one result per displayed road; mixing the two layers creates misleading tables even though the live tool is correct.
+
+**Trade-offs:** Runtime loading now fails loudly if any displayed road lacks a declared criteria result. This is preferable to silently substituting a segment-derived verdict.
+
+**Revisit?** Do not restore a runtime fallback. If the identity model changes, migrate all declared files together and update the key-integrity test.

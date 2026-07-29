@@ -18,6 +18,8 @@ Two kinds of data appear below:
 > the section-level diagnostic layer. This prevents one official road from showing
 > conflicting overall verdicts while retaining the real mapped gaps and section
 > results for inspection. Known reused identifiers are kept as separate roads.
+> `nsw_criteria.json` is a legacy/source-road pipeline seed, not a runtime totals
+> source; current reporting must use `nsw_declared_criteria.json`.
 
 ---
 
@@ -44,7 +46,7 @@ Two kinds of data appear below:
 | `network_ldr_comparison.json` | NSW Road Segment + ABS UCL/SUA population | Sourced -> derived | Auditable long-distance centre-to-town connectivity |
 | `network_state_facility_comparison.json` | NSW Road Segment + ABS centres + facility evidence | Sourced -> derived | Auditable S-08 facility-to-centre connectivity |
 | `nsw_evidence.json` etc. | Derived (spatial joins) | Derived | The named "why" behind each criterion |
-| `nsw_criteria.json` / `nsw_recat.json` | Derived (criteria engine) | Derived | The green/amber/red verdicts |
+| `nsw_criteria.json` / `nsw_recat.json` | Legacy/source-road criteria seed | Derived | Rebuild input only; not current dashboard totals |
 | Clarence Valley files | CV Council + ABS LGA boundary | Sourced | CV tab |
 
 ---

@@ -174,12 +174,10 @@ function pulseFlagTab() {
 }
 
 // A pinned road's verdict, sourced EXACTLY like the tab counts do (scopeCounts, panels.js):
-// computed criteria first, falling back to the rolled-up status. Read-only — never written here.
+// Runtime key validation guarantees one declared criteria result for every displayed road.
 function flagVerdict(k) {
     if (isNltnKey(k)) { const a = (window.NLTN_AGG && window.NLTN_AGG[nltnGroupOf(k)]) || {}; return a._natCat || 'orange'; }
-    const a = (typeof NSW_AGG !== 'undefined' && NSW_AGG[k]) || {};
-    const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
-    return (cr && cr.verdict) || a.status || 'red';
+    return window.NSW_CRIT[k].verdict;
 }
 
 // Fill the Flagged tab panel: the "Flagged roads (n/10)" header + the pinned-roads list. Each row:

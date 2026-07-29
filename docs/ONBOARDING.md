@@ -35,7 +35,7 @@ pip install geopandas pandas numpy shapely scipy pyogrio
 **If you're investigating a criteria/verdict question**, start at:
 1. `dashboard/js/detail.js` — `showRoadDetail()` — this is what actually renders a road's criteria breakdown; tracing backward from here shows you exactly which fields from which JSON files feed into a displayed verdict
 2. `dashboard/js/grading.js` — `nswStyle()`, `nswInView()`, `buildXtest()`, `buildFresh()`, `computeOverriddenVerdict()` — this is where verdict logic and colour mapping live client-side
-3. `dashboard/data/nsw_criteria.json` (or `nsw_declared_criteria.json` for the current canonical layer) — open one in a text editor/JSON viewer, pick a road you recognise, and read its `opt`/`mand`/`verdict` fields to ground yourself in the actual data shape
+3. `dashboard/data/nsw_declared_criteria.json` — this is the canonical runtime layer. Open it in a text editor/JSON viewer, pick a road you recognise, and read its `opt`/`mand`/`verdict` fields to ground yourself in the actual data shape. Do not use legacy `nsw_criteria.json` for current totals.
 4. The relevant `dashboard/rebuild_*.py` script that PRODUCES the field you're investigating (grep for the field name, e.g. `opt.dest`, across the Python scripts to find which one writes it)
 
 **If you're investigating a map/UI bug**, start at:
@@ -61,7 +61,7 @@ pip install geopandas pandas numpy shapely scipy pyogrio
 **"The map looks wrong / roads are the wrong colour":**
 - Open browser DevTools console FIRST. An uncaught JS error inside a Leaflet event handler has previously corrupted the entire map's rendering silently (see `docs/DECISIONS.md` D-09) — always rule this out before assuming it's a data/logic bug.
 - Click the affected road and check the Road Detail panel's criteria breakdown — it shows the actual `opt`/`mand` values driving the verdict.
-- Cross-check against the raw JSON (`dashboard/data/nsw_criteria.json` or `nsw_declared_criteria.json`) for that road's key, to rule out a display bug vs a data bug.
+- Cross-check against `dashboard/data/nsw_declared_criteria.json` for that road's key, to rule out a display bug vs a data bug.
 
 **"The map didn't update after I changed a JS file":**
 - Hard refresh (Ctrl+Shift+R / Cmd+Shift+R). Browsers cache aggressively, and even though `init.js` cache-busts its own data fetches, the `.js`/`.css` files themselves are not cache-busted.

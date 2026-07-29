@@ -588,8 +588,7 @@ function scopeCounts(scope) {
         if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
         if (scope === 'cv' && !a._inCV) continue;
         if (scope === 'syd' && !a._inSyd) continue;
-        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
-        const v = (cr && cr.verdict) || a.status;
+        const v = window.NSW_CRIT[k].verdict;
         const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
         const len = a._len || 0;
         if (v === 'green') { g++; greenKm += len; }
@@ -624,8 +623,7 @@ function refreshRegion(key) {
         if (key === 'cv' && !a._inCV) continue;
         if (key === 'syd' && !a._inSyd) continue;
         if (lensClass && a.admin_class !== lensClass) continue;
-        const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null;
-        const v = (cr && cr.verdict) || a.status;
+        const v = window.NSW_CRIT[k].verdict;
         const group = a.admin_class === 'S' ? 'State Roads' : 'Regional Roads';
         const len = a._len || 0;
         if (v === 'green') { g++; greenKm += len; }
@@ -730,7 +728,7 @@ function nswViewCounts() {
         if (!nswInView(a)) continue;
         let v;
         if (mode) { const x = X[k]; v = x ? (mode === 'natsig' ? x.asNat : mode === 'regional' ? x.asReg : x.asState) : 'red'; }
-        else { const cr = window.NSW_CRIT ? window.NSW_CRIT[k] : null; v = (cr && cr.verdict) || a.status; }
+        else { v = window.NSW_CRIT[k].verdict; }
         if (c[v] !== undefined) c[v]++;
         var len = a._len || 0;
         if (v === 'green') c.greenKm += len;
@@ -915,8 +913,7 @@ function refreshOverview() {
         if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
         var len = a._len || 0;
         totalKm += len;
-        var cr = crit[k];
-        var v = (cr && cr.verdict) || a.status;
+        var v = crit[k].verdict;
         if (v === 'green') greenKm += len;
         else if (v === 'orange') orangeKm += len;
         else redKm += len;

@@ -206,6 +206,28 @@ Promise.all([
         a._nsr = a.admin_class === 'S' && a._nltnLen >= 0.5 * a._len && !NSR_EXCLUDE[a.road_number];
     });
     NSW_AGG = nswRoadAgg;   // expose per-road aggregate for the lens stats/counts
+    // The declared-road catalogue is the runtime identity. Every displayed road must have exactly
+    // one declared criteria row; never silently fall back to a segment verdict for a missing key.
+    const runtimeKeys = Object.keys(NSW_AGG).sort();
+    const declaredKeys = Object.keys((window.DECLARED_ROADS || {}).roads || {}).sort();
+    const criteriaKeys = Object.keys(window.NSW_CRIT || {}).sort();
+    const sameKeys = (left, right) =>
+        left.length === right.length && left.every((value, index) => value === right[index]);
+    if (!sameKeys(runtimeKeys, declaredKeys) || !sameKeys(runtimeKeys, criteriaKeys)) {
+        const missingCriteria = runtimeKeys.filter(key => !window.NSW_CRIT[key]);
+        const extraCriteria = criteriaKeys.filter(key => !NSW_AGG[key]);
+        throw new Error(
+            'Declared-road runtime key mismatch: displayed=' + runtimeKeys.length +
+            ', catalogue=' + declaredKeys.length + ', criteria=' + criteriaKeys.length +
+            ', missing criteria=' + missingCriteria.slice(0, 10).join(',') +
+            ', extra criteria=' + extraCriteria.slice(0, 10).join(',')
+        );
+    }
+    runtimeKeys.forEach(key => {
+        const expectedClass = NSW_AGG[key].admin_class === 'S' ? 'State' : 'Regional';
+        if (window.NSW_CRIT[key].cls !== expectedClass)
+            throw new Error('Declared-road class mismatch for ' + key);
+    });
     const recat = nswRecat || [];
     nswRoads.features.forEach((f, i) => {
         const k = roadKeyOf(f.properties);
