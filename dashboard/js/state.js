@@ -915,6 +915,7 @@ setTimeout(hideLoader, 12000);
     let angle = 0;                            // cumulative rotation, deg — mod 360 is the rest pose
     let vel = 0;                              // angular velocity, deg/s
     let rafId = null, lastT = null, lastClick = -Infinity, burstTimer = null, burstCount = 0;
+    let correctTimer = null;                  // timer for auto-correct after stopping
     function loop(t) {
         if (lastT === null) { lastT = t; rafId = requestAnimationFrame(loop); return; }   // no first-frame dt spike
         const dt = Math.min((t - lastT) / 1000, 0.05);
@@ -922,10 +923,27 @@ setTimeout(hideLoader, 12000);
         angle += vel * dt;
         if (t - lastClick > 1000) vel *= Math.pow(0.25, dt);   // 1s clickless hold, then a silky coast
         mark.style.transform = 'rotate(' + angle + 'deg)';
-        if (vel < 6) { cancelAnimationFrame(rafId); rafId = null; return; }   // settled: rest right here
+        if (vel < 6) {
+            cancelAnimationFrame(rafId); rafId = null;
+            // Auto-correct: after 3 seconds of rest, smoothly rotate back to upright
+            if (correctTimer) clearTimeout(correctTimer);
+            correctTimer = setTimeout(function () { autoCorrect(); }, 3000);
+            return;
+        }
         rafId = requestAnimationFrame(loop);
     }
+    function autoCorrect() {
+        // Find the shortest path back to 0° (mod 360)
+        const rest = ((angle % 360) + 360) % 360;   // current angle normalised to 0–360
+        const target = rest > 180 ? angle + (360 - rest) : angle - rest;
+        mark.style.transition = 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+        mark.style.transform = 'rotate(' + target + 'deg)';
+        angle = target;
+        // Remove transition after it completes so clicks feel instant again
+        setTimeout(function () { mark.style.transition = ''; }, 850);
+    }
     mark.addEventListener('click', function () {
+        if (correctTimer) { clearTimeout(correctTimer); correctTimer = null; }
         if (burstTimer === null) {            // first click of a burst: open a single 3s window
             burstCount = 1;
             burstTimer = setTimeout(function () {
