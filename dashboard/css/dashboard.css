@@ -303,7 +303,7 @@
         .criteria-modal.cm-split { border-left: 1px solid var(--line); }
 
         /* Criteria overrides toggle labels */
-        .override-toggle { display: inline-flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; font: 500 13px var(--sans); color: #1c1917; background: rgba(255,255,255,.8); border-radius: 7px; margin-bottom: 6px; margin-right: 6px; border: 1px solid rgba(0,0,0,.06); }
+        .override-toggle { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; font: 500 13px var(--sans); color: #1c1917; background: rgba(255,255,255,.8); border-radius: 7px; margin-bottom: 6px; border: 1px solid rgba(0,0,0,.06); width: fit-content; }
         .override-toggle:hover { background: rgba(255,255,255,.95); border-color: rgba(0,0,0,.12); }
         .override-toggle input[type="checkbox"] { width: 17px; height: 17px; accent-color: #2563eb; cursor: pointer; flex-shrink: 0; }
         .override-toggle span { line-height: 1.4; }
