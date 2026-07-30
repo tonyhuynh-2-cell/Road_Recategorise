@@ -927,7 +927,7 @@ setTimeout(hideLoader, 12000);
             cancelAnimationFrame(rafId); rafId = null;
             // Auto-correct: after 3 seconds of rest, smoothly rotate back to upright
             if (correctTimer) clearTimeout(correctTimer);
-            correctTimer = setTimeout(function () { autoCorrect(); }, 3000);
+            correctTimer = setTimeout(function () { autoCorrect(); }, 1000);
             return;
         }
         rafId = requestAnimationFrame(loop);
