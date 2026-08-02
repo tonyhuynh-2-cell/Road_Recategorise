@@ -278,9 +278,9 @@
         .criteria-btn.criteria-btn-active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
 
         /* Criteria modal — overlays the map area */
-        .criteria-modal { position: absolute; inset: 0; z-index: 700; display: flex; flex-direction: column;
+        .criteria-modal { position: absolute; inset: 0; z-index: 1100; display: flex; flex-direction: column;
             background: rgba(255,255,255,.98); backdrop-filter: blur(4px); animation: cmFadeIn .2s ease; }
-        #overrides-modal { background: rgba(255,255,255,.60); backdrop-filter: blur(8px); }
+        #overrides-modal { background: rgba(255,255,255,.78); backdrop-filter: blur(10px); }
         .criteria-modal[hidden] { display: none; }
         @keyframes cmFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         .cm-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
@@ -303,8 +303,9 @@
         .criteria-modal.cm-split { border-left: 1px solid var(--line); }
 
         /* Criteria overrides toggle labels */
-        .override-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; font: 400 13px var(--sans); color: var(--ink); }
-        .override-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer; flex-shrink: 0; }
+        .override-toggle { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; font: 500 13px var(--sans); color: #1c1917; background: rgba(255,255,255,.8); border-radius: 7px; margin-bottom: 6px; border: 1px solid rgba(0,0,0,.06); width: fit-content; }
+        .override-toggle:hover { background: rgba(255,255,255,.95); border-color: rgba(0,0,0,.12); }
+        .override-toggle input[type="checkbox"] { width: 17px; height: 17px; accent-color: #2563eb; cursor: pointer; flex-shrink: 0; }
         .override-toggle span { line-height: 1.4; }
 
         /* Criteria reference content styling */

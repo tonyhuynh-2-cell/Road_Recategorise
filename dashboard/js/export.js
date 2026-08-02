@@ -121,6 +121,96 @@ function buildSheet(wb, name, rows) {
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: EXPORT_COLS.length } };
 }
 
+// Build a "Best Fit" sheet — each road re-binned by the criteria waterfall (Nat Sig → State → Regional → Local).
+function buildBestFitSheet(wb, data) {
+    const F = (typeof buildFresh === 'function') ? buildFresh() : {};
+    const agg = (typeof NSW_AGG !== 'undefined') ? NSW_AGG : {};
+    const CAT_LABELS = { fnat: 'Nationally Significant', fstate: 'State Road', freg: 'Regional Road', flocal: 'Local Road' };
+
+    // Build rows grouped by best-fit category
+    const rows = [];
+    for (const k in agg) {
+        const a = agg[k];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        const f = F[k];
+        if (!f) continue;
+        const currentCat = a._nsr ? 'Nationally Significant' : (a.admin_class === 'S' ? 'State Road' : 'Regional Road');
+        const bestFitCat = CAT_LABELS[f.cat] || 'Local Road';
+        const movement = currentCat === bestFitCat ? 'No change' : (f.cat === 'flocal' ? 'Downgrade' : currentCat === 'Regional Road' && f.cat !== 'flocal' ? 'Upgrade' : currentCat === 'State Road' && f.cat === 'fnat' ? 'Upgrade' : 'Reclassify');
+        const name = a.road_name ? (typeof titleCase === 'function' ? titleCase(a.road_name) : a.road_name) : 'Unnamed';
+        rows.push({
+            'Road Name': name,
+            'Road ID': a.road_number || k,
+            'Current Category': currentCat,
+            'Best Fit Category': bestFitCat,
+            'Tier': f.tier === 'likely' ? 'Provisional (1 of 2)' : 'Meets criteria',
+            'Movement': movement,
+            'Length (km)': Math.round(a._len || 0)
+        });
+    }
+
+    // Sort: group by best-fit category, then by name
+    const catOrder = { 'Nationally Significant': 0, 'State Road': 1, 'Regional Road': 2, 'Local Road': 3 };
+    rows.sort((a, b) => (catOrder[a['Best Fit Category']] || 9) - (catOrder[b['Best Fit Category']] || 9) || a['Road Name'].localeCompare(b['Road Name']));
+
+    const cols = [
+        { key: 'Road Name', w: 28 },
+        { key: 'Road ID', w: 12 },
+        { key: 'Current Category', w: 20 },
+        { key: 'Best Fit Category', w: 20 },
+        { key: 'Tier', w: 18 },
+        { key: 'Movement', w: 14 },
+        { key: 'Length (km)', w: 12 }
+    ];
+
+    const ws = wb.addWorksheet('Best Fit', { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.columns = cols.map(c => ({ header: c.key, key: c.key, width: c.w }));
+
+    // Header styling
+    const head = ws.getRow(1);
+    head.height = 28;
+    head.eachCell(function (cell) {
+        cell.fill = solidFill('FF44403C');
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10.5 };
+        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        cell.border = { bottom: { style: 'medium', color: { argb: 'FF111827' } } };
+    });
+
+    // Colour fills for best-fit categories
+    const BF_FILL = {
+        'Nationally Significant': { fill: 'FFDBEAFE', font: 'FF1E40AF' },
+        'State Road': { fill: 'FFFEF3C7', font: 'FF92400E' },
+        'Regional Road': { fill: 'FFD1FAE5', font: 'FF065F46' },
+        'Local Road': { fill: 'FFF5F5F4', font: 'FF57534E' }
+    };
+    const MOVE_FILL = {
+        'Upgrade': { fill: 'FFD1FAE5', font: 'FF065F46' },
+        'Downgrade': { fill: 'FFFEE2E2', font: 'FF991B1B' },
+        'No change': { fill: 'FFF5F5F4', font: 'FF57534E' },
+        'Reclassify': { fill: 'FFDBEAFE', font: 'FF1E40AF' }
+    };
+
+    rows.forEach(function (r) {
+        const row = ws.addRow(r);
+        row.eachCell(function (cell) {
+            cell.alignment = { vertical: 'top', horizontal: 'left' };
+            cell.border = { bottom: HAIRLINE, right: HAIRLINE };
+        });
+        // Colour the Best Fit Category cell
+        const bfCell = row.getCell(4);
+        const bf = BF_FILL[r['Best Fit Category']];
+        if (bf) { bfCell.fill = solidFill(bf.fill); bfCell.font = { bold: true, color: { argb: bf.font } }; }
+        // Colour the Movement cell
+        const mvCell = row.getCell(6);
+        const mv = MOVE_FILL[r['Movement']];
+        if (mv) { mvCell.fill = solidFill(mv.fill); mvCell.font = { bold: true, color: { argb: mv.font } }; }
+        // Bold road name
+        row.getCell(1).font = { bold: true };
+    });
+
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+}
+
 // --- Export scopes ------------------------------------------------------------
 // One row per scope in the menu. Counts and key sets are computed LIVE from the very predicates
 // the tabs use: NSW_AGG admin_class/_nsr/_inSyd/_inCV (grading.js/panels.js), the flaggedRoads
@@ -131,6 +221,7 @@ function buildSheet(wb, name, rows) {
 // scope's tab colour. Reordering here is safe — every count/key lookup is keyed by id, never order.
 const EXPORT_SCOPE_DEFS = [
     { id: 'all',      label: 'All assessed roads',          group: 'Whole network',    dot: 'var(--ink)' },
+    { id: 'bestfit',  label: 'Best Fit (re-categorised)',   group: 'Whole network',    dot: '#7c3aed' },
     { id: 'natsig',   label: 'Nationally Significant',      group: 'By road category', dot: '#dc2626' },
     { id: 'state',    label: 'State Roads',                 group: 'By road category', dot: '#dc2626' },
     { id: 'regional', label: 'Regional Roads',              group: 'By road category', dot: '#dc2626' },
@@ -167,10 +258,11 @@ function exportScopeKeys(scope) {
 }
 
 // Live scope count. Nat. Significant counts NLTN determination routes (the lens's subject);
-// Local counts the loaded suburb's roads; everything else counts its key set.
+// Local counts the loaded suburb's roads; Best Fit counts all assessed; everything else counts its key set.
 function exportScopeCount(scope) {
     if (scope === 'natsig') return (window.NLTN_CAT_COUNTS || { total: 0 }).total;
     if (scope === 'local') return (typeof localLoadedInfo === 'function') ? localLoadedInfo().count : 0;
+    if (scope === 'bestfit') return exportScopeKeys('all').length;
     return exportScopeKeys(scope).length;
 }
 
@@ -417,7 +509,7 @@ document.addEventListener('keydown', function (e) {
 // (built live); anything else filters the State/Regional sheets to the scope's key set
 // ('flagged' = the pin set, 'custom' = the picked keys). `keys` overrides the key set.
 const EXPORT_FILE_TAG = {
-    all: 'Assessment', flagged: 'Flagged_Roads', natsig: 'Nationally_Significant',
+    all: 'Assessment', bestfit: 'Best_Fit', flagged: 'Flagged_Roads', natsig: 'Nationally_Significant',
     state: 'State_Roads', regional: 'Regional_Roads', local: 'Local_Roads',
     sydney: 'Sydney_Urban_Area', cv: 'Clarence_Valley', custom: 'Custom_Selection'
 };
@@ -447,6 +539,9 @@ function exportToExcel(scope, keys, fbBtn) {
             buildSheet(wb, 'Nat. Significant', data.natsig || []);
             buildSheet(wb, 'State Roads', data.state || []);
             buildSheet(wb, 'Regional Roads', data.regional || []);
+            buildBestFitSheet(wb, data);
+        } else if (scope === 'bestfit') {
+            buildBestFitSheet(wb, data);
         } else if (scope === 'natsig') {
             buildSheet(wb, 'Nat. Significant', data.natsig || []);
         } else if (scope === 'local') {
