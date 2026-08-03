@@ -116,7 +116,7 @@ Not every criterion clause can be automated with available data. As a rule of th
 | **EPI** | Environmental Planning Instrument — NSW Planning zoning layer, used as the statewide fallback for employment-centre detection outside ELDM coverage |
 | **"Cross-test" / "cross-category test"** | Re-grading a road against a DIFFERENT category's criteria than its own current classification, to answer "what if this were tested as State/Regional/National instead?" |
 | **"Best fit" / "Fresh" bin** | A blank-slate re-classification of every road purely from earned criteria, ignoring its current administrative classification entirely |
-| **LGA** | Local Government Area — used in the dashboard's "LGA" dropdown (currently Sydney and Clarence Valley as focus views) |
+| **LGA** | Local Government Area — a source-data boundary type. The dashboard's broader **Area** dropdown currently offers Sydney and Clarence Valley focus views. |
 | **Criteria Overrides panel** | The scenario-testing UI that lets a user force-pass criteria and see the impact live, without changing the underlying pipeline output |
 
 ## Limitations to keep in mind

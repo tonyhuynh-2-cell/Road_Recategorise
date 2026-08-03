@@ -143,7 +143,7 @@ function buildBestFitSheet(wb, data) {
             'Road ID': a.road_number || k,
             'Current Category': currentCat,
             'Best Fit Category': bestFitCat,
-            'Tier': f.tier === 'likely' ? 'Provisional (1 of 2)' : 'Meets criteria',
+            'Tier': f.tier === 'likely' ? 'Provisional (1 of 2)' : 'Passes criteria',
             'Movement': movement,
             'Length (km)': Math.round(a._len || 0)
         });
@@ -227,7 +227,7 @@ const EXPORT_SCOPE_DEFS = [
     { id: 'regional', label: 'Regional Roads',              group: 'By road category', dot: '#dc2626' },
     { id: 'local',    label: 'Local roads (loaded suburb)', group: 'By road category', dot: '#dc2626' },
     { id: 'sydney',   label: 'Sydney urban area',           group: 'By area',          dot: '#16a34a' },
-    { id: 'cv',       label: 'Clarence Valley LGA',         group: 'By area',          dot: '#16a34a' },
+    { id: 'cv',       label: 'Clarence Valley area',        group: 'By area',          dot: '#16a34a' },
     { id: 'flagged',  label: 'Flagged (pinned) roads',      group: 'Your selections',  dot: '#dc2626' },
     { id: 'custom',   label: 'Custom selection',            group: 'Your selections',  dot: '#7c3aed' }
 ];

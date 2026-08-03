@@ -482,23 +482,23 @@ function showRoadDetail(p, source) {
     if (xtMode) {
         const xv = xtX ? (xtMode === 'natsig' ? xtX.asNat : xtMode === 'regional' ? xtX.asReg : xtX.asState) : null;
         if (xv === 'green') {
-            resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">WOULD MEET ' + xtShort.toUpperCase() + '</span></span>';
+            resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">PASSES ' + xtShort.toUpperCase() + ' CRITERIA</span></span>';
             reasonEl.textContent = xtMode === 'natsig'
-                ? 'Meets ≥2 national criteria (NLTN membership · centre connections · port / airport / intermodal) and the mandatory PBS Level 2B gate (S-06)'
-                : 'Meets ≥2 optional criteria and the ' + (xtMode === 'state' ? 'PBS Level 1' : '19m B-double') + ' mandatory gate — reclassification test';
+                ? 'Passes ≥2 national criteria (NLTN membership · centre connections · port / airport / intermodal) and the mandatory PBS Level 2B gate (S-06)'
+                : 'Passes ≥2 optional criteria and the ' + (xtMode === 'state' ? 'PBS Level 1' : '19m B-double') + ' mandatory gate — recategorisation test';
         } else if (xv === 'orange') {
-            resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">' + (xtMode === 'natsig' ? 'MEETS 1 NATIONAL CRITERION' : 'WOULD MEET 1 OF 2') + '</span></span>';
+            resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY PASSES ' + xtShort.toUpperCase() + ' CRITERIA</span></span>';
             reasonEl.textContent = xtMode === 'natsig'
-                ? 'Meets 1 of the 3 national criteria — not nationally significant on this data'
-                : 'Passes the ' + (xtMode === 'state' ? 'PBS Level 1' : '19m B-double') + ' gate but meets only 1 optional criterion — would qualify with sufficient ADT';
+                ? 'Passes 1 of the 3 national criteria — not nationally significant on this data'
+                : 'Passes the ' + (xtMode === 'state' ? 'PBS Level 1' : '19m B-double') + ' gate and 1 optional criterion — likely passes if sufficient ADT confirms another optional criterion';
         } else if (xv === 'red') {
-            resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">WOULD NOT MEET ' + xtShort.toUpperCase() + '</span></span>';
+            resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">FAILS ' + xtShort.toUpperCase() + ' CRITERIA</span></span>';
             if (xtMode === 'natsig') reasonEl.textContent = (xtX && xtX.natGate === false)
-                ? 'Fails the mandatory PBS Level 2B gate (S-06)' + (xtX.natMet >= 1 ? ' — meets ' + xtX.natMet + ' national criteri' + (xtX.natMet > 1 ? 'a' : 'on') + ' otherwise' : '')
-                : 'Meets none of the national criteria in the assessment data';
+                ? 'Fails the mandatory PBS Level 2B gate (S-06)' + (xtX.natMet >= 1 ? ' — passes ' + xtX.natMet + ' national criteri' + (xtX.natMet > 1 ? 'a' : 'on') + ' otherwise' : '')
+                : 'Passes none of the national criteria in the assessment data';
             else {
                 const gateOk = xtMode === 'state' ? !!(c && c.mand && c.mand.pbs1) : nh.bdouble19 === true;
-                reasonEl.textContent = gateOk ? 'Meets no optional criterion at the ' + xtNoun + ' thresholds'
+                reasonEl.textContent = gateOk ? 'Passes no optional criterion at the ' + xtNoun + ' thresholds'
                     : 'Fails the mandatory ' + (xtMode === 'state' ? 'PBS Level 1 (S-09)' : '19m B-double (R-04)') + ' gate';
             }
         } else {
@@ -507,25 +507,25 @@ function showRoadDetail(p, source) {
         }
     } else if (source === 'nsw') {
         if (p.status === 'green') {
-            resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>';
+            resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">PASSES ' + (isState ? 'STATE' : 'REGIONAL') + ' CRITERIA</span></span>';
             reasonEl.innerHTML = 'Passes all testable criteria even without ADT data';
         }
         else if (p.status === 'orange') {
-            resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY MEETS</span></span>';
+            resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY PASSES</span></span>';
             const reason = optionalQuotaMet && mandatoryRefs.length
-                ? 'Would fully meet if the mandatory review below were satisfied.'
+                ? 'Likely passes if the mandatory review below is satisfied.'
                 : criterionRefs.length
-                    ? 'Would fully meet if enough missing criteria below were satisfied.'
-                    : 'Would fully meet if the remaining unavailable assessment data confirmed the result.';
-            reasonEl.innerHTML = reason + chipsHtml('To fully meet', criterionRefs);
+                    ? 'Likely passes if enough missing criteria below are satisfied.'
+                    : 'Likely passes if the remaining unavailable assessment data confirms the result.';
+            reasonEl.innerHTML = reason + chipsHtml('To pass', criterionRefs);
         }
         else {
-            resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>';
+            resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">FAILS ' + (isState ? 'STATE' : 'REGIONAL') + ' CRITERIA</span></span>';
             reasonEl.innerHTML = 'Fails criteria: ' + (criterionRefs.length ? '' : 'not enough criteria passed') + chipsHtml('', criterionRefs);
         }
     } else {
-        if (p.meets_criteria) { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">MEETS CRITERIA</span></span>'; reasonEl.textContent = 'Meets ≥2 optional criteria and all mandatory'; }
-        else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">DOES NOT MEET</span></span>'; reasonEl.textContent = p.mandatory_pass === 0 ? 'Fails mandatory criteria' : 'Does not meet ≥2 optional criteria'; }
+        if (p.meets_criteria) { resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">PASSES ' + (isState ? 'STATE' : 'REGIONAL') + ' CRITERIA</span></span>'; reasonEl.textContent = 'Passes ≥2 optional criteria and all mandatory'; }
+        else { resultEl.innerHTML = '<span class="result-line">' + ICON.fail + '<span style="color:#dc2626">FAILS ' + (isState ? 'STATE' : 'REGIONAL') + ' CRITERIA</span></span>'; reasonEl.textContent = p.mandatory_pass === 0 ? 'Fails mandatory criteria' : 'Fails to pass ≥2 optional criteria'; }
     }
 
     // Traffic
@@ -797,7 +797,7 @@ function detailLayout(mode) {
 
 // Road Detail for an NLTN 2020 line (the Nationally Significant lens). Graded by the national
 // criteria of the road it runs along: S-01 on the NLTN (met by definition), S-02·S-03 connects
-// ≥2 centres, S-04·S-05 connects a port/airport/intermodal. Green = meets ≥2; orange = on-network-only.
+// ≥2 centres, S-04·S-05 connects a port/airport/intermodal. Green = passes ≥2; orange = on-network-only.
 function showNltnDetail(p) {
     if (typeof traceCode === 'function') traceCode(
         'Open Nat. Sig. detail: ' + nltnLabel(p).replace(/<[^>]*>/g, ''),
@@ -824,7 +824,7 @@ function showNltnDetail(p) {
     const green = p._natCat === 'green';
     document.getElementById('detail-result').innerHTML = '<span class="result-line">' + (green ? ICON.pass : ICON.maybe) + '<span style="color:' + (green ? '#16a34a' : '#d97706') + '">' + (green ? 'NATIONALLY SIGNIFICANT' : 'ON NETWORK ONLY') + '</span></span>';
     document.getElementById('detail-result-reason').textContent = green
-        ? 'Meets ≥2 national criteria — on the National Land Transport Network and connects centres and/or a port, airport or intermodal.'
+        ? 'Passes ≥2 national criteria — on the National Land Transport Network and connects centres and/or a port, airport or intermodal.'
         : 'On the National Land Transport Network (S-01), but the road it runs along connects neither ≥2 centres nor a port/airport in the assessment data.';
 
     document.getElementById('detail-traffic').innerHTML =

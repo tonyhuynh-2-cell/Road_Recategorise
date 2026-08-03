@@ -40,7 +40,7 @@ pip install geopandas pandas numpy shapely scipy pyogrio
 
 **If you're investigating a map/UI bug**, start at:
 1. `dashboard/js/state.js` — the Leaflet map instance, panes, renderers, selection state
-2. `dashboard/js/panels.js` — tab switching, `switchTab()`, LGA dropdown logic, sidebar stat refresh
+2. `dashboard/js/panels.js` — tab switching, `switchTab()`, Area dropdown logic, sidebar stat refresh
 3. `dashboard/js/init.js` — how data is loaded and how the road-layer groups are built
 
 **If you're investigating the data pipeline**, start at:

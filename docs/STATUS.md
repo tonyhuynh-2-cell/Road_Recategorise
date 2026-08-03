@@ -6,12 +6,12 @@
 
 **Map & navigation**
 - Statewide State/Regional road overlay, colour-coded by verdict (green/orange/red), on a shared canvas renderer
-- Category dropdown (Overview / Nat. Sig. / State / Regional / Local) + LGA dropdown (All NSW / Sydney / Clarence Valley), side by side, correctly interacting: switching category while an LGA is focused no longer zooms out and back in (this was a real bug, now fixed), and **sidebar stat cards now correctly filter by the active category when an LGA is focused** (also a real fix — previously always showed combined State+Regional counts regardless of category selection)
+- Category dropdown (Overview / Nat. Sig. / State / Regional / Local) + Area dropdown (All NSW / Sydney / Clarence Valley), side by side, correctly interacting: switching category while an area is focused no longer zooms out and back in, and **sidebar stat cards correctly filter by the active category when an area is focused**.
 - "Best fit" / Fresh assessment lens (blank-slate re-bin ignoring current classification)
 - Nationally Significant (NLTN) lens, its own layer/styling
 - Flagged roads tab (up to 10, `localStorage`-backed)
 - Local tab: on-demand suburb search → OpenStreetMap/Overpass road loading, clipped to suburb boundary, indicative State/Regional cross-tests
-- Local-tab verdict cards show Meets / Meets 1 of 2 / Does not meet for the loaded suburb and update with the State/Regional cross-criteria buttons; Own criteria remains explicitly not assessed
+- Local-tab verdict cards show Passes criteria / Passes 1 of 2 criteria / Fails criteria for the loaded suburb and update with the State/Regional cross-criteria buttons; Own criteria remains explicitly not assessed
 - Statewide LocalRoad assessment now uses aligned zone/centre thresholds, near-straight corridor continuity, road-train/two-State-road/long-distance evidence, and a distinct insufficient-evidence result. Current available-evidence outcomes include 13 Regional-test green roads and one State-test green road.
 
 **Road Detail panel**

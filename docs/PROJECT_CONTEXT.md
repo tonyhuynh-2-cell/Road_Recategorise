@@ -43,7 +43,7 @@ The client has been iteratively reviewing outputs and flagging places where the 
 **In scope:**
 - State and Regional road criteria (all clauses in the guide that have identifiable, obtainable data)
 - Nationally Significant network (NLTN 2020) as its own lens
-- Clarence Valley and Sydney as focus views ("LGA" dropdown)
+- Clarence Valley and Sydney as focus views ("Area" dropdown)
 - Local roads only as an indicative, on-demand OpenStreetMap-loaded overlay (not a statewide dataset)
 - Excel export of results
 - A "Criteria Overrides" scenario panel with force-pass toggles for testing criteria sensitivity
@@ -79,7 +79,7 @@ Road_Recategorise/
 │   │   ├── utils.js                # pure helpers: roadKeyOf, roadLenKm, evCentres/evList (evidence rows)
 │   │   ├── init.js                 # boots the app: fetches all data files, builds road-layer groups
 │   │   ├── grading.js              # verdict → style mapping (nswStyle/cvStyle), criteria overrides logic
-│   │   ├── panels.js               # tab switching, LGA dropdown, sidebar stat refresh, map legend
+│   │   ├── panels.js               # tab switching, Area dropdown, sidebar stat refresh, map legend
 │   │   ├── detail.js               # Road Detail side panel (click a road → see criteria breakdown)
 │   │   ├── criteria.js             # Criteria Reference modal (the TfNSW guide, rendered as HTML)
 │   │   ├── overview.js             # "Dashboard overview" full-page stats view (charts, mini-map)
@@ -139,7 +139,7 @@ Road_Recategorise/
 |---|---|---|
 | Map engine | `state.js` | Owns the single Leaflet `map` object, all panes/renderers, selection state, scale bar, zoom-dependent label visibility |
 | Criteria/verdict styling | `grading.js` | Decides road colour per current lens (`nswStyle`), lens membership (`nswInView`), cross-test re-grading (`buildXtest`), "Best fit" re-binning (`buildFresh`), and now the **Criteria Overrides** scenario engine |
-| Tab/lens/LGA navigation | `panels.js` | `switchTab()`, the Category+LGA dropdown interaction, sidebar stat refresh (`refreshOverview`, `refreshNswView`, `refreshRegion` for CV/Sydney), floating map legend |
+| Tab/lens/area navigation | `panels.js` | `switchTab()`, the Category+Area dropdown interaction, sidebar stat refresh (`refreshOverview`, `refreshNswView`, `refreshRegion` for CV/Sydney), floating map legend |
 | Road Detail panel | `detail.js` | Per-road criteria breakdown, cross-category test dropdown, Sections dropdown (for roads split into multiple assessment units), evidence display |
 | Data loading | `init.js` | Fetches ~30 JSON/GeoJSON files in parallel at boot, builds per-road aggregates (`NSW_AGG`), groups Leaflet layers by road key, wires click handlers |
 | Criteria Reference | `criteria.js` | Renders the TfNSW guide as an in-app HTML reference, road-aware (auto-scrolls/highlights the section relevant to the currently open road) |
@@ -178,7 +178,7 @@ The **newest and most complete engine** is `rebuild_road_units.py`, which:
 4. `init.js` builds `window.NSW_AGG` (one aggregate row per road, summed across its segments), `window.NSW_CRIT` (criteria/verdict per road), `window.NSW_EVID` (named evidence per road), `window.NHVR`, `window.ADT`, `window.ROAD_EXT`, `window.ZONE`, etc. — all as top-level `window.*` globals
 5. `init.js` builds the Leaflet GeoJSON layer for the road overlay, grouping segments into `window.NSW_ROAD_LAYERS[roadKey]` so a click on any one segment highlights the whole road
 6. `grading.js`'s `nswStyle(feature)` is called by Leaflet per-feature to decide colour/weight/visibility, reading `window.NSW_CRIT` and the current tab/lens state
-7. User interactions (tab switch, LGA dropdown, click a road, toggle a Criteria Override) all mutate a handful of shared globals in `state.js`/`panels.js`/`grading.js` (`currentTab`, `nswView`, `_activeLGA`, `legendToggles`, `criteriaOverrides`) and then call `nswLayer.setStyle(nswStyle)` to force Leaflet to re-render
+7. User interactions (tab switch, Area dropdown, click a road, toggle a Criteria Override) all mutate a handful of shared globals in `state.js`/`panels.js`/`grading.js` (`currentTab`, `nswView`, `_activeArea`, `legendToggles`, `criteriaOverrides`) and then call `nswLayer.setStyle(nswStyle)` to force Leaflet to re-render
 8. Nothing is ever sent back to a server. Export writes an `.xlsx` file directly in the browser via ExcelJS and triggers a download.
 
 ## 11. Current implementation status

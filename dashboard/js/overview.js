@@ -169,7 +169,7 @@ function renderDonut(g, o, r) {
     _dovCharts.donut = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Meets criteria', 'Meets 1 of 2', 'Does not meet'],
+            labels: ['Passes criteria', 'Passes 1 of 2 criteria', 'Fails criteria'],
             datasets: [{ data: [g, o, r], backgroundColor: ['#16a34a', '#f59e0b', '#dc2626'], borderWidth: 2, borderColor: '#fff' }]
         },
         options: {
@@ -215,8 +215,8 @@ function renderZoneBar(zd) {
             labels: ['Urban', 'Regional', 'Remote'],
             datasets: [
                 { label: 'Meets', data: [zd.urban.g, zd.regional.g, zd.remote.g], backgroundColor: '#16a34a', borderRadius: 3 },
-                { label: 'Meets 1 of 2', data: [zd.urban.o, zd.regional.o, zd.remote.o], backgroundColor: '#f59e0b', borderRadius: 3 },
-                { label: 'Does not meet', data: [zd.urban.r, zd.regional.r, zd.remote.r], backgroundColor: '#dc2626', borderRadius: 3 }
+                { label: 'Passes 1 of 2 criteria', data: [zd.urban.o, zd.regional.o, zd.remote.o], backgroundColor: '#f59e0b', borderRadius: 3 },
+                { label: 'Fails criteria', data: [zd.urban.r, zd.regional.r, zd.remote.r], backgroundColor: '#dc2626', borderRadius: 3 }
             ]
         },
         options: {
@@ -259,7 +259,7 @@ function dovShowRoadInfo(p) {
     var roadId = (p.road_number && String(p.road_number).trim()) ? String(p.road_number).trim() : (agg && agg.road_number ? String(agg.road_number).trim() : '');
     var cls = p.admin_class === 'S' ? 'State Road' : 'Regional Road';
     var verdict = (c && c.verdict) || p._roadStatus || p.status || 'red';
-    var verdictLabel = verdict === 'green' ? 'Meets criteria' : verdict === 'orange' ? 'Meets 1 of 2' : 'Does not meet';
+    var verdictLabel = verdict === 'green' ? 'Passes criteria' : verdict === 'orange' ? 'Passes 1 of 2 criteria' : 'Fails criteria';
     var verdictColor = ROAD_COLORS[verdict] || '#a8a29e';
     var len = agg ? Math.round(agg._len) : '–';
     var zoneLabel = z === 'urban' ? 'Urban' : z === 'remote' ? 'Remote' : 'Regional';

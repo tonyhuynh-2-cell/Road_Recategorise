@@ -33,7 +33,8 @@ import pandas as pd
 import pyogrio
 from pyproj import Transformer
 from shapely import STRtree, line_merge, union_all
-from shapely.geometry import LineString, Point, box, mapping
+from shapely.geometry import LineString, Point, Polygon, box, mapping, shape
+from shapely.prepared import prep
 
 from rebuild_employment_centres import employment_size_threshold
 from rebuild_road_units import newell_longitude
@@ -791,6 +792,68 @@ def build_records(
     return records
 
 
+def _line_vertices(geometry) -> Iterable[tuple[float, float]]:
+    """Yield vertices from line or multipart line geometry."""
+    if geometry.geom_type == "LineString":
+        yield from geometry.coords
+    elif hasattr(geometry, "geoms"):
+        for part in geometry.geoms:
+            yield from _line_vertices(part)
+
+
+def write_local_area_stats(
+    records: list[RoadRecord], display_geometries: Iterable, output_dir: Path
+) -> None:
+    """Write compact Best Fit LocalRoad totals for the dashboard's fixed Area choices."""
+    cv_path = output_dir / "clarence_valley_boundary.geojson"
+    sua_path = output_dir / "sua_outlines.json"
+    if not cv_path.exists() or not sua_path.exists():
+        return
+    cv_data = json.loads(cv_path.read_text(encoding="utf-8"))
+    cv_boundary = shape(cv_data["features"][0]["geometry"])
+    suas = json.loads(sua_path.read_text(encoding="utf-8"))
+    sydney = next(area for area in suas if area.get("name") == "Sydney")
+    sydney_boundary = union_all([Polygon(ring) for ring in sydney["rings"]])
+    boundaries = {"cv": prep(cv_boundary), "syd": prep(sydney_boundary)}
+    names = {
+        "cv": "Clarence Valley Council",
+        "syd": "Sydney Significant Urban Area",
+    }
+    matched: dict[str, list[RoadRecord]] = {key: [] for key in boundaries}
+    for record, geometry in zip(records, display_geometries):
+        vertices = list(_line_vertices(geometry))
+        for key, boundary in boundaries.items():
+            if any(boundary.covers(Point(vertex)) for vertex in vertices):
+                matched[key].append(record)
+
+    areas = {}
+    for key, area_records in matched.items():
+        status_counts = Counter(r.assessment["status"] for r in area_records)
+        status_length_km: dict[str, float] = defaultdict(float)
+        for record in area_records:
+            status_length_km[record.assessment["status"]] += record.length_km
+        areas[key] = {
+            "name": names[key],
+            "road_count": len(area_records),
+            "status_counts": dict(sorted(status_counts.items())),
+            "status_length_km": {
+                status: round(length, 1)
+                for status, length in sorted(status_length_km.items())
+            },
+        }
+    payload = {
+        "schema_version": 1,
+        "membership_method": (
+            "Road counted when any geometry vertex falls inside the Area boundary, "
+            "matching declared-road Area statistics; full sourced road length counted once"
+        ),
+        "areas": areas,
+    }
+    (output_dir / "local_road_area_stats.json").write_text(
+        json.dumps(payload, separators=(",", ":")), encoding="utf-8"
+    )
+
+
 def write_outputs(records: list[RoadRecord], output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     chunks_dir = output_dir / "local_road_chunks"
@@ -872,6 +935,7 @@ def write_outputs(records: list[RoadRecord], output_dir: Path) -> None:
     chunk_features: dict[str, list[dict]] = defaultdict(list)
     source_geometries = gpd.GeoSeries([record.geometry for record in records], crs=METRIC_CRS)
     display_geometries = source_geometries.simplify(GEOMETRY_SIMPLIFY_M).to_crs("EPSG:4326")
+    write_local_area_stats(records, display_geometries, output_dir)
     for record, geometry in zip(records, display_geometries):
         min_x, min_y, max_x, max_y = geometry.bounds
         x0, x1 = math.floor(min_x / CHUNK_DEGREES), math.floor(max_x / CHUNK_DEGREES)

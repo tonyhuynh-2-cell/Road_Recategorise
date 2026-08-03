@@ -3,7 +3,7 @@
 // Load all data. Cache-bust so edits to data/ always load fresh (no stale browser cache).
 // Each resolved file advances the loading screen's progress bar — REAL progress, not simulated.
 const _bust = '?v=' + Date.now();
-const _loadTotal = 29; let _loadDone = 0;
+const _loadTotal = 30; let _loadDone = 0;
 const _loadTick = () => {
     _loadDone++;
     const bf = document.getElementById('loader-bar-fill');
@@ -41,8 +41,9 @@ Promise.all([
     _f('data/nsw_declared_zone.json').catch(() => ({})),
     _f('data/nsw_boundary.geojson').catch(() => null),
     _f('data/nsw_declared_roads.json').catch(() => ({ roads: {}, section_to_road: {} })),
-    _f('data/local_roads_manifest.json').catch(() => null)
-]).then(([nswRoads, nswTowns, nswLocalityCentres, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, nswUnitEvid, cvEvid, nltnEvid, suaOutlines, employmentOutlines, nhvr, roadExt, adt, zone, nswBoundary, declaredRoads, localRoadManifest]) => {
+    _f('data/local_roads_manifest.json').catch(() => null),
+    _f('data/local_road_area_stats.json').catch(() => null)
+]).then(([nswRoads, nswTowns, nswLocalityCentres, cvRoads, cvStats, cvBoundary, cvTowns, nswRefs, cvRefs, refOv, nswUrb, nswNltn, nswRecat, nswCrit, nltn, nltnMeta, nswEvid, nswUnitEvid, cvEvid, nltnEvid, suaOutlines, employmentOutlines, nhvr, roadExt, adt, zone, nswBoundary, declaredRoads, localRoadManifest, localRoadAreaStats]) => {
     if (typeof traceCode === 'function') traceCode(
         'Dashboard data loaded',
         'The dashboard has fetched its prepared assessment files. From here, the browser builds map layers and panels from these already-processed results.',
@@ -69,6 +70,7 @@ Promise.all([
     // Statewide operational LocalRoad catalogue. The manifest is small and always loaded; line
     // geometry stays in zoom-gated chunks fetched by local.js only when Best fit is open.
     window.LOCAL_ROAD_MANIFEST = localRoadManifest || null;
+    window.LOCAL_ROAD_AREA_STATS = localRoadAreaStats || null;
     // Per-road connectivity evidence (which centres / hospitals / ports / airports / intermodals each
     // road connects, with names + qualifying attributes + coords) — data/*_evidence.json.
     // Centres include both town points and Significant Urban Areas (kind:'sua', suaId -> SUA_OUTLINES).

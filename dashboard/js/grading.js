@@ -232,9 +232,9 @@ function nswStyle(feature) {
     let v = p._roadStatus || p.status;
     // Cross-criteria test (State / Regional tabs only): re-grade this road AGAINST another category.
     // xLens holds the active MODE per lens (false = own criteria): State tab → 'regional' (asReg) or
-    // 'natsig' (asNat, national criteria); Regional tab → 'state' (asState). See buildXtest().
+    // 'natsig' (asNat); Regional tab → 'state' (asState) or 'natsig' (asNat). See buildXtest().
     if (currentTab === 'state' && xLens.state) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = xLens.state === 'natsig' ? x.asNat : x.asReg; }
-    else if (currentTab === 'regional' && xLens.regional) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = x.asState; }
+    else if (currentTab === 'regional' && xLens.regional) { const x = buildXtest()[roadKeyOf(p)]; if (x) v = xLens.regional === 'natsig' ? x.asNat : x.asState; }
     if (!legendToggles[v]) return HIDDEN_STYLE;                       // verdict colour toggled off
     if (isDashed(p) && !legendToggles.dashed) return HIDDEN_STYLE;    // route-numbered roads toggled off
     // Orange sub-filter: when active, dim orange roads that don't match the selected reason.

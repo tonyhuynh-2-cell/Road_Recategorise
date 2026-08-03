@@ -77,13 +77,13 @@
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
             <h1 style="margin-bottom:0;">Road Recategorisation Assessment</h1>
             <div style="display:flex; gap:6px;">
-                <button id="overrides-btn" class="criteria-btn" onclick="openOverridesPanel()" title="Criteria overrides">
+                <button id="overrides-btn" class="criteria-btn" onclick="openOverridesPanel()" title="Criteria Overrides">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path><circle cx="12" cy="7" r="3"></circle><circle cx="18" cy="4" r="0"></circle><circle cx="6" cy="13" r="3"></circle></svg>
                 </button>
-                <button id="dashboard-btn" class="criteria-btn" onclick="showDashboardView()" title="Dashboard overview">
+                <button id="dashboard-btn" class="criteria-btn" onclick="showDashboardView()" title="Dashboard Overview">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
                 </button>
-                <button id="criteria-btn" class="criteria-btn" onclick="openCriteriaModal()" title="Open criteria reference">
+                <button id="criteria-btn" class="criteria-btn" onclick="openCriteriaModal()" title="Criteria Reference">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                 </button>
             </div>
@@ -107,9 +107,9 @@
                     </select>
                 </div>
                 <div style="flex:1;">
-                    <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:4px; padding-left:12px; display:block; text-align:left;">LGA</label>
-                    <select id="lga-select" class="tab-btn tab-select tab-g3" aria-label="LGA view"
-                            onchange="setLGA(this.value)">
+                    <label style="font:500 10.5px var(--sans); text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:4px; padding-left:12px; display:block; text-align:left;">Area</label>
+                    <select id="area-select" class="tab-btn tab-select tab-g3" aria-label="Area view"
+                            onchange="setArea(this.value)">
                         <option value="" selected>All NSW</option>
                         <option value="sydney">Sydney</option>
                         <option value="cv">Clarence Valley</option>
@@ -128,17 +128,17 @@
         <div class="tab-content active" id="tab-overview">
             <div class="stat-grid">
                 <div class="stat-card acc-green">
-                    <h3>Meets criteria</h3>
+                    <h3>Passes criteria</h3>
                     <div class="stat-value green" id="ov-green">–</div>
                     <div class="stat-sub" id="ov-green-pct"></div>
                 </div>
                 <div class="stat-card acc-orange">
-                    <h3>Meets 1 of 2</h3>
+                    <h3>Passes 1 of 2 criteria</h3>
                     <div class="stat-value orange" id="ov-orange">–</div>
                     <div class="stat-sub" id="ov-orange-pct"></div>
                 </div>
                 <div class="stat-card acc-red">
-                    <h3>Does not meet</h3>
+                    <h3>Fails criteria</h3>
                     <div class="stat-value red" id="ov-red">–</div>
                     <div class="stat-sub" id="ov-red-pct"></div>
                 </div>
@@ -150,7 +150,7 @@
             </div>
             <div class="data-note">
                 <span class="note-label">Note</span>
-                <p>The full NSW State &amp; Regional network, each road graded against its own category criteria using measured TfNSW traffic data where a matching counter is available. Use the Nat. Significant, State and Regional tabs to focus on each group.</p>
+                <p>The full NSW State &amp; Regional network, each road graded against its own category criteria. Use the category drop-down to shift the focus to specific road categories.<br><br>Use criteria reference page to view TfNSW road recategorisation criteria.</p>
             </div>
         </div>
 
@@ -163,17 +163,17 @@
             </div>
             <div class="stat-grid">
                 <div class="stat-card acc-green">
-                    <h3 id="nsw-green-label">Meets criteria</h3>
+                    <h3 id="nsw-green-label">Passes criteria</h3>
                     <div class="stat-value green" id="nsw-green">–</div>
                     <div class="stat-sub" id="nsw-green-pct"></div>
                 </div>
                 <div class="stat-card acc-orange">
-                    <h3 id="nsw-orange-label">Meets 1 of 2</h3>
+                    <h3 id="nsw-orange-label">Passes 1 of 2 criteria</h3>
                     <div class="stat-value orange" id="nsw-orange">–</div>
                     <div class="stat-sub" id="nsw-orange-pct"></div>
                 </div>
                 <div class="stat-card acc-red">
-                    <h3 id="nsw-red-label">Does not meet</h3>
+                    <h3 id="nsw-red-label">Fails criteria</h3>
                     <div class="stat-value red" id="nsw-red">–</div>
                     <div class="stat-sub" id="nsw-red-pct"></div>
                 </div>
@@ -184,15 +184,15 @@
                 <div class="dist-track" id="nsw-dist-bar"></div>
                 <div class="dist-key" id="nsw-dist-key"></div>
             </div>
-            <!-- Cross-criteria (reclassification) test — shown only on the State / Regional lenses.
+            <!-- Cross-criteria (recategorisation) test — shown only on the State / Regional lenses.
                  Segmented control: "Own criteria" + one button per available cross-test (State lens:
-                 as Regional, as Nat. Sig. · Regional lens: as State). Buttons are rebuilt per lens by
+                 as Regional or Nat. Sig. · Regional lens: as State or Nat. Sig.). Rebuilt per lens by
                  refreshNswView; setCrossTest(mode) in panels.js drives the existing re-grade machinery. -->
             <div class="stat-card" id="nsw-xtest" style="display:none">
                 <h3>Cross-criteria test</h3>
                 <div class="xt-seg" id="nsw-xt-seg" role="group" aria-label="Cross-criteria test"></div>
                 <div class="xt-status" id="nsw-xt-status" role="status"></div>
-                <p class="xt-fine" id="nsw-xt-fine">Optional connectivity criteria are shared; only the mandatory gate swaps — State needs PBS-1 access, Regional needs 19m B-double access. Verdicts are earned from the data, not forced.</p>
+                <p class="xt-fine" id="nsw-xt-fine">Each button re-grades the displayed roads against the selected category's criteria.</p>
             </div>
             <div class="data-note" id="nsw-note">
                 <span class="note-label">Note</span>
@@ -257,27 +257,33 @@
             <div class="stat-card hero">
                 <h3>Sydney</h3>
                 <div class="stat-value blue" id="syd-total">–</div>
-                <div class="stat-sub">State &amp; Regional roads in the Sydney urban area, graded against their criteria</div>
+                <div class="stat-sub" id="syd-total-sub">State &amp; Regional roads in the Sydney urban area, graded against their criteria</div>
             </div>
-            <div class="stat-grid">
+            <div class="stat-grid" id="syd-verdict-grid">
                 <div class="stat-card acc-green">
-                    <h3>Meets criteria</h3>
+                    <h3>Passes criteria</h3>
                     <div class="stat-value green" id="syd-green">–</div>
                     <div class="stat-sub" id="syd-green-pct"></div>
                 </div>
                 <div class="stat-card acc-orange">
-                    <h3>Meets 1 of 2</h3>
+                    <h3>Passes 1 of 2 criteria</h3>
                     <div class="stat-value orange" id="syd-orange">–</div>
                     <div class="stat-sub" id="syd-orange-pct"></div>
                 </div>
                 <div class="stat-card acc-red">
-                    <h3>Does not meet</h3>
+                    <h3>Fails criteria</h3>
                     <div class="stat-value red" id="syd-red">–</div>
                     <div class="stat-sub" id="syd-red-pct"></div>
                 </div>
             </div>
+            <div class="stat-grid" id="syd-fresh-grid" style="display:none; grid-template-columns:repeat(2, 1fr);">
+                <div class="stat-card"><h3>Nat. Significant</h3><div class="stat-value" id="syd-fresh-nat" style="color:#c026d3">–</div><div class="stat-sub" id="syd-fresh-nat-sub"></div></div>
+                <div class="stat-card"><h3>State Road</h3><div class="stat-value" id="syd-fresh-state" style="color:#1d4ed8">–</div><div class="stat-sub" id="syd-fresh-state-sub"></div></div>
+                <div class="stat-card"><h3>Regional Road</h3><div class="stat-value" id="syd-fresh-reg" style="color:#eab308">–</div><div class="stat-sub" id="syd-fresh-reg-sub"></div></div>
+                <div class="stat-card"><h3>Local Road</h3><div class="stat-value" id="syd-fresh-local" style="color:#57534e">–</div><div class="stat-sub" id="syd-fresh-local-sub"></div></div>
+            </div>
             <div class="stat-card">
-                <h3>By road group</h3>
+                <h3 id="syd-breakdown-title">By road group</h3>
                 <div id="syd-group-breakdown"></div>
             </div>
             <div class="data-note">
@@ -305,37 +311,43 @@
             </div>
         </div>
 
-        <!-- Clarence Valley Tab — the Overview, zoomed into the Clarence Valley LGA with its outline -->
+        <!-- Clarence Valley Tab — the Overview, zoomed into the Clarence Valley Council with its outline -->
         <div class="tab-content" id="tab-cv">
             <div class="stat-card hero">
-                <h3>Clarence Valley LGA</h3>
+                <h3>Clarence Valley Council</h3>
                 <div class="stat-value blue" id="cv-total">–</div>
-                <div class="stat-sub">State &amp; Regional roads in the region, graded against their criteria</div>
+                <div class="stat-sub" id="cv-total-sub">State &amp; Regional roads in the region, graded against their criteria</div>
             </div>
-            <div class="stat-grid">
+            <div class="stat-grid" id="cv-verdict-grid">
                 <div class="stat-card acc-green">
-                    <h3>Meets criteria</h3>
+                    <h3>Passes criteria</h3>
                     <div class="stat-value green" id="cv-green">–</div>
                     <div class="stat-sub" id="cv-green-pct"></div>
                 </div>
                 <div class="stat-card acc-orange">
-                    <h3>Meets 1 of 2</h3>
+                    <h3>Passes 1 of 2 criteria</h3>
                     <div class="stat-value orange" id="cv-orange">–</div>
                     <div class="stat-sub" id="cv-orange-pct"></div>
                 </div>
                 <div class="stat-card acc-red">
-                    <h3>Does not meet</h3>
+                    <h3>Fails criteria</h3>
                     <div class="stat-value red" id="cv-red">–</div>
                     <div class="stat-sub" id="cv-red-pct"></div>
                 </div>
             </div>
+            <div class="stat-grid" id="cv-fresh-grid" style="display:none; grid-template-columns:repeat(2, 1fr);">
+                <div class="stat-card"><h3>Nat. Significant</h3><div class="stat-value" id="cv-fresh-nat" style="color:#c026d3">–</div><div class="stat-sub" id="cv-fresh-nat-sub"></div></div>
+                <div class="stat-card"><h3>State Road</h3><div class="stat-value" id="cv-fresh-state" style="color:#1d4ed8">–</div><div class="stat-sub" id="cv-fresh-state-sub"></div></div>
+                <div class="stat-card"><h3>Regional Road</h3><div class="stat-value" id="cv-fresh-reg" style="color:#eab308">–</div><div class="stat-sub" id="cv-fresh-reg-sub"></div></div>
+                <div class="stat-card"><h3>Local Road</h3><div class="stat-value" id="cv-fresh-local" style="color:#57534e">–</div><div class="stat-sub" id="cv-fresh-local-sub"></div></div>
+            </div>
             <div class="stat-card">
-                <h3>By road group</h3>
+                <h3 id="cv-breakdown-title">By road group</h3>
                 <div id="cv-group-breakdown"></div>
             </div>
             <div class="data-note">
                 <span class="note-label">Note</span>
-                <p>The Clarence Valley tab is the Overview map zoomed into the LGA, with the boundary drawn as an outline. Roads are graded against their own State / Regional criteria — the same as everywhere else. Click any road for its full assessment.</p>
+                <p>The Clarence Valley tab is the Overview map zoomed into the council, with the boundary drawn as an outline. Roads are graded against their own State / Regional criteria — the same as everywhere else. Click any road for its full assessment.</p>
             </div>
         </div>
 
@@ -352,17 +364,17 @@
                 </div>
                 <div class="stat-grid" id="local-verdict-grid">
                     <div class="stat-card acc-green">
-                        <h3>Meets criteria</h3>
+                        <h3>Passes criteria</h3>
                         <div class="stat-value green" id="local-green">—</div>
                         <div class="stat-sub" id="local-green-pct">Select a cross-criteria test</div>
                     </div>
                     <div class="stat-card acc-orange">
-                        <h3>Meets 1 of 2</h3>
+                        <h3>Passes 1 of 2 criteria</h3>
                         <div class="stat-value orange" id="local-orange">—</div>
                         <div class="stat-sub" id="local-orange-pct">Select a cross-criteria test</div>
                     </div>
                     <div class="stat-card acc-red">
-                        <h3>Does not meet</h3>
+                        <h3>Fails criteria</h3>
                         <div class="stat-value red" id="local-red">—</div>
                         <div class="stat-sub" id="local-red-pct">Select a cross-criteria test</div>
                     </div>

@@ -96,7 +96,7 @@ function statewideLocalPopupHtml(feature) {
         return value === 'green' ? 'meets'
             : value === 'orange' ? 'meets one optional criterion'
             : value === 'insufficient' ? 'insufficient evidence'
-            : 'does not meet';
+            : 'fails criteria';
     };
     return (
         '<strong>' + esc(p.name || 'Unnamed local-road segment') + '</strong>' +
@@ -117,7 +117,7 @@ function statewideLocalPopupHtml(feature) {
 }
 
 function statewideLocalRoadClick(e) {
-    if (currentTab !== 'fresh' || !statewideLocalRoadsAtVisibleScale()) return;
+    if (!statewideLocalBestFitActive() || !statewideLocalRoadsAtVisibleScale()) return;
     const point = map.latLngToLayerPoint(e.latlng);
     const clickBox = L.latLngBounds(
         map.layerPointToLatLng(point.subtract([35, 35])),
@@ -185,7 +185,7 @@ function fetchGzipJson(url) {
 }
 
 function updateStatewideLocalRoads() {
-    const active = currentTab === 'fresh' && !!window.LOCAL_ROAD_MANIFEST;
+    const active = statewideLocalBestFitActive() && !!window.LOCAL_ROAD_MANIFEST;
     const keys = active ? statewideLocalWantedKeys() : [];
     removeStatewideLocalChunks(keys);
     if (!active || !keys.length) return;
@@ -213,11 +213,18 @@ function updateStatewideLocalRoads() {
                     }
                 });
                 STATEWIDE_LOCAL_CHUNKS[key] = { loading: false, layer: layer };
-                if (currentTab === 'fresh' && statewideLocalWantedKeys().indexOf(key) !== -1)
+                if (statewideLocalBestFitActive() && statewideLocalWantedKeys().indexOf(key) !== -1)
                     map.addLayer(layer);
             })
             .catch(function () { delete STATEWIDE_LOCAL_CHUNKS[key]; });
     });
+}
+
+// Best fit can be opened statewide or through an Area focus. In both cases its sourced LocalRoad
+// candidates are part of the assessment and should be drawn at the normal zoom-gated scale.
+function statewideLocalBestFitActive() {
+    return currentTab === 'fresh' ||
+        ((currentTab === 'cv' || currentTab === 'sydney') && nswView === 'fresh');
 }
 map.on('moveend zoomend resize', updateStatewideLocalRoads);
 
@@ -775,7 +782,7 @@ function renderLocalList() {
     if (!LOCAL_GROUPS.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
     card.style.display = '';
     const mode = xLens.local;
-    const CHIP = { green: 'Meets', orange: 'Meets 1 optional', red: 'Does not meet' };
+    const CHIP = { green: 'Passes criteria', orange: 'Passes 1 of 2 criteria', red: 'Fails criteria' };
     const order = LOCAL_GROUPS.slice().sort(function (a, b) {
         if (!a.name !== !b.name) return a.name ? -1 : 1;   // named roads first, unnamed ways last
         return (a.name || '').localeCompare(b.name || '') || a.id - b.id;
@@ -852,9 +859,9 @@ function renderLocalRoadDetail(g) {
         const res = gradeLocalGroup(g, 'regional');
         set('lrd-verdict-title', 'Assessment — tested as Regional (indicative)');
         set('lrd-criteria-title', 'Criteria — Regional Road test');
-        vEl.innerHTML = res.v === 'green' ? line(ICON.pass, '#16a34a', 'WOULD MEET REGIONAL')
-            : res.v === 'orange' ? line(ICON.maybe, '#d97706', 'MEETS 1 OF 2 REGIONAL CRITERIA')
-            : line(ICON.fail, '#dc2626', 'WOULD NOT MEET REGIONAL');
+        vEl.innerHTML = res.v === 'green' ? line(ICON.pass, '#16a34a', 'PASSES REGIONAL CRITERIA')
+            : res.v === 'orange' ? line(ICON.maybe, '#d97706', 'LIKELY PASSES REGIONAL CRITERIA')
+            : line(ICON.fail, '#dc2626', 'FAILS REGIONAL CRITERIA');
         rEl.textContent = res.centres + ' distinct town / urban centre' + (res.centres === 1 ? '' : 's') + ' and ' + res.nFac + ' major facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — a Regional road needs ≥2 optional criteria met. Indicative: the mandatory 19m B-double gate is not published for council roads.';
         cEl.innerHTML =
             critItem(res.centres >= 2, 'R-01·R-05: Connects ≥2 distinct town / urban centres', res.centres ? (res.centres + ' centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km — ' + res.centreNames.join('; ')) : 'None within ~1.2 km') +
@@ -869,9 +876,9 @@ function renderLocalRoadDetail(g) {
         const res = gradeLocalGroup(g, 'state');
         set('lrd-verdict-title', 'Assessment — tested as State (indicative)');
         set('lrd-criteria-title', 'Criteria — State Road test');
-        vEl.innerHTML = res.v === 'green' ? line(ICON.pass, '#16a34a', 'WOULD MEET STATE')
-            : res.v === 'orange' ? line(ICON.maybe, '#d97706', 'MEETS 1 OF 2 STATE CRITERIA')
-            : line(ICON.fail, '#dc2626', 'WOULD NOT MEET STATE');
+        vEl.innerHTML = res.v === 'green' ? line(ICON.pass, '#16a34a', 'PASSES STATE CRITERIA')
+            : res.v === 'orange' ? line(ICON.maybe, '#d97706', 'LIKELY PASSES STATE CRITERIA')
+            : line(ICON.fail, '#dc2626', 'FAILS STATE CRITERIA');
         rEl.textContent = res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' and ' + res.nFac + ' major facilit' + (res.nFac === 1 ? 'y' : 'ies') + ' within ~1.2 km — a State road needs ≥2 optional criteria. Indicative: the mandatory PBS Level 1 gate is not published for council roads.';
         cEl.innerHTML =
             critItem(res.centres >= 2, 'S-07·S-10: Connects ≥2 State-tier centres (Regional Cities / Major Towns / urban areas)', res.centres ? (res.centres + ' State-tier centre' + (res.centres === 1 ? '' : 's') + ' within ~1.2 km — ' + res.centreNames.join('; ')) : 'None within ~1.2 km') +
@@ -936,8 +943,8 @@ function updateLocalXtStatus() {
     LOCAL_GROUPS.forEach(function (g) { c[gradeLocalGroup(g, m).v]++; });
     el.textContent = LOCAL_GROUPS.length.toLocaleString() + ' local roads re-graded against the ' +
         (m === 'state' ? 'State Road' : 'Regional Road') + ' criteria — ' +
-        c.green.toLocaleString() + ' would meet · ' + c.orange.toLocaleString() + ' meet 1 optional · ' +
-        c.red.toLocaleString() + ' would not (indicative).';
+        c.green.toLocaleString() + ' pass · ' + c.orange.toLocaleString() + ' likely pass · ' +
+        c.red.toLocaleString() + ' fail (indicative).';
 }
 
 // mode: 'own' | false = plain green local roads, 'regional' | 'state' = indicative re-grade.
@@ -978,7 +985,7 @@ function localExportRows() {
             'Road Name': g.name || 'Unnamed local road',
             'Connects To': res ? (((res.centreNames || []).concat(res.facNames || [])).join('; ') || '—') : '—',
             'Categorisation': !m ? 'Local road (not graded)'
-                : v === 'green' ? ('Would meet ' + noun) : v === 'orange' ? 'Would meet 1 optional' : ('Would not meet ' + noun),
+                : v === 'green' ? ('Passes ' + noun + ' criteria') : v === 'orange' ? ('Likely passes ' + noun + ' criteria') : ('Fails ' + noun + ' criteria'),
             'Why': !m ? 'Own criteria — local roads carry no State/Regional grading'
                 : m === 'state'
                     ? ('S-07·S-10  ' + (res.centres >= 2 ? 'met' : 'not met') + ' (' + res.centres + ' State-tier centres)\nS-08·S-11  ' + (res.nFac ? 'met (' + res.nFac + ' facilities)' : 'not met') + '\nS-09  not assessed (gate unpublished)')

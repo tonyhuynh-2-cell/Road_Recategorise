@@ -1,15 +1,15 @@
 // panels.js — tab switching, NSW/CV map show, and the lens + overview stat panels.
 
-// LGA filter: when an LGA is selected from the dropdown, switch to that LGA's tab.
-// When the category dropdown changes while an LGA is active, switch to the LGA tab
+// Area filter: when an area is selected from the dropdown, switch to that area's tab.
+// When the category dropdown changes while an area is active, keep that area open
 // (which will re-filter by the current nswView/lens).
-let _activeLGA = '';
+let _activeArea = '';
 
-function setLGA(lga) {
-    _activeLGA = lga || '';
-    if (lga) {
-        // Switch to the LGA tab (sydney or cv)
-        switchTab(lga);
+function setArea(area) {
+    _activeArea = area || '';
+    if (area) {
+        // Switch to the selected area tab (Sydney or Clarence Valley)
+        switchTab(area);
     } else {
         // "All NSW" — go back to the current lens on the NSW overview
         const lens = document.getElementById('lens-select');
@@ -17,19 +17,19 @@ function setLGA(lga) {
     }
 }
 
-// Override the lens-select onchange to preserve LGA selection
+// Override the lens-select onchange to preserve the selected area
 (function() {
     const origOnChange = function(val) {
-        if (_activeLGA) {
-            // Update the lens (nswView) directly without switching away from the LGA tab.
+        if (_activeArea) {
+            // Update the lens (nswView) directly without switching away from the area tab.
             // This avoids the zoom-out-then-back-in that switchTab(val) would cause.
             nswView = (val === 'overview') ? 'all' : val;
             // Sync the lens dropdown display
             const sel = document.getElementById('lens-select');
             if (sel) sel.value = val;
-            // Re-render the LGA view with the new lens applied (road styling uses nswView)
-            if (_activeLGA === 'cv') { refreshCV(); showCV(); }
-            else if (_activeLGA === 'sydney') { refreshSydney(); showSydney(); }
+            // Re-render the area view with the new lens applied (road styling uses nswView)
+            if (_activeArea === 'cv') { refreshCV(); showCV(); }
+            else if (_activeArea === 'sydney') { refreshSydney(); showSydney(); }
             renderMapLegend();
         } else {
             switchTab(val);
@@ -45,11 +45,11 @@ function setLGA(lga) {
 function switchTab(tab) {
     if (tab === 'detail' && currentTab !== 'detail') lastViewTab = currentTab;   // remember where to return
     if (tab !== 'detail' && typeof clearSelectedRoad === 'function') clearSelectedRoad();
-    // Keep LGA dropdown in sync
-    const lgaSel = document.getElementById('lga-select');
-    if (lgaSel) {
-        if (tab === 'sydney' || tab === 'cv') lgaSel.value = tab;
-        else if (tab !== 'detail' && !_activeLGA) lgaSel.value = '';
+    // Keep Area dropdown in sync
+    const areaSel = document.getElementById('area-select');
+    if (areaSel) {
+        if (tab === 'sydney' || tab === 'cv') areaSel.value = tab;
+        else if (tab !== 'detail' && !_activeArea) areaSel.value = '';
     }
     if (typeof traceCode === 'function') traceCode(
         'Tab switch: ' + tab,
@@ -76,7 +76,7 @@ function switchTab(tab) {
         if (tab === 'overview') refreshOverview(); else if (tab === 'fresh') refreshFresh(); else refreshNswView();
         showNSW();
     } else if (tab === 'cv' || tab === 'sydney') {
-        // LGA focus keeps the category lens (nswInView filters by nswView there). Align nswView with
+        // Area focus keeps the category lens (nswInView filters by nswView there). Align nswView with
         // the dropdown — it can lag when the previous tab didn't drive it (e.g. the Local tab).
         const lens = document.getElementById('lens-select');
         if (lens && lens.value && lens.value !== '__hold__') nswView = (lens.value === 'overview') ? 'all' : lens.value;
@@ -103,8 +103,8 @@ const LENS_SELECT_TABS = ['overview', 'nsr', 'state', 'regional', 'local', 'fres
 // Keep the lens dropdown in step with EVERY tab change, however it was driven (its own change
 // event, a tab button, boot, a road-detail open, a search jump…). Called by switchTab right after
 // the .tab-btn active sweep: on one of the lens tabs the dropdown takes that value + the active
-// pill look (mirroring how the old buttons lit up). Inside an LGA focus (sydney / cv) the lens
-// stays FUNCTIONAL — it filters the roads within the LGA (see nswInView) — so it keeps the active
+// pill look (mirroring how the old buttons lit up). Inside an area focus (Sydney / Clarence Valley)
+// the lens stays FUNCTIONAL and filters roads within that area, so it keeps the active
 // look and its current value. On flagged / detail it KEEPS showing the last lens but drops the
 // active styling — exactly like an unselected tab button.
 function syncLensSelect(tab) {
@@ -117,7 +117,7 @@ function syncLensSelect(tab) {
         sel.value = tab;
         sel.classList.add('active');
     } else if (tab === 'cv' || tab === 'sydney') {
-        sel.classList.add('active');      // LGA focus: lens still drives the road filter — stays lit
+        sel.classList.add('active');      // Area focus: lens still drives the road filter — stays lit
     } else {
         sel.classList.remove('active');   // sweep already stripped it; keep this explicit + idempotent
     }
@@ -178,20 +178,20 @@ function applyLegend(opts) {
     // most expensive thing this function does. The canvas styles stay correct because those keys are not
     // inputs to nswStyle. A layer being (re-)ADDED always restyles, whatever the caller asked.
     const restyleRoads = !(opts && opts.skipRoadRestyle);
-    // CV tab + "Show only roads inside the LGA" → swap the full road overlay for the clipped copy.
+    // CV tab + "Show only roads inside the area" swaps the full road overlay for the clipped copy.
     // Local tab → hide the State/Regional overlay entirely, so only the green local roads show.
     // Nat. Significant lens → nswInView hides EVERY road there (its subject is the NLTN layer), so take
     // the layer OFF the map instead of drawing 17.6k invisible paths: zoom/pan then skip re-projecting
-    // them entirely. The lens applies INSIDE an LGA focus too (CV / Sydney keep the category dropdown
+    // them entirely. The lens applies INSIDE an area focus too (CV / Sydney keep the category dropdown
     // functional — see nswInView); the detail view keeps whatever lens it came from (nswView unchanged).
     const cvClip = currentTab === 'cv' && legendToggles.clip;
-    const lgaTab = currentTab === 'cv' || currentTab === 'sydney';
+    const areaTab = currentTab === 'cv' || currentTab === 'sydney';
     // Flagged view: the ⚑ pins are drawn by this SAME overlay (nswStyle hides the unpinned roads),
     // so an 'nsr' nswView must not take the layer off the map there (inFlaggedScope, flagged.js).
     const nsrLens = !inFlaggedScope() && nswView === 'nsr';
     // Local lens in an LGA mirrors the Local tab's map treatment: the S/R overlay comes off (street
     // labels appear once zoomed in; the full council-road assessment lives on the Local tab).
-    const hideNsw = cvClip || currentTab === 'local' || nsrLens || (lgaTab && nswView === 'local');
+    const hideNsw = cvClip || currentTab === 'local' || nsrLens || (areaTab && nswView === 'local');
     if (nswLayer) {
         if (hideNsw) map.removeLayer(nswLayer);
         else { const wasOn = map.hasLayer(nswLayer); map.addLayer(nswLayer); if (restyleRoads || !wasOn) nswLayer.setStyle(nswStyle); }
@@ -204,7 +204,7 @@ function applyLegend(opts) {
     // NLTN national network: the SUBJECT of the Nat. Significant lens only — graded green/orange.
     // Hidden on every other tab, incl. CV (it is no longer a reference underlay).
     if (nltnLayer) {
-        // Shown on the Nat. Significant lens, the Overview, AND inside an LGA focus when the lens is
+        // Shown on the Nat. Significant lens, the Overview, AND inside an area focus when the lens is
         // Overview (Sydney only — its Overview always drew it) or Nat. Sig (both LGAs — the lens's
         // subject): the green/orange national network drawn alongside / instead of the road overlay.
         const onNltnTab = (currentTab === 'nsr' || currentTab === 'overview'
@@ -271,8 +271,8 @@ function renderMapLegend() {
         '<button class="ml-btn" onclick="toggleLegendCollapse()" title="Minimise legend"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>' +
         '</div></div>';
     if (currentTab === 'cv' || currentTab === 'sydney') {
-        // LGA focus: the verdict / category rows follow the ACTIVE lens — the two sidebar dropdowns
-        // are orthogonal (category picks the rows; the LGA adds its outline / clip extras below).
+        // Area focus: the verdict/category rows follow the active lens. The two sidebar dropdowns
+        // are orthogonal: Category picks the rows and Area supplies its outline/clip extras.
         if (nswView === 'fresh') {
             FRESH_CATS.forEach(k => { h += li(k, sw(FRESH_META[k].color), FRESH_META[k].label); });
             h += liStatic(dashSw, 'Dashed — provisional: gate passed, 1 of 2 optional');
@@ -285,24 +285,24 @@ function renderMapLegend() {
             // State / Regional lens rows from NSW_VIEW_META; Overview ('all') keeps the generic rows.
             const m = NSW_VIEW_META[nswView];
             const rows = m ? m.legend : [
-                ['#16a34a', 'Meets its criteria'],
-                ['#f59e0b', 'Meets 1 optional criterion'],
-                ['#dc2626', 'Does not meet']
+                ['#16a34a', 'Passes criteria'],
+                ['#f59e0b', 'Passes 1 of 2 criteria'],
+                ['#dc2626', 'Fails criteria']
             ];
             rows.forEach(([col, lab], i) => { h += li(vkeys[i], sw(col), lab); });
             h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         }
         h += li('towns', townSw, currentTab === 'cv' ? 'Town centres / POIs' : 'Centres / localities · zoom in');
-        h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', currentTab === 'cv' ? 'LGA boundary (outline)' : 'Sydney outline');
+        h += li('boundary', '<div class="legend-color" style="background:#000000; height:2.5px"></div>', currentTab === 'cv' ? 'Area boundary (outline)' : 'Sydney outline');
         if (currentTab === 'cv')
-            h += li('clip', '<div class="legend-color" style="background:transparent; border:1.5px solid #1c1917; height:11px; border-radius:2px"></div>', 'Show only roads inside the LGA');
+            h += li('clip', '<div class="legend-color" style="background:transparent; border:1.5px solid #1c1917; height:11px; border-radius:2px"></div>', 'Show only roads inside the area');
     } else if (currentTab === 'local') {
         // Verdict rows follow the ACTIVE local cross-test mode (own = plain green, no verdicts).
         const lm = (typeof xLens !== 'undefined') ? xLens.local : false;
         h += liStatic('<div class="legend-color" style="background:#16a34a; height:2px"></div>', 'Local road (council)' + (lm ? '' : ' — green'));
         if (lm === 'state') {
             h += li('green', sw('#16a34a'), 'Tested: meets State (centres + facility)');
-            h += li('orange', sw('#f59e0b'), 'Tested: meets 1 State criterion');
+            h += li('orange', sw('#f59e0b'), 'Tested: likely passes State criteria');
             h += li('red', sw('#dc2626'), 'Tested: meets no State criterion');
         } else if (lm) {
             h += li('green', sw('#16a34a'), 'Tested: meets Regional (≥ 2 centres)');
@@ -329,9 +329,9 @@ function renderMapLegend() {
         else h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Centres / localities · zoom in');
     } else {   // overview + detail
-        h += li('green', sw('#16a34a'), 'Meets its criteria');
-        h += li('orange', sw('#f59e0b'), 'Meets 1 optional criterion');
-        h += li('red', sw('#dc2626'), 'Does not meet');
+        h += li('green', sw('#16a34a'), 'Passes criteria');
+        h += li('orange', sw('#f59e0b'), 'Passes 1 of 2 criteria');
+        h += li('red', sw('#dc2626'), 'Fails criteria');
         h += li('dashed', dashSw, 'Route-numbered road A / B / D / M (dashed)');
         h += li('towns', townSw, 'Town/City');
     }
@@ -444,7 +444,7 @@ function showNSW() {
 function showCV() {
     if (typeof traceCode === 'function') traceCode(
         'Show Clarence Valley',
-        'The Clarence Valley tab reuses the statewide assessment, draws the LGA outline, filters the stats to roads touching the LGA, and frames the map to the boundary.',
+        'The Clarence Valley area reuses the statewide assessment, draws the area outline, filters the stats to roads touching it, and frames the map to the boundary.',
         "function showCV() {\n  applyLegend();\n  if (mapContext !== 'cv' && cvBoundaryLayer) {\n    map.fitBounds(cvBoundaryLayer.getBounds().pad(0.12));\n  }\n  mapContext = 'cv';\n}",
         'stats source: scopeCounts(\"cv\"), boundary: clarence_valley_boundary.geojson'
     );
@@ -610,6 +610,23 @@ function refreshRegion(key) {
         "function refreshRegion(key) {\n  const { g, o, r, grp } = scopeCounts(key);\n  set(key + '-green', g.toLocaleString());\n  set(key + '-orange', o.toLocaleString());\n  set(key + '-red', r.toLocaleString());\n}",
         key === 'cv' ? 'Clarence Valley roads tagged with _inCV' : 'Sydney roads tagged with _inSyd'
     );
+    // Best fit uses four destination-category bins instead of the ordinary verdict cards. Its Area
+    // totals combine boundary-tagged declared roads with pre-aggregated LocalRoad candidates.
+    if (nswView === 'fresh') { refreshRegionFresh(key); return; }
+    const verdictGrid = document.getElementById(key + '-verdict-grid');
+    const freshGrid = document.getElementById(key + '-fresh-grid');
+    if (verdictGrid) verdictGrid.style.display = '';
+    if (freshGrid) freshGrid.style.display = 'none';
+    const breakdownTitle = document.getElementById(key + '-breakdown-title');
+    if (breakdownTitle) breakdownTitle.textContent = 'By road group';
+    const totalSub = document.getElementById(key + '-total-sub');
+    if (totalSub) totalSub.textContent = key === 'cv'
+        ? 'State & Regional roads in the region, graded against their criteria'
+        : 'State & Regional roads in the Sydney urban area, graded against their criteria';
+    const note = document.querySelector('#tab-' + (key === 'syd' ? 'sydney' : 'cv') + ' .data-note p');
+    if (note) note.textContent = key === 'cv'
+        ? 'The Clarence Valley tab is the Overview map zoomed into the council, with the boundary drawn as an outline. Roads are graded against their own State / Regional criteria — the same as everywhere else. Click any road for its full assessment.'
+        : 'The Sydney tab is the Overview map zoomed into the Sydney Significant Urban Area, with the boundary drawn as an outline. Roads are graded against their own State / Regional criteria — the same as everywhere else. Click any road for its full assessment.';
     // When a category lens is active (State/Regional), filter the region stats to only that class.
     const lensClass = (nswView === 'state') ? 'S' : (nswView === 'regional') ? 'R' : null;
     let g = 0, o = 0, r = 0, greenKm = 0, orangeKm = 0, redKm = 0;
@@ -641,6 +658,68 @@ function refreshRegion(key) {
     const grpRows = [natSigGroupRow(nltnRegionCounts(key)), ...Object.entries(grp)].filter(Boolean);
     const gb = document.getElementById(key + '-group-breakdown'); if (gb) gb.innerHTML = groupBreakdownHTML(grpRows);
 }
+
+function refreshRegionFresh(key) {
+    const F = buildFresh();
+    const counts = { fnat: 0, fstate: 0, freg: 0, flocal: 0 };
+    const km = { fnat: 0, fstate: 0, freg: 0, flocal: 0 };
+    let declared = 0, provisional = 0;
+    for (const roadKey in NSW_AGG) {
+        const a = NSW_AGG[roadKey];
+        if (a.admin_class !== 'S' && a.admin_class !== 'R') continue;
+        if (key === 'cv' && !a._inCV) continue;
+        if (key === 'syd' && !a._inSyd) continue;
+        const f = F[roadKey]; if (!f) continue;
+        declared++;
+        counts[f.cat]++;
+        km[f.cat] += a._len || 0;
+        if (f.tier === 'likely') provisional++;
+    }
+
+    const areaStats = window.LOCAL_ROAD_AREA_STATS && window.LOCAL_ROAD_AREA_STATS.areas
+        ? window.LOCAL_ROAD_AREA_STATS.areas[key] : null;
+    const statuses = areaStats ? (areaStats.status_counts || {}) : {};
+    const statusKm = areaStats ? (areaStats.status_length_km || {}) : {};
+    const localRoads = areaStats ? (+areaStats.road_count || 0) : 0;
+    const localState = (+statuses.potential_state || 0) + (+statuses.likely_state || 0);
+    const localRegional = (+statuses.potential_regional || 0) + (+statuses.likely_regional || 0);
+    counts.fstate += localState;
+    counts.freg += localRegional;
+    counts.flocal += Math.max(0, localRoads - localState - localRegional);
+    km.fstate += (+statusKm.potential_state || 0) + (+statusKm.likely_state || 0);
+    km.freg += (+statusKm.potential_regional || 0) + (+statusKm.likely_regional || 0);
+    km.flocal += Object.keys(statusKm).reduce((sum, status) =>
+        ['potential_state', 'likely_state', 'potential_regional', 'likely_regional'].indexOf(status) === -1
+            ? sum + (+statusKm[status] || 0) : sum, 0);
+    provisional += (+statuses.likely_state || 0) + (+statuses.likely_regional || 0);
+
+    const total = declared + localRoads;
+    const totalKm = km.fnat + km.fstate + km.freg + km.flocal;
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    const sub = value => {
+        if (!totalKm) return Math.round(value).toLocaleString() + ' km';
+        const share = value / totalKm * 100;
+        return share.toFixed(share < 0.1 ? 2 : 1) + '% of assessed road length · ' +
+            Math.round(value).toLocaleString() + ' km';
+    };
+    const verdictGrid = document.getElementById(key + '-verdict-grid');
+    const freshGrid = document.getElementById(key + '-fresh-grid');
+    if (verdictGrid) verdictGrid.style.display = 'none';
+    if (freshGrid) freshGrid.style.display = 'grid';
+    set(key + '-total', total.toLocaleString());
+    set(key + '-fresh-nat', counts.fnat.toLocaleString()); set(key + '-fresh-nat-sub', sub(km.fnat));
+    set(key + '-fresh-state', counts.fstate.toLocaleString()); set(key + '-fresh-state-sub', sub(km.fstate));
+    set(key + '-fresh-reg', counts.freg.toLocaleString()); set(key + '-fresh-reg-sub', sub(km.freg));
+    set(key + '-fresh-local', counts.flocal.toLocaleString()); set(key + '-fresh-local-sub', sub(km.flocal));
+    set(key + '-total-sub', 'Best-fit assessment units within the selected Area — current classification ignored');
+    set(key + '-breakdown-title', 'Assessment coverage');
+    const gb = document.getElementById(key + '-group-breakdown');
+    if (gb) gb.innerHTML = '<div class="stat-sub" style="line-height:1.6">' +
+        declared.toLocaleString() + ' sourced State/Regional roads · ' + localRoads.toLocaleString() +
+        ' sourced LocalRoad candidates · ' + provisional.toLocaleString() + ' provisional outcomes</div>';
+    const note = document.querySelector('#tab-' + (key === 'syd' ? 'sydney' : 'cv') + ' .data-note p');
+    if (note) note.textContent = 'Best fit applies the same blank-slate category waterfall as the statewide view, then narrows the results to roads within this Area. State, Regional and sourced LocalRoad candidates are included; full road length is counted once when any part of a road falls inside the boundary.';
+}
 function refreshCV() { refreshRegion('cv'); }
 function refreshSydney() { refreshRegion('syd'); }
 
@@ -669,8 +748,8 @@ function refreshLocal() {
 
 // Cross-criteria segmented control for the State / Regional lenses (folded in from the old
 // Cross-test tab): re-grade the shown roads against ANOTHER category. mode: 'own' | false = own
-// criteria, or one of XT_LENS_MODES[nswView] ('regional' / 'natsig' on the State lens, 'state' on
-// the Regional lens — see config.js). refreshNswView re-counts the cards and rebuilds the control.
+// criteria, or one of XT_LENS_MODES[nswView] ('regional' / 'natsig' on the State lens, 'state' /
+// 'natsig' on the Regional lens — see config.js). refreshNswView re-counts the cards and rebuilds it.
 function setCrossTest(mode) {
     const m = (mode === 'own' || !mode) ? false : mode;
     if (typeof traceCode === 'function') traceCode(
@@ -683,7 +762,7 @@ function setCrossTest(mode) {
     else if (nswView === 'regional') xLens.regional = m;
     refreshNswView();
     // refreshNswView no longer restyles the map; the cross test has no showNSW/applyLegend follow-up,
-    // so recolour the roads here to reflect the reclassification grade (nswStyle reads xLens).
+    // so recolour the roads here to reflect the recategorisation grade (nswStyle reads xLens).
     if (nswLayer) nswLayer.setStyle(nswStyle);
     renderMapLegend();   // verdict-row labels follow the active mode (target category's tiers)
     // Brief top-centre pill while the vectors recolour (informative only).
@@ -717,7 +796,7 @@ function nswViewCounts() {
         return { green: n.green, orange: n.orange, red: n.red || 0, total: n.total, greenKm: gKm, orangeKm: oKm, redKm: rKm };
     }
     // Cross-criteria test on: count each road by its verdict AGAINST the target category (the
-    // lens's active mode — asReg / asNat on the State lens, asState on the Regional lens) so the
+    // lens's active mode — asReg / asNat on the State lens, asState / asNat on the Regional lens) so the
     // stat cards match the recoloured map.
     const mode = (nswView === 'state' && xLens.state) || (nswView === 'regional' && xLens.regional) || false;
     if (!mode && _lensCounts[nswView]) return _lensCounts[nswView];   // static verdict counts — O(1)
@@ -750,9 +829,9 @@ function refreshNswView() {
     );
     const m = NSW_VIEW_META[nswView]; if (!m) return;
     const c = nswViewCounts();
-    // Nat. Significant is a 2-tier lens (green / "would meet") that hides the "does not meet" tier — but
+    // Nat. Significant is a 2-tier lens (green/pass, orange/likely pass) that hides the fail tier — but
     // ONLY while the data genuinely has no red route. If the national grading ever produces a red, surface
-    // it instead of folding it into "would meet": verdicts are earned from the data, not forced.
+    // it instead of folding it into another tier: verdicts are earned from the data, not forced.
     const hideRed = m.hideRed && c.red === 0;
     const grid = document.querySelector('#tab-nsw .stat-grid');
     if (grid) { grid.style.display = ''; grid.style.gridTemplateColumns = hideRed ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'; }
@@ -788,18 +867,18 @@ function refreshNswView() {
     }
 
     document.getElementById('nsw-hero-title').textContent = mode ? (m.title + ' — tested as ' + xm.short) : m.title;
-    document.getElementById('nsw-total-sub').textContent = mode ? ('Re-graded against the ' + xm.noun + ' criteria — reclassification test') : m.sub;
+    document.getElementById('nsw-total-sub').textContent = mode ? ('Re-graded against the ' + xm.noun + ' criteria — recategorisation test') : m.sub;
     document.getElementById('nsw-total').textContent = c.total.toLocaleString();
     const pct = n => c.total ? (n / c.total * 100).toFixed(0) + '% of these roads' : '';
-    // The natsig test grades 3 national criteria (≥2 green / 1 orange), so "Meets 1 of 2" would lie.
-    const oLbl = mode === 'natsig' ? 'Meets 1 criterion' : m.oLabel;
-    document.getElementById('nsw-green-label').textContent = mode ? ('Would meet ' + xm.short) : m.gLabel;
+    // The natsig test grades 3 national criteria (≥2 green / 1 orange), so a 1-of-2 label would lie.
+    const oLbl = mode === 'natsig' ? 'Passes 1 criterion' : m.oLabel;
+    document.getElementById('nsw-green-label').textContent = mode ? ('Passes ' + xm.short + ' criteria') : m.gLabel;
     document.getElementById('nsw-green').textContent = c.green.toLocaleString();
     document.getElementById('nsw-green-pct').textContent = pct(c.green) + (c.greenKm ? ' · ' + Math.round(c.greenKm).toLocaleString() + ' km' : '');
     document.getElementById('nsw-orange-label').textContent = oLbl;
     document.getElementById('nsw-orange').textContent = c.orange.toLocaleString();
     document.getElementById('nsw-orange-pct').textContent = pct(c.orange) + (c.orangeKm ? ' · ' + Math.round(c.orangeKm).toLocaleString() + ' km' : '');
-    document.getElementById('nsw-red-label').textContent = mode ? ('Would not meet ' + xm.short) : (hideRed ? m.rLabel : (m.rLabel || 'Does not meet'));
+    document.getElementById('nsw-red-label').textContent = mode ? ('Fails ' + xm.short + ' criteria') : (hideRed ? m.rLabel : (m.rLabel || 'Fails criteria'));
     document.getElementById('nsw-red').textContent = c.red.toLocaleString();
     document.getElementById('nsw-red-pct').textContent = pct(c.red) + (c.redKm ? ' · ' + Math.round(c.redKm).toLocaleString() + ' km' : '');
     // Verdict distribution bar — the green/orange(/red) split for this lens, mirroring the Overview's
@@ -810,8 +889,8 @@ function refreshNswView() {
         const { gp, op, rp } = barPercents(c.green, c.orange, c.total, hideRed);
         const seg = (w, col) => w > 0 ? '<span style="width:' + w + '%; background:' + col + '"></span>' : '';
         distBar.innerHTML = seg(gp, '#16a34a') + seg(op, '#f59e0b') + seg(rp, '#dc2626');
-        const gLbl = mode ? ('Would meet ' + xm.short) : m.gLabel;
-        const rLbl = mode ? ('Would not meet ' + xm.short) : (m.rLabel || 'Does not meet');
+        const gLbl = mode ? ('Passes ' + xm.short + ' criteria') : m.gLabel;
+        const rLbl = mode ? ('Fails ' + xm.short + ' criteria') : (m.rLabel || 'Fails criteria');
         const dk = (col, label, n) => label ? '<span class="dk"><i style="background:' + col + '"></i>' + label + ' <b>' + n.toLocaleString() + '</b></span>' : '';
         document.getElementById('nsw-dist-key').innerHTML =
             dk('#16a34a', gLbl, c.green) + dk('#f59e0b', oLbl, c.orange) + (hideRed ? '' : dk('#dc2626', rLbl, c.red));
@@ -819,7 +898,7 @@ function refreshNswView() {
     // The map legend itself is the floating panel (renderMapLegend), rebuilt by switchTab.
     // Mode active → the note describes the TARGET category's criteria (XT_MODE_NOTES, config.js).
     const np = document.querySelector('#nsw-note p');
-    if (np) np.textContent = mode ? (XT_MODE_NOTES[mode] || m.note) : m.note;
+    if (np) np.innerHTML = mode ? (XT_MODE_NOTES[mode] || m.note) : m.note;
     // Map restyle is owned by switchTab's follow-up showNSW()->applyLegend() (which styles nswLayer and,
     // on the nsr lens, nltnLayer). toggleCrossLens is the only caller without that follow-up, so it
     // restyles explicitly. This removes the second full-layer setStyle per NSW tab switch.
