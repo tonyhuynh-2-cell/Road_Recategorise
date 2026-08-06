@@ -508,10 +508,10 @@ function showRoadDetail(p, source) {
     } else if (source === 'nsw') {
         if (p.status === 'green') {
             resultEl.innerHTML = '<span class="result-line">' + ICON.pass + '<span style="color:#16a34a">PASSES ' + (isState ? 'STATE' : 'REGIONAL') + ' CRITERIA</span></span>';
-            reasonEl.innerHTML = 'Passes all testable criteria even without ADT data';
+            reasonEl.textContent = 'Passes mandatory and ≥ 2 optional criteria';
         }
         else if (p.status === 'orange') {
-            resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY PASSES</span></span>';
+            resultEl.innerHTML = '<span class="result-line">' + ICON.maybe + '<span style="color:#d97706">LIKELY PASSES ' + (isState ? 'STATE' : 'REGIONAL') + ' CRITERIA</span></span>';
             const reason = optionalQuotaMet && mandatoryRefs.length
                 ? 'Likely passes if the mandatory review below is satisfied.'
                 : criterionRefs.length
