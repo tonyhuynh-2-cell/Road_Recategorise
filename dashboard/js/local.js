@@ -2,7 +2,7 @@
 //
 // Two jobs:
 //  1. Street NAMES on the normal road-map tabs, via the basemap: a CARTO "voyager_only_labels" overlay
-//     switched on once zoomed in past LOCAL_ZOOM (instant, no queries).
+//     switched on once the displayed ruler reads 2 km or closer (instant, no queries).
 //  2. The Local TAB: search a SUBURB → we load that suburb's council/local roads (OpenStreetMap / Overpass)
 //     as GREEN vectors, CLIPPED to the suburb boundary so nothing leaks past the outline, with an optional
 //     "grade as Regional" cross-test. A suburb is a small, bounded query, so it loads fast and reliably —
@@ -14,9 +14,11 @@ const localLabelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rasterti
 
 const LOCAL_TABS = ['overview', 'state', 'regional', 'sydney', 'cv', 'local'];   // road-map tabs (not Nat.Sig / Detail)
 
-// Street labels show when: the toggle is on, we're on a road-map tab, AND zoomed in past LOCAL_ZOOM.
+// Street labels show when: the toggle is on, we're on a road-map tab, AND the displayed scale is 2 km or closer.
 function localRoadsAllowed() {
-    return legendToggles.local && LOCAL_TABS.indexOf(currentTab) !== -1 && map.getZoom() >= LOCAL_ZOOM;
+    const scaleMetres = typeof displayedScaleMetres === 'function' ? displayedScaleMetres() : null;
+    return legendToggles.local && LOCAL_TABS.indexOf(currentTab) !== -1 &&
+        scaleMetres !== null && scaleMetres <= TOWN_LABEL_SCALE_METRES;
 }
 
 // Add/remove the street-label overlay for the current view. Called by applyLegend and on move/zoom.
@@ -25,7 +27,7 @@ function updateLocalRoads() {
     else if (map.hasLayer(localLabelsLayer)) map.removeLayer(localLabelsLayer);
 }
 
-map.on('zoomend', updateLocalRoads);
+map.on('moveend zoomend', updateLocalRoads);
 
 // --- Local tab: a searched SUBURB's council roads as GREEN vectors, clipped to its perimeter ---
 // Overpass endpoints are tried in order: the canonical server, then a verified full-data mirror as fallback.

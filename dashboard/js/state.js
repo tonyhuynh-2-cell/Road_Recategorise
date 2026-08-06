@@ -365,15 +365,23 @@ map.on('click', deselect);  // clicking off any road clears the selection
 
 // --- Bottom-right map widgets: a scale bar + the selected-road distance readout ---
 // Scale bar: pick a "nice" round distance (1 / 2 / 5 × 10ⁿ) that fits in ~80 px at the map centre.
+function displayedScaleMetres() {
+    const y = map.getSize().y / 2;
+    const target = 130;
+    const metres = map.distance(map.containerPointToLatLng([0, y]), map.containerPointToLatLng([target, y]));
+    if (!isFinite(metres) || metres <= 0) return null;
+    const pow = Math.pow(10, Math.floor(Math.log10(metres)));
+    return ((metres / pow) >= 5 ? 5 : (metres / pow) >= 2 ? 2 : 1) * pow;
+}
+
 function updateScale() {
     const barEl = document.getElementById('mw-scale-bar');
     const labelEl = document.getElementById('mw-scale-label');
     if (!barEl || !labelEl) return;
     const y = map.getSize().y / 2, target = 130;
     const meters = map.distance(map.containerPointToLatLng([0, y]), map.containerPointToLatLng([target, y]));
-    if (!isFinite(meters) || meters <= 0) return;
-    const pow = Math.pow(10, Math.floor(Math.log10(meters)));
-    const nice = ((meters / pow) >= 5 ? 5 : (meters / pow) >= 2 ? 2 : 1) * pow;
+    const nice = displayedScaleMetres();
+    if (!isFinite(meters) || meters <= 0 || nice === null) return;
     barEl.style.width = Math.round(target * nice / meters) + 'px';
     labelEl.textContent = nice >= 1000 ? (nice / 1000) + ' km' : Math.round(nice) + ' m';
 }
@@ -393,13 +401,15 @@ function hideRoadDistance() { const el = document.getElementById('mw-distance');
 function updateTownLabels() {
     var container = map.getContainer();
     var zoom = map.getZoom();
-    container.classList.toggle('labels-on', zoom >= LOCAL_ZOOM);
+    var scaleMetres = displayedScaleMetres();
+    var atCloseScale = scaleMetres !== null && scaleMetres <= TOWN_LABEL_SCALE_METRES;
+    container.classList.toggle('labels-on', atCloseScale);
     ['8', '10', '11', '12', '13'].forEach(function (level) {
         container.classList.toggle('centres-z' + level, zoom >= Number(level));
     });
 }
 
-map.on('zoomend', updateTownLabels);
+map.on('moveend zoomend', updateTownLabels);
 
 // --- Network reveal (UI revamp): the road WEB grows outward from Sydney -------------------------
 // Not a geometric wipe: every road strand draws along its own length on a temporary overlay canvas.

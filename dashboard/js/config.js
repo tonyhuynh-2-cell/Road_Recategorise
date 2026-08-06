@@ -95,13 +95,7 @@ const NSR_EXCLUDE = {
     '0000005': 'A44 — The Northern Rd (not on the NLTN Determination 2020)',
 };
 
-// Local roads surface two ways (see local.js): street NAMES via a CARTO label overlay that switches on
-// at/after this zoom (instant, no queries), and — on the Local tab — the actual council roads as green
-// vectors fetched live from OpenStreetMap / Overpass (~5s/viewport). The authoritative TfNSW RoadSegment
-// service is ~28s per viewport (verified) — far too slow for live use, which is why we don't use it.
-const LOCAL_ZOOM = 14;
-
-// Town and locality names appear once the bottom-right map scale reads this distance or closer.
-// Keep this tied to the displayed scale rather than a zoom level because metres-per-pixel varies
-// with latitude and viewport size.
+// Town/locality labels, CARTO street labels, and the stored statewide LocalRoad geometry all appear once
+// the bottom-right map scale reads this distance or closer. Keep this tied to displayed scale rather than
+// a zoom level because metres-per-pixel varies with latitude and viewport size.
 const TOWN_LABEL_SCALE_METRES = 2000;
