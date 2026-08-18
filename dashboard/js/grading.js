@@ -212,6 +212,11 @@ const HIDDEN_STYLE = { stroke: false, opacity: 0, weight: 0 };
 
 function nswStyle(feature) {
     const p = feature.properties;
+    // Corridor assessment uses a clean basemap. Keep a wide, fully transparent stroke as the
+    // hit-target so clicking a basemap road still snaps to the authoritative TfNSW geometry.
+    // Only the selected endpoints and completed corridor are drawn visibly by corridor.js.
+    if (currentTab === 'corridor') return { stroke: true, color: '#000000', weight: 14,
+        opacity: 0, fillOpacity: 0, dashArray: null, lineCap: 'round', lineJoin: 'round' };
     // setStyle() MERGES options, so `stroke` must be set explicitly in BOTH branches — otherwise a
     // road hidden in one lens (stroke:false) keeps stroke:false when it returns to view and vanishes.
     if (!nswInView(p)) return HIDDEN_STYLE;   // hidden in this lens

@@ -225,15 +225,15 @@ function applyLegend(opts) {
     if (nswLocalityCentresLayer) map.removeLayer(nswLocalityCentresLayer);
     if (cvTownsLayer) map.removeLayer(cvTownsLayer);
     const towns = (currentTab === 'cv') ? cvTownsLayer : nswTownsLayer;   // Sydney reuses the statewide town pins
-    if (towns && legendToggles.towns) map.addLayer(towns);
+    if (towns && legendToggles.towns && currentTab !== 'corridor') map.addLayer(towns);
     // Suburb/locality-centre pins (dots + labels appearing with zoom): OFF by default, shown via
     // the bottom-right "Localities" toggle. Their SAL candidates feed the criteria regardless.
-    if (currentTab !== 'cv' && nswLocalityCentresLayer && legendToggles.localities) map.addLayer(nswLocalityCentresLayer);
+    if (currentTab !== 'cv' && currentTab !== 'corridor' && nswLocalityCentresLayer && legendToggles.localities) map.addLayer(nswLocalityCentresLayer);
     // Region boundary outlines — CV LGA on the CV tab, Sydney SUA on the Sydney tab (one at a time).
     if (cvBoundaryLayer) { if (currentTab === 'cv' && legendToggles.boundary) map.addLayer(cvBoundaryLayer); else map.removeLayer(cvBoundaryLayer); }
     if (sydBoundaryLayer) { if (currentTab === 'sydney' && legendToggles.boundary) map.addLayer(sydBoundaryLayer); else map.removeLayer(sydBoundaryLayer); }
     // HV bypass network highlight (statewide; off by default) — halo under the roads.
-    if (bypassLayer) { if (legendToggles.bypass) map.addLayer(bypassLayer); else map.removeLayer(bypassLayer); }
+    if (bypassLayer) { if (legendToggles.bypass && currentTab !== 'corridor') map.addLayer(bypassLayer); else map.removeLayer(bypassLayer); }
     // Local roads (council) — lazy-loaded live, zoom-gated (see local.js). Refresh for the current view.
     if (typeof updateLocalRoads === 'function') updateLocalRoads();
     if (typeof updateLocalX === 'function') updateLocalX();   // Cross-test tab: green local-road vectors
@@ -270,7 +270,10 @@ function renderMapLegend() {
         '<button class="ml-btn" onclick="resetLegendToggles()" title="Reset all layers"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg></button>' +
         '<button class="ml-btn" onclick="toggleLegendCollapse()" title="Minimise legend"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>' +
         '</div></div>';
-    if (currentTab === 'cv' || currentTab === 'sydney') {
+    if (currentTab === 'corridor') {
+        h += liStatic('<div class="legend-color" style="background:#a52b32; height:4px"></div>', 'Selected corridor');
+        h += liStatic('<div style="width:24px;display:flex;justify-content:center"><span style="width:10px;height:10px;border-radius:50%;background:#2563eb;border:2px solid #fff"></span></div>', 'Selected endpoint');
+    } else if (currentTab === 'cv' || currentTab === 'sydney') {
         // Area focus: the verdict/category rows follow the active lens. The two sidebar dropdowns
         // are orthogonal: Category picks the rows and Area supplies its outline/clip extras.
         if (nswView === 'fresh') {
@@ -339,7 +342,7 @@ function renderMapLegend() {
     // switch on once zoomed in (LOCAL_ZOOM), naming the local roads already drawn on the base map.
     if (['overview', 'state', 'regional', 'sydney', 'cv', 'local', 'fresh'].indexOf(currentTab) !== -1)
         h += li('local', '<div class="legend-color" style="background:#9a938c; height:2px"></div>', 'Local roads & street names · zoom in');
-    h += hiliteLegendHTML();
+    if (currentTab !== 'corridor') h += hiliteLegendHTML();
     el.innerHTML = h;
     el.classList.remove('legend-g1', 'legend-g2', 'legend-g3');
     el.classList.add('legend-' + tabGroup(currentTab));   // accent the legend to match the active tab group
