@@ -104,6 +104,7 @@
                         <option value="regional">Regional</option>
                         <option value="local">Local</option>
                         <option value="fresh">Best fit</option>
+                        <option value="corridor">Corridor assessment</option>
                     </select>
                 </div>
                 <div style="flex:1;">
@@ -521,6 +522,22 @@
             </div>
         </div>
 
+        <div class="tab-content" id="tab-corridor">
+            <div class="corridor-head">
+                <span class="corridor-kicker">SELF-ASSESSMENT</span>
+                <h2>Select a road corridor</h2>
+                <p>Click two points on the same mapped road. The route between them will be isolated and assessed against the available National, State and Regional criteria.</p>
+            </div>
+            <div class="corridor-step" id="corridor-status">Select the first point on a road.</div>
+            <div class="corridor-points">
+                <div class="corridor-point-card" id="corridor-point-a"><b>Point A</b><span>Not selected</span></div>
+                <div class="corridor-point-card" id="corridor-point-b"><b>Point B</b><span>Not selected</span></div>
+            </div>
+            <button type="button" class="corridor-reset" onclick="resetCorridorAssessment()">Clear selection</button>
+            <div id="corridor-result" hidden></div>
+            <div class="data-note corridor-note"><span class="note-label">Assessment basis</span><p>Only evidence spatially associated with the selected corridor is counted where point-level data is available. Road-wide or unavailable inputs are identified in the result and are not presented as corridor measurements.</p></div>
+        </div>
+
         <!-- Export sits at the very bottom of the sidebar — the link opens a SCOPE menu: whole
              network, flagged (pinned) roads, any tab's group, or a custom hand-picked set (added
              via the search field in the menu or Shift+clicked on the map). Every count is computed
@@ -732,7 +749,7 @@
 <script>
 (function () {
     var v = Date.now();
-    var files = ['trace', 'config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'flagged', 'criteria', 'overview', 'init'];
+    var files = ['trace', 'config', 'utils', 'state', 'grading', 'detail', 'search', 'panels', 'suburbs', 'local', 'export', 'flagged', 'criteria', 'overview', 'corridor', 'init'];
     for (var i = 0; i < files.length; i++) {
         document.write('<script src="js/' + files[i] + '.js?v=' + v + '"><\/script>');
     }
@@ -745,7 +762,7 @@
 <script>
 (function () {
     var WATCH = ['index.html', 'css/dashboard.css',
-        'js/trace.js', 'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/suburbs.js', 'js/local.js', 'js/export.js', 'js/flagged.js', 'js/init.js',
+        'js/trace.js', 'js/config.js', 'js/utils.js', 'js/state.js', 'js/grading.js', 'js/detail.js', 'js/search.js', 'js/panels.js', 'js/suburbs.js', 'js/local.js', 'js/export.js', 'js/flagged.js', 'js/corridor.js', 'js/init.js',
         'data/nsw_assessment.geojson', 'data/nsw_nltn.json', 'data/nsw_criteria.json', 'data/nsw_recat.json',
         'data/nsw_urbanity.json', 'data/nsw_refs.json', 'data/ref_overrides.json', 'data/summary_stats.json',
         'data/clarence_valley_assessment.geojson', 'data/towns_cv.geojson', 'data/cv_refs.json',

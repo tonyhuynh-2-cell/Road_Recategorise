@@ -338,6 +338,11 @@ Promise.all([
             const group = () => (k && nswRoadLayers[k]) ? nswRoadLayers[k] : [layer];
             layer.bindTooltip(roadTooltip(feature.properties), { sticky: true, direction: 'top', offset: [0, -2], className: 'road-label' });
             layer.on('click', function(e) {
+                if (currentTab === 'corridor' && typeof corridorRoadClick === 'function') {
+                    L.DomEvent.stopPropagation(e);
+                    corridorRoadClick(feature, layer, e);
+                    return;
+                }
                 if (!nswInView(feature.properties)) return;   // ignore roads hidden in the active lens
                 L.DomEvent.stopPropagation(e);
                 // Shift+click routes to the export menu's custom selection (export.js) — normal

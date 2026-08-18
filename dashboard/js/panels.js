@@ -73,7 +73,7 @@ function switchTab(tab) {
 
     if (NSW_MAP_TABS.includes(tab)) {
         nswView = (tab === 'overview') ? 'all' : tab;
-        if (tab === 'overview') refreshOverview(); else if (tab === 'fresh') refreshFresh(); else refreshNswView();
+        if (tab === 'overview') refreshOverview(); else if (tab === 'fresh') refreshFresh(); else if (tab === 'corridor') beginCorridorAssessment(); else refreshNswView();
         showNSW();
     } else if (tab === 'cv' || tab === 'sydney') {
         // Area focus keeps the category lens (nswInView filters by nswView there). Align nswView with
@@ -98,7 +98,7 @@ function backFromDetail() {
 
 // The five map lenses that live in the sidebar's ONE dropdown control (#lens-select, index.html);
 // the other views (Sydney / Clarence Valley / Flagged / Detail) stay individual buttons.
-const LENS_SELECT_TABS = ['overview', 'nsr', 'state', 'regional', 'local', 'fresh'];
+const LENS_SELECT_TABS = ['overview', 'nsr', 'state', 'regional', 'local', 'fresh', 'corridor'];
 
 // Keep the lens dropdown in step with EVERY tab change, however it was driven (its own change
 // event, a tab button, boot, a road-detail open, a search jump…). Called by switchTab right after

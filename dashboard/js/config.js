@@ -6,7 +6,7 @@ const ROAD_COLORS = { green: '#16a34a', orange: '#f59e0b', red: '#dc2626' };
 // Tab switching
 const NSW_LENSES = ['nsr', 'state', 'regional'];   // share the #tab-nsw panel
 
-const NSW_MAP_TABS = ['overview', 'nsr', 'state', 'regional', 'fresh'];   // all show the NSW road layer
+const NSW_MAP_TABS = ['overview', 'nsr', 'state', 'regional', 'fresh', 'corridor'];   // all show the NSW road layer
 
 // Fresh assessment lens: blank-slate categories (NOT the verdict palette — green/orange/red stay
 // reserved for criteria verdicts). Keys double as legendToggles keys; the map encodes CATEGORY here.

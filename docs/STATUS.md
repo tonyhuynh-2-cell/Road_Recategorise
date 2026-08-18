@@ -81,6 +81,33 @@
 2. Consolidate git branches — retire stale branches once merged, converge on `main` as the single integration point.
 3. Consider wrapping `map.on(...)` handlers in `try/catch` with `console.error` logging, so a future undefined-variable bug degrades gracefully instead of silently corrupting canvas rendering for the whole map (see D-09 in `DECISIONS.md`).
 
+## Future feature: council data import and reassessment
+
+Add a guided workflow that lets local councils supply better local evidence, standardises it, validates it, matches it to the assessed road network and recalculates only the affected criteria and roads.
+
+Initial scope should prioritise CSV/Excel imports for AADT and heavy-vehicle percentages, followed by GeoJSON/Shapefile imports for bridge or structure restrictions, evacuation routes, corrected road geometry, employment areas and facility connections.
+
+The workflow should:
+
+- map council columns and identifiers to the dashboard's standard data model;
+- standardise units, dates, coordinates, road names and spatial reference systems;
+- detect missing fields, duplicates, stale observations and ambiguous road matches;
+- require users to review proposed matches and validation warnings before assessment;
+- preserve the statewide baseline and display a separate council-enhanced result;
+- show before/after criteria evidence and verdicts;
+- retain source file, council, reporting date, matched road, validation outcome and calculation method for audit;
+- avoid treating Criteria Override toggles as authoritative evidence; and
+- support export of the council-enhanced assessment and its provenance.
+
+Recommended delivery stages:
+
+1. Traffic CSV/Excel import and affected-road reassessment.
+2. Spatial evidence import for structures, evacuation routes and geometry corrections.
+3. Saved council workspaces with authentication, versioning and review/approval.
+4. Server-backed execution of the authoritative Python pipeline for persistent, multi-user assessments.
+
+The key product rule is: **Statewide baseline -> council-supplied evidence -> validated council-enhanced assessment.** Uploaded data must never silently overwrite the statewide source-of-truth dataset.
+
 ## Low priority improvements
 
 1. Clean up accumulated `.bak` files in `dashboard/data/` once confident they're no longer needed for rollback.
