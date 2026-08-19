@@ -60,6 +60,10 @@ function switchTab(tab) {
         'previous tab: ' + currentTab + ' -> next tab: ' + tab
     );
     currentTab = tab;
+    if (typeof setCorridorVisibility === 'function') setCorridorVisibility(tab === 'corridor');
+    // Road vectors remain clickable in Corridor mode but are visually invisible. This class also
+    // suppresses their standard hover tooltip; it is removed automatically on every other view.
+    map.getContainer().classList.toggle('corridor-mode', tab === 'corridor');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     const btn = document.querySelector(`.tab-btn[onclick*="'${tab}'"]`);

@@ -529,10 +529,18 @@
                 <p>Click two points on the same mapped road. The route between them will be isolated and assessed against the available National, State and Regional criteria.</p>
             </div>
             <div class="corridor-step" id="corridor-status">Select the first point on a road.</div>
-            <div class="corridor-points">
-                <div class="corridor-point-card" id="corridor-point-a"><b>Point A</b><span>Not selected</span></div>
-                <div class="corridor-point-card" id="corridor-point-b"><b>Point B</b><span>Not selected</span></div>
+            <div class="corridor-route-box">
+                <div class="corridor-route-rail" aria-hidden="true">
+                    <span class="corridor-origin-dot"></span><span class="corridor-route-line"></span><span class="corridor-waypoint-dot" id="corridor-waypoint-dot" hidden></span><span class="corridor-route-line"></span><span class="corridor-destination-pin"></span>
+                </div>
+                <div class="corridor-points">
+                    <form class="corridor-point-card" id="corridor-point-a" onsubmit="return searchCorridorPoint('A')"><b>Start point</b><div class="corridor-point-search"><input aria-label="Search start point" autocomplete="off" placeholder="Search address or click map"><button type="submit" aria-label="Search start point">⌕</button></div></form>
+                    <form class="corridor-point-card corridor-waypoint-card" id="corridor-point-w" onsubmit="return searchCorridorPoint('W')" hidden><b>Waypoint / intersection</b><div class="corridor-point-search"><input aria-label="Search waypoint" autocomplete="off" placeholder="Search street, address or click map"><button type="submit" aria-label="Search waypoint">⌕</button></div></form>
+                    <form class="corridor-point-card" id="corridor-point-b" onsubmit="return searchCorridorPoint('B')"><b>End point</b><div class="corridor-point-search"><input aria-label="Search end point" autocomplete="off" placeholder="Search address or click map"><button type="submit" aria-label="Search end point">⌕</button></div></form>
+                </div>
+                <button class="corridor-swap" type="button" onclick="swapCorridorPoints()" title="Swap start and end" aria-label="Swap start and end">⇅</button>
             </div>
+            <button type="button" class="corridor-waypoint-toggle" id="corridor-waypoint-toggle" onclick="toggleCorridorWaypoint()">＋ Add waypoint</button>
             <button type="button" class="corridor-reset" onclick="resetCorridorAssessment()">Clear selection</button>
             <div id="corridor-result" hidden></div>
             <div class="data-note corridor-note"><span class="note-label">Assessment basis</span><p>Only evidence spatially associated with the selected corridor is counted where point-level data is available. Road-wide or unavailable inputs are identified in the result and are not presented as corridor measurements.</p></div>

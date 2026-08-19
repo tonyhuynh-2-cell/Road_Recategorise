@@ -376,8 +376,17 @@ Promise.all([
             });
             // Per-layer isSelected guard: a selection can now be a SECTION of the road, so hovering an
             // unselected sibling segment must not restyle/reset the highlighted ones.
-            layer.on('mouseover', function() { if (!nswInView(feature.properties)) return; if (!isSelected(layer)) group().forEach(l => { if (!isSelected(l)) l.setStyle({ weight: 5, opacity: 1 }); }); });
-            layer.on('mouseout', function() { if (!isSelected(layer)) group().forEach(l => { if (!isSelected(l)) nswLayer.resetStyle(l); }); });
+            layer.on('mouseover', function() {
+                // Corridor mode uses these paths only as invisible click targets. Never apply the
+                // normal hover opacity/weight or the entire declared road flashes black.
+                if (currentTab === 'corridor') { layer.closeTooltip(); return; }
+                if (!nswInView(feature.properties)) return;
+                if (!isSelected(layer)) group().forEach(l => { if (!isSelected(l)) l.setStyle({ weight: 5, opacity: 1 }); });
+            });
+            layer.on('mouseout', function() {
+                if (currentTab === 'corridor') { group().forEach(l => nswLayer.resetStyle(l)); return; }
+                if (!isSelected(layer)) group().forEach(l => { if (!isSelected(l)) nswLayer.resetStyle(l); });
+            });
         }
     });
 
