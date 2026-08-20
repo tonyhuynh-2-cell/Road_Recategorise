@@ -275,8 +275,13 @@ function renderMapLegend() {
         '<button class="ml-btn" onclick="toggleLegendCollapse()" title="Minimise legend"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>' +
         '</div></div>';
     if (currentTab === 'corridor') {
-        h += liStatic('<div class="legend-color" style="background:#a52b32; height:4px"></div>', 'Selected corridor');
+        h += liStatic('<div class="legend-color" style="background:#4f2df5; height:4px"></div>', 'Assessed corridors');
         h += liStatic('<div style="width:24px;display:flex;justify-content:center"><span style="width:10px;height:10px;border-radius:50%;background:#2563eb;border:2px solid #fff"></span></div>', 'Selected endpoint');
+        if (typeof corridorHasVisibleNhvrCoverage==='function' && corridorHasVisibleNhvrCoverage()) {
+            h += liStatic('<div class="legend-color" style="background:#16a34a; height:5px"></div>', 'NHVR covered');
+            h += liStatic('<div class="legend-color" style="background:#dc2626; height:5px"></div>', 'Confirmed outside NHVR network');
+            h += liStatic('<div class="legend-color" style="height:5px;background:repeating-linear-gradient(90deg,#78716c 0,#78716c 7px,transparent 7px,transparent 12px)"></div>', 'NHVR result unknown / connector gap');
+        }
     } else if (currentTab === 'cv' || currentTab === 'sydney') {
         // Area focus: the verdict/category rows follow the active lens. The two sidebar dropdowns
         // are orthogonal: Category picks the rows and Area supplies its outline/clip extras.

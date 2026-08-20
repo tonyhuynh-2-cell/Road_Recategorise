@@ -80,20 +80,30 @@
         .corridor-destination-pin { position: relative; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #dc2626; flex: none; }
         .corridor-destination-pin::after { content:''; position:absolute; width:5px; height:5px; border-radius:50%; background:#fff; left:4.5px; top:4.5px; }
         .corridor-points { display: grid; gap: 8px; }
-        .corridor-point-card { min-height: 54px; padding: 8px 10px; border: 1px solid #b8b3ae; border-radius: 7px; background: var(--bg); }
-        .corridor-point-card b { display: block; color: var(--muted); font: 600 9.5px var(--sans); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
-        .corridor-point-search { display: grid; grid-template-columns: 1fr 28px; gap: 4px; align-items: center; }
+        .corridor-point-card { min-width: 0; }
+        .corridor-point-card b { display: block; color: var(--muted); font: 600 9.5px var(--sans); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 5px 3px; }
+        .corridor-point-search { min-height: 54px; padding: 8px 10px; border: 1px solid #b8b3ae; border-radius: 7px; background: var(--bg); display: grid; grid-template-columns: 1fr 28px; gap: 3px 4px; align-items: center; }
         .corridor-point-search input { min-width: 0; width: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: 500 11.5px/1.4 var(--sans); }
-        .corridor-point-search input.is-coordinates { font-family: var(--mono); font-size: 10.5px; }
         .corridor-point-search button { width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); font: 600 20px/1 var(--sans); cursor: pointer; }
         .corridor-point-search button:hover { color: var(--ink); background: var(--paper); }
-        .corridor-point-card.is-searching { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.12); }
+        .corridor-point-coordinates { grid-column: 1 / -1; min-height: 12px; color: var(--muted); font: 500 9.5px/1.3 var(--mono); }
+        .corridor-point-coordinates:empty { display: none; }
+        .corridor-point-card.is-searching .corridor-point-search { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.12); }
         .corridor-swap { align-self: center; width: 30px; height: 34px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-soft); font: 600 20px var(--sans); cursor: pointer; }
         .corridor-swap:hover { background: var(--bg); color: var(--ink); }
         .corridor-waypoint-toggle { width: 100%; margin-top: 8px; padding: 8px; border: 1px dashed #9ca3af; border-radius: 6px; background: transparent; color: #24466d; cursor: pointer; font: 600 11px var(--sans); }
         .corridor-waypoint-toggle:hover { border-color: #2563eb; color: #1d4ed8; background: #eff6ff; }
-        .corridor-waypoint-card { border-color: #8ba5cf; background: #f5f8fd; }
+        .corridor-waypoint-card .corridor-point-search { border-color: #8ba5cf; background: #f5f8fd; }
         .corridor-reset { width: 100%; margin: 10px 0 14px; padding: 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); cursor: pointer; font: 600 11px var(--sans); }
+        .corridor-another { width: 100%; margin: 0 0 12px; padding: 10px; border: 1px solid #2563eb; border-radius: 7px; background: #eff6ff; color: #1d4ed8; cursor: pointer; font: 700 11px var(--sans); }
+        .corridor-another:hover { background: #dbeafe; }
+        .corridor-saved-heading { margin: 16px 0 8px; color: var(--muted); font: 700 10px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+        .corridor-saved-card { padding: 12px; border: 1px solid var(--line); border-left: 5px solid var(--corridor-route-color); border-radius: 8px; background: var(--paper); margin-bottom: 10px; }
+        .corridor-saved-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink); font: 700 12px var(--sans); }
+        .corridor-saved-title button { border: 0; background: transparent; color: #2563eb; cursor: pointer; font: 600 10px var(--sans); }
+        .corridor-saved-name { display: block; margin-top: 5px; color: var(--ink); font: 600 11px/1.35 var(--sans); }
+        .corridor-saved-card > small { display: block; margin: 2px 0 9px; color: var(--muted); font: 400 10px var(--sans); }
+        .corridor-route-tooltip { color: var(--ink); font: 700 10px var(--sans); }
         .corridor-result-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); margin-bottom: 10px; }
         .corridor-result-card h3 { margin: 0 0 8px; font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
         .corridor-category { font: 700 24px/1.1 var(--sans); color: #1d4ed8; }
@@ -127,7 +137,36 @@
         .corridor-metric strong { display: block; font-size: 13px; color: var(--ink); }
         .corridor-warning { margin-top: 9px; color: #92400e; font: 400 10.5px/1.45 var(--sans); }
         .corridor-note { margin-top: 10px; }
-        .corridor-marker-label { background: transparent; border: 0; box-shadow: none; color: #fff; font: 700 10px var(--sans); }
+        .corridor-coverage-card { border-color: #cbd5e1; background: #f8fafc; }
+        .corridor-saved-card .corridor-coverage-card { margin: 12px 0 0; padding: 11px; }
+        .corridor-coverage-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .corridor-coverage-heading h3 { color: #334155; margin-bottom: 3px; }
+        .corridor-coverage-heading p { max-width: 175px; color: var(--muted); font: 400 9.5px/1.35 var(--sans); }
+        .corridor-coverage-switch { flex: none; display: grid; grid-template-columns: 30px; justify-items: center; gap: 3px; cursor: pointer; }
+        .corridor-coverage-switch input { position: absolute; opacity: 0; pointer-events: none; }
+        .corridor-coverage-switch span { position: relative; width: 30px; height: 17px; border-radius: 10px; background: #a8a29e; transition: background .15s; }
+        .corridor-coverage-switch span::after { content: ''; position: absolute; width: 13px; height: 13px; left: 2px; top: 2px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(28,25,23,.25); transition: transform .15s; }
+        .corridor-coverage-switch input:checked + span { background: #2563eb; }
+        .corridor-coverage-switch input:checked + span::after { transform: translateX(13px); }
+        .corridor-coverage-switch input:focus-visible + span { outline: 2px solid #2563eb; outline-offset: 2px; }
+        .corridor-coverage-switch em { color: var(--muted); font: 500 8.5px/1.2 var(--sans); white-space: nowrap; font-style: normal; }
+        .corridor-coverage-select-label { display: block; margin: 10px 0 4px; color: var(--muted); font: 700 8.5px/1.2 var(--sans); letter-spacing: .07em; text-transform: uppercase; }
+        .corridor-coverage-select { width: 100%; padding: 7px 28px 7px 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: var(--bg); color: var(--ink); font: 600 10.5px var(--sans); }
+        .corridor-coverage-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin-top: 8px; }
+        .corridor-coverage-stat { padding: 6px 4px; border-radius: 5px; background: var(--bg); color: var(--muted); text-align: center; font: 500 8.5px/1.2 var(--sans); }
+        .corridor-coverage-stat b { display: block; margin-bottom: 1px; font: 700 12px var(--mono); }
+        .corridor-coverage-stat.covered b { color: #16a34a; }
+        .corridor-coverage-stat.outside b { color: #dc2626; }
+        .corridor-coverage-stat.unknown b { color: #78716c; }
+        .corridor-coverage-note { margin-top: 7px; color: var(--muted); font: 400 9px/1.4 var(--sans); }
+        .corridor-drag-marker { background: transparent; border: 0; }
+        .corridor-drag-marker span { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; box-sizing: border-box; color: #fff; background: #2563eb; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(28,25,23,.5); cursor: grab; font: 700 9px var(--sans); }
+        .corridor-drag-marker-a span { color: #292524; background: #fff; border: 3px solid #292524; }
+        .corridor-drag-marker-b span { background: #dc2626; }
+        .corridor-drag-marker-w span { background: #2563eb; }
+        .corridor-drag-marker.leaflet-drag-target span { cursor: grabbing; transform: scale(1.12); }
+        .corridor-drag-marker.is-locked span { cursor: default; opacity: .82; }
+        .corridor-drag-help { color: var(--ink); font: 600 10px var(--sans); }
         .corridor-mode .road-label { display: none !important; }
 
         /* Stat cards — full 1.5px semantic border (see the "Card accents" rules below; hero/total
