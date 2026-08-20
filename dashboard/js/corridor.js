@@ -6,6 +6,10 @@ var corridorOverlay = L.layerGroup().addTo(map);
 var corridorAddressCache = {};
 var corridorGeocodeQueue = Promise.resolve();
 var corridorGeocodeLast = 0;
+var corridorLocalChunks = {};
+var corridorLocalRoadLayers = {};
+var corridorDeclaredClick = { at: 0, latlng: null };
+var corridorPickSequence = 0;
 
 function newCorridorState(waypointEnabled) {
     return { roadKey: null, roadKeys: [], roadName: '', points: [], markers: [], waypointEnabled: !!waypointEnabled,
@@ -46,6 +50,7 @@ function setCorridorVisibility(visible) {
 }
 
 function resetCorridorAssessment(preserveWaypoint) {
+    corridorPickSequence++; // cancel any asynchronous local-road pick still in flight
     var waypointEnabled = preserveWaypoint === true && corridorState.waypointEnabled;
     corridorOverlay.clearLayers();
     clearConnections();
@@ -89,21 +94,149 @@ function clearCorridorRouteResult() {
     var result=document.getElementById('corridor-result'); if(result){result.hidden=true;result.innerHTML='';}
 }
 
+function corridorRoadLayers(key) {
+    return ((window.NSW_ROAD_LAYERS || {})[key] || []).concat(corridorLocalRoadLayers[key] || []);
+}
+
+function corridorRoadProperties(key) {
+    var declared = (window.NSW_AGG || {})[key];
+    if (declared) return declared;
+    var local = (corridorLocalRoadLayers[key] || [])[0];
+    return local && local.feature ? local.feature.properties : {};
+}
+
+function corridorRoadDisplayName(properties) {
+    if (properties && properties._corridorLocal) return properties.name || properties.road_name || 'Unnamed local road';
+    return roadName(properties || {});
+}
+
+function corridorLocalChunkKeys(latlng) {
+    var meta = window.LOCAL_ROAD_MANIFEST, geometry = meta && meta.geometry;
+    if (!geometry) return [];
+    var step = +geometry.chunk_degrees || 0.25;
+    var allowed = window._STATEWIDE_LOCAL_KEYSET ||
+        (window._STATEWIDE_LOCAL_KEYSET = new Set(geometry.chunks || []));
+    var cx = Math.floor(latlng.lng / step), cy = Math.floor(latlng.lat / step), keys = [];
+    // Include neighbouring tiles so snapping remains reliable along chunk boundaries.
+    for (var x = cx - 1; x <= cx + 1; x++) for (var y = cy - 1; y <= cy + 1; y++) {
+        var key = x + '_' + y;
+        if (allowed.has(key)) keys.push(key);
+    }
+    return keys;
+}
+
+function corridorLocalChunkKeysForPoints(points) {
+    var meta = window.LOCAL_ROAD_MANIFEST, geometry = meta && meta.geometry;
+    if (!geometry || !points.length) return [];
+    var step = +geometry.chunk_degrees || 0.25;
+    var allowed = window._STATEWIDE_LOCAL_KEYSET ||
+        (window._STATEWIDE_LOCAL_KEYSET = new Set(geometry.chunks || []));
+    var lats = points.map(function (p) { return p.latlng.lat; });
+    var lngs = points.map(function (p) { return p.latlng.lng; });
+    var x0 = Math.floor(Math.min.apply(null, lngs) / step) - 1;
+    var x1 = Math.floor(Math.max.apply(null, lngs) / step) + 1;
+    var y0 = Math.floor(Math.min.apply(null, lats) / step) - 1;
+    var y1 = Math.floor(Math.max.apply(null, lats) / step) + 1;
+    var keys = [];
+    for (var x = x0; x <= x1; x++) for (var y = y0; y <= y1; y++) {
+        var key = x + '_' + y;
+        if (allowed.has(key)) keys.push(key);
+    }
+    return keys;
+}
+
+function corridorRegisterLocalGeoJSON(geojson) {
+    (geojson.features || []).forEach(function (feature) {
+        if (!feature.geometry || !feature.properties || !feature.properties.id) return;
+        var p = Object.assign({}, feature.properties);
+        p._corridorLocal = true;
+        p.road_unit = p.id;
+        p.road_name = p.name && p.name !== 'Unnamed local-road segment' ? p.name : 'Unnamed local road';
+        p.admin_class = 'L';
+        p.has_pbs1 = p.pbs1 === true ? 1 : 0;
+        p.has_bdouble = p.bdouble === true ? 1 : 0;
+        var adapted = { type: 'Feature', properties: p, geometry: feature.geometry };
+        var virtualLayer = { feature: adapted };
+        (corridorLocalRoadLayers[p.road_unit] || (corridorLocalRoadLayers[p.road_unit] = [])).push(virtualLayer);
+    });
+}
+
+function corridorLoadLocalChunkKeys(keys) {
+    if (!window.LOCAL_ROAD_MANIFEST || typeof fetchGzipJson !== 'function') return Promise.resolve();
+    var directory = window.LOCAL_ROAD_MANIFEST.geometry.directory || 'data/local_road_chunks';
+    return Promise.all(keys.map(function (key) {
+        if (corridorLocalChunks[key]) return corridorLocalChunks[key];
+        corridorLocalChunks[key] = fetchGzipJson(directory + '/' + key + '.geojson.gz?v=' + Date.now())
+            .then(function (geojson) { corridorRegisterLocalGeoJSON(geojson); return geojson; })
+            .catch(function () { delete corridorLocalChunks[key]; return null; });
+        return corridorLocalChunks[key];
+    }));
+}
+
+function corridorLoadLocalRoadsNear(latlng) {
+    return corridorLoadLocalChunkKeys(corridorLocalChunkKeys(latlng));
+}
+
+function corridorPrepareSelectedLocalRoads() {
+    var hasLocal = corridorState.roadKeys.some(function (key) {
+        return (corridorLocalRoadLayers[key] || []).length > 0;
+    });
+    if (!hasLocal) return Promise.resolve();
+    return corridorLoadLocalChunkKeys(corridorLocalChunkKeysForPoints(corridorState.points));
+}
+
 function corridorRoadClick(feature, layer, e) {
     var key = roadKeyOf(feature.properties);
     if (!key) return;
+    corridorDeclaredClick = { at: Date.now(), latlng: e.latlng };
     var complete = corridorState.points.length === corridorPointLabels().length;
     if (complete) resetCorridorAssessment(true);
     if (!corridorState.waypointEnabled && corridorState.roadKey && corridorState.roadKey !== key) resetCorridorAssessment(true);
     if (!corridorState.roadKey) {
         corridorState.roadKey = key;
-        corridorState.roadName = roadName((NSW_AGG || {})[key] || feature.properties);
+        corridorState.roadName = corridorRoadDisplayName((NSW_AGG || {})[key] || feature.properties);
     }
     var snapped = corridorSnapToRoad(key, e.latlng);
     if (!snapped) return;
     snapped.roadKey = key;
     acceptCorridorPoint(snapped);
 }
+
+function corridorClickTolerance(latlng) {
+    var point = map.latLngToContainerPoint(latlng);
+    var edge = map.containerPointToLatLng(point.add([18, 0]));
+    return Math.max(50, Math.min(600, map.distance(latlng, edge)));
+}
+
+function corridorAcceptMapClick(e) {
+    if (currentTab !== 'corridor') return;
+    // A declared road layer handles its own click first; ignore the bubbled map click from that event.
+    if (Date.now() - corridorDeclaredClick.at < 150 && corridorDeclaredClick.latlng &&
+        map.distance(e.latlng, corridorDeclaredClick.latlng) < 5) return;
+    var sequence = ++corridorPickSequence;
+    var status = document.getElementById('corridor-status');
+    if (status) status.textContent = 'Finding the nearest mapped road…';
+    corridorLoadLocalRoadsNear(e.latlng).then(function () {
+        if (sequence !== corridorPickSequence || currentTab !== 'corridor') return;
+        var complete = corridorState.points.length === corridorPointLabels().length;
+        if (complete) resetCorridorAssessment(true);
+        var snapped;
+        if (!corridorState.waypointEnabled && corridorState.roadKey)
+            snapped = corridorSnapToRoad(corridorState.roadKey, e.latlng);
+        else
+            snapped = corridorSnapToAnyRoad(e.latlng);
+        if (!snapped || snapped.d > corridorClickTolerance(e.latlng)) {
+            if (status) status.textContent = 'No mapped road found near that point. Zoom in and click closer to a road.';
+            return;
+        }
+        if (!corridorState.roadKey) {
+            corridorState.roadKey = snapped.roadKey;
+            corridorState.roadName = corridorRoadDisplayName(corridorRoadProperties(snapped.roadKey));
+        }
+        acceptCorridorPoint(snapped);
+    });
+}
+map.on('click', corridorAcceptMapClick);
 
 function acceptCorridorPoint(snapped) {
     var labels = corridorPointLabels(), insertWaypoint = corridorState.waypointEnabled && corridorState.points.length === 2 && !corridorState.points.some(function(p){return p.pointLabel==='W';});
@@ -117,7 +250,15 @@ function acceptCorridorPoint(snapped) {
         .bindTooltip(label, { permanent: true, direction: 'center', className: 'corridor-marker-label' }).addTo(corridorOverlay);
     if (insertWaypoint) corridorState.markers.splice(1, 0, marker); else corridorState.markers.push(marker);
     renderCorridorPoint(label, snapped);
-    if (corridorState.points.length === labels.length) finishCorridorAssessment();
+    if (corridorState.points.length === labels.length) {
+        var selectedPoints = corridorState.points.slice();
+        document.getElementById('corridor-status').textContent = 'Loading the selected road corridor…';
+        corridorPrepareSelectedLocalRoads().then(function () {
+            // Ignore completion from an assessment that was cleared while its chunks were loading.
+            if (corridorState.points.length === selectedPoints.length && corridorState.points.every(function (p, i) { return p === selectedPoints[i]; }))
+                finishCorridorAssessment();
+        });
+    }
     else document.getElementById('corridor-status').textContent = corridorNextInstruction();
 }
 
@@ -137,7 +278,7 @@ function corridorProject(p, a, b) {
 }
 
 function corridorSnapToRoad(key, latlng) {
-    var layers = (window.NSW_ROAD_LAYERS || {})[key] || [];
+    var layers = corridorRoadLayers(key);
     var best = null;
     layers.forEach(function (ly) { corridorCoords(ly.feature.geometry).forEach(function (line) {
         for (var i = 1; i < line.length; i++) {
@@ -187,12 +328,13 @@ function searchCorridorPoint(label) {
         if (!latlng) throw new Error('No location found');
         if (label === 'A') resetCorridorAssessment(true);
         else if (!corridorState.roadKey || !corridorState.points.length) throw new Error('Select the start point first');
+        return corridorLoadLocalRoadsNear(latlng).then(function () { return latlng; });
+    }).then(function (latlng) {
         var snapped = (label === 'A' || corridorState.waypointEnabled) ? corridorSnapToAnyRoad(latlng) : corridorSnapToRoad(corridorState.roadKey, latlng);
         if (!snapped || snapped.d > 2000) throw new Error(corridorState.waypointEnabled ? 'No matching mapped road found' : 'No matching point found on the selected road');
-        snapped.roadKey = roadKeyOf(snapped.layer.feature.properties);
         if (label === 'A') {
             corridorState.roadKey = snapped.roadKey;
-            corridorState.roadName = roadName((NSW_AGG || {})[corridorState.roadKey] || snapped.layer.feature.properties);
+            corridorState.roadName = corridorRoadDisplayName(corridorRoadProperties(snapped.roadKey));
         }
         if (label === 'B' && corridorState.waypointEnabled && !corridorState.points.some(function(p){return p.pointLabel==='W';})) throw new Error('Select the waypoint before the end point');
         acceptCorridorPoint(snapped);
@@ -222,7 +364,8 @@ function corridorForwardGeocode(query) {
 
 function corridorSnapToAnyRoad(latlng) {
     var best=null, registry=window.NSW_ROAD_LAYERS||{};
-    Object.keys(registry).forEach(function(key){
+    var keys = Object.keys(registry).concat(Object.keys(corridorLocalRoadLayers));
+    keys.forEach(function(key){
         var candidate=corridorSnapToRoad(key,latlng);
         if(candidate&&(!best||candidate.d<best.d)){candidate.roadKey=key;best=candidate;}
     });
@@ -283,7 +426,7 @@ function corridorGraph(keys, snaps) {
     function nk(c) { return c[0].toFixed(6) + ',' + c[1].toFixed(6); }
     function addNode(c, roadKey) { var k = nk(c); if (!nodes[k]) nodes[k] = c; if (!edges[k]) edges[k] = []; if(roadKey){if(!roadNodes[roadKey])roadNodes[roadKey]={};roadNodes[roadKey][k]=true;} return k; }
     function addEdge(a, b, props, roadKey) { var ak = addNode(a,roadKey), bk = addNode(b,roadKey), w = map.distance([a[1], a[0]], [b[1], b[0]]); edges[ak].push({ to: bk, w: w, p: props }); edges[bk].push({ to: ak, w: w, p: props }); edgeId++; }
-    keys.forEach(function(key){ ((window.NSW_ROAD_LAYERS || {})[key] || []).forEach(function (ly) { corridorCoords(ly.feature.geometry).forEach(function (line) {
+    keys.forEach(function(key){ corridorRoadLayers(key).forEach(function (ly) { corridorCoords(ly.feature.geometry).forEach(function (line) {
         var inserts = {};
         snaps.forEach(function (s, si) { if (s.layer === ly && s.line === line) (inserts[s.edge] || (inserts[s.edge] = [])).push({ t: s.t, c: [s.latlng.lng, s.latlng.lat], si: si }); });
         for (var i = 1; i < line.length; i++) {
@@ -348,8 +491,9 @@ function renderCorridorAssessment(route) {
     var evidenceSets=routeKeys.map(function(key){return (window.NSW_EVID||{})[key]||{};});
     var ev={centres:[],hospitals:[],dests:[],employment:[]};
     evidenceSets.forEach(function(item){['centres','hospitals','dests','employment'].forEach(function(type){ev[type]=ev[type].concat(item[type]||[]);});});
-    var k=routeKeys[0]||corridorState.roadKey, crit=(window.NSW_CRIT||{})[k]||{}, unique={};
-    var routeNames=routeKeys.map(function(key){return roadName((NSW_AGG||{})[key]||{})||key;}).filter(function(name,index,items){return items.indexOf(name)===index;});
+    var k=routeKeys[0]||corridorState.roadKey, firstProps=corridorRoadProperties(k);
+    var crit=(window.NSW_CRIT||{})[k]||{ area:firstProps.zone, opt:{ traffic:null } }, unique={};
+    var routeNames=routeKeys.map(function(key){return corridorRoadDisplayName(corridorRoadProperties(key))||key;}).filter(function(name,index,items){return items.indexOf(name)===index;});
     corridorState.roadName=routeNames.join(' → ')||corridorState.roadName;
     var urbanArea=crit.area==='urban';
     var centres=(ev.centres||[]).filter(function(x){return corridorPointToRouteMetres(x,route)<=2200;}).filter(function(x){var n=String(x.name||'').toLowerCase();if(unique[n])return false;unique[n]=1;return true;});
@@ -357,8 +501,8 @@ function renderCorridorAssessment(route) {
     var dests=(ev.dests||[]).filter(function(x){return corridorPointToRouteMetres(x,route)<=2200;});
     var employment=(ev.employment||[]).filter(function(x){return x.size_qualifies && corridorPointToRouteMetres(x,route)<=2200;});
     var facilities=[].concat(hospitals,dests,employment);
-    var pbs1=route.props.length && route.props.every(function(p){return p.has_pbs1===1 || p.pbs1_coverage>0.8;});
-    var bd=route.props.length && route.props.every(function(p){return p.has_bdouble===1 || p.bdouble_coverage>=0.8;});
+    var pbs1=route.props.length && route.props.every(function(p){return p.has_pbs1===1 || p.pbs1===true || p.pbs1_coverage>0.8;});
+    var bd=route.props.length && route.props.every(function(p){return p.has_bdouble===1 || p.bdouble===true || p.bdouble_coverage>=0.8;});
     var pbs2b=route.props.length && route.props.some(function(p){return p.has_pbs2b===1;});
     var centrePass=centres.length>=2, destPass=facilities.length>=1 && centres.length>=1, ldr=route.metres>=25000 && centrePass;
     var trafficKnown=crit.opt && crit.opt.traffic!==null && crit.opt.traffic!==undefined;
